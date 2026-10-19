@@ -53,8 +53,29 @@ Both schemas use JSON Schema Draft 2020-12 and set `additionalProperties: false`
 - `contentHash` must match `^[a-fA-F0-9]{64}$`.
 - `creator` must match `^G[A-Z2-7]{55}$`.
 - `timestamp` must be a valid ISO 8601 date-time.
-- String fields are length-limited and sanitized before downstream processing.
+- String fields are length-limited and sanitized before downstream processing (see [Sanitization](#sanitization)).
 - Media type and file size are validated for anti-abuse and malformed payload protection.
+
+## Sanitization
+
+Every manifest goes through `findUnsafeManifestContent` (`packages/shared/validation/manifestSanitize.ts`) before any field is read. Both `validateManifest` and `validateManifestSchema` call it first, and `parseManifestJson` runs it on raw upload bodies. If any check fails, the manifest is rejected straight away. The response has one error per offending field, with a dotted `field` path (e.g. `manifest.metadata.device`), a `message`, and usually a `hint`.
+
+| Check | Rejected input | Message |
+| --- | --- | --- |
+| Body size | Raw JSON over 16 KB | `Manifest is too large (N bytes; at most 16384).` |
+| JSON syntax | Unparseable body | `Manifest is not valid JSON: <parser message>` |
+| Structure | Nesting deeper than 4 levels, more than 64 keys, non-plain objects | `Nested too deeply …`, `Manifest has too many fields …`, `Must be plain JSON data.` |
+| Prototype keys | `__proto__`, `constructor`, `prototype` | `Field name "__proto__" is not allowed.` |
+| String length | Any string over 1024 characters (field limits are stricter) | `Text is too long …` |
+| Unicode | Unpaired surrogates | `Contains invalid Unicode.` |
+| Control characters | U+0000–U+001F, U+007F–U+009F | `Contains control characters.` |
+| Bidi controls | U+202A–U+202E, U+2066–U+2069, U+200E/F, U+061C | `Contains text direction control characters.` |
+| Invisible characters | Zero-width spaces/joiners, U+2060, BOM, soft hyphen | `Contains invisible characters.` |
+| Markup | HTML tags (`<b`, `</`, `<!`) and character entities (`&lt;`, `&#60;`) | `Contains HTML markup or character entities.` |
+| Script | `javascript:` / `vbscript:` / `data:<mime>` URLs, `on…=` handlers | `Contains script content.` |
+| File paths | `media.fileName` with `/`, `\`, `..` or a drive letter | `File name must not contain a path.` |
+
+Unsafe content is rejected, never silently stripped. Stored manifests are therefore exactly what the client signed and what the schema describes. Field names are checked as well as values.
 
 ## Example Manifests
 

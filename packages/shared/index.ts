@@ -16,6 +16,7 @@ export * from "./validation/hash";
 export * from "./validation/stellar";
 export * from "./validation/manifest";
 export * from "./validation/manifestSchema";
+export * from "./validation/manifestSanitize";
 export * from "./validation/upload";
 export * from "./validation/fields";
 export * from "./validation/profile";

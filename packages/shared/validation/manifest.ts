@@ -1,5 +1,6 @@
 import type { ContentManifest } from "../types";
 import { rejectUnknownFields, sha256Field, stellarAddressField } from "./fields";
+import { findUnsafeManifestContent } from "./manifestSanitize";
 import { FieldError, ValidationResult, isPlainObject } from "./result";
 
 export const MANIFEST_LIMITS = {
@@ -47,6 +48,10 @@ export function validateManifest(
       errors: [{ field: root, message: "Manifest is malformed.", hint: "The manifest must be a JSON object." }],
     };
   }
+
+  // Reject unsafe content (markup, invisible characters, prototype keys, …) before reading any field.
+  const unsafe = findUnsafeManifestContent(input, { path: options.path });
+  if (unsafe.length > 0) return { ok: false, errors: unsafe };
 
   rejectUnknownFields(input, MANIFEST_FIELDS, errors, options.path);
 
