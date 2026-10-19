@@ -68,6 +68,9 @@ export const records = {
   get(id: string): VerificationRecord | undefined {
     return store().records.get(id);
   },
+  listByCreator(creator: string): VerificationRecord[] {
+    return [...store().records.values()].filter((record) => record.creator === creator);
+  },
   getMany(ids: readonly string[]): Map<string, VerificationRecord> {
     const { records } = store();
     const found = new Map<string, VerificationRecord>();

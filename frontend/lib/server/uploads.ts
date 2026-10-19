@@ -29,3 +29,7 @@ export function getUpload(id: string): Promise<UploadRecord | undefined> {
 export async function findUploadsByHash(contentHash: string): Promise<UploadRecord[]> {
   return (await uploads().all()).filter((r) => r.contentHash === contentHash);
 }
+
+export async function findUploadsByCreator(creator: string): Promise<UploadRecord[]> {
+  return (await uploads().all()).filter((r) => r.creator === creator);
+}
