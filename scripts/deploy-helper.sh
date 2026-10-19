@@ -107,6 +107,13 @@ echo -e "${BLUE}7. Environment Configuration${NC}"
 ENV_FILE="frontend/.env.${ENVIRONMENT}"
 if [ -f "$ENV_FILE" ]; then
     echo -e "${GREEN}✓ Environment file found: $ENV_FILE${NC}"
+    # Compare against config/environments/<env>.json (docs/operations/environment-drift.md)
+    if node scripts/env-drift.mjs --env "$ENVIRONMENT" --env-file "$ENV_FILE"; then
+        echo -e "${GREEN}✓ No configuration drift${NC}"
+    else
+        echo -e "${RED}✗ Configuration drift detected in $ENV_FILE (see above)${NC}"
+        exit 1
+    fi
 else
     echo -e "${YELLOW}⚠️  Environment file not found: $ENV_FILE${NC}"
     echo "Required environment variables may be missing"

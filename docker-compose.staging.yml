@@ -13,18 +13,22 @@ services:
     environment:
       NODE_ENV: staging
       PORT: 3000
-      NEXT_PUBLIC_STELLAR_NETWORK: testnet
+      NEXT_PUBLIC_NETWORK: testnet
+      NEXT_PUBLIC_TESTNET_RPC_URL: https://soroban-testnet.stellar.org
+      NEXT_PUBLIC_APP_ENV: staging
       NEXT_PUBLIC_WALLET_NETWORK: testnet
       NEXT_PUBLIC_API_URL: http://localhost:3001
       NEXT_PUBLIC_MOCK_WALLET: "false"
       LOG_LEVEL: info
     depends_on:
-      - postgres
+      postgres:
+        condition: service_healthy
     networks:
       - staging-network
     restart: unless-stopped
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:3000/api/health"]
+      # node:20-slim ships without curl; use the bundled readiness probe
+      test: ["CMD", "node", "/app/docker/healthcheck.mjs"]
       interval: 30s
       timeout: 10s
       retries: 3

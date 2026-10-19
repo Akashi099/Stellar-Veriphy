@@ -1,10 +1,10 @@
-import fs from 'node:fs';
-import path from 'node:path';
+import fs from "node:fs";
+import path from "node:path";
 
 const [, , inputPath, outputPath] = process.argv;
 
 if (!inputPath || !outputPath) {
-  console.error('Usage: node report-generator.mjs <input-json> <output-html>');
+  console.error("Usage: node report-generator.mjs <input-json> <output-html>");
   process.exit(1);
 }
 
@@ -16,23 +16,28 @@ if (!fs.existsSync(resolvedInput)) {
   process.exit(1);
 }
 
-const raw = fs.readFileSync(resolvedInput, 'utf8');
+const raw = fs.readFileSync(resolvedInput, "utf8");
 const summary = JSON.parse(raw);
 
-const title = 'StellarVeriphy Load Test Report';
+const title = "StellarVeriphy Load Test Report";
 const metrics = summary.metrics || {};
 const rows = [
-  ['http_req_duration', metrics.http_req_duration || {}],
-  ['http_req_failed', metrics.http_req_failed || {}],
-  ['checks', metrics.checks || {}],
+  ["http_req_duration", metrics.http_req_duration || {}],
+  ["http_req_failed", metrics.http_req_failed || {}],
+  ["checks", metrics.checks || {}],
+  // Upload-heavy scenario (load-tests/upload-heavy-load.js): per-endpoint latency and flow metrics.
+  ...Object.keys(metrics)
+    .filter((name) => name.startsWith("http_req_duration{name:") || name.startsWith("upload_"))
+    .sort()
+    .map((name) => [name, metrics[name]]),
 ];
 
 const renderMetric = (metricName, metric) => {
   const values = metric.values || metric;
-  const p50 = values['p(50)'] ?? values.p50 ?? 'n/a';
-  const p95 = values['p(95)'] ?? values.p95 ?? 'n/a';
-  const p99 = values['p(99)'] ?? values.p99 ?? 'n/a';
-  const count = values.count ?? 'n/a';
+  const p50 = values["p(50)"] ?? values.p50 ?? values.med ?? "n/a";
+  const p95 = values["p(95)"] ?? values.p95 ?? "n/a";
+  const p99 = values["p(99)"] ?? values.p99 ?? "n/a";
+  const count = values.count ?? "n/a";
 
   return `
     <tr>
@@ -76,12 +81,12 @@ const html = `<!doctype html>
         </tr>
       </thead>
       <tbody>
-        ${rows.map(([key, value]) => renderMetric(key, value)).join('')}
+        ${rows.map(([key, value]) => renderMetric(key, value)).join("")}
       </tbody>
     </table>
   </body>
 </html>`;
 
 fs.mkdirSync(path.dirname(resolvedOutput), { recursive: true });
-fs.writeFileSync(resolvedOutput, html, 'utf8');
+fs.writeFileSync(resolvedOutput, html, "utf8");
 console.log(`HTML report written to ${resolvedOutput}`);

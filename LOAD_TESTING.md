@@ -6,6 +6,7 @@ This repository includes a lightweight k6-based load testing setup for the front
 
 - `load-tests/frontend-load.js` — exercises the public frontend API with a 100-user ramping load pattern.
 - `load-tests/contract-load.js` — simulates repeated contract-adjacent verification flows under constant 100-user concurrency.
+- `load-tests/upload-heavy-load.js` — upload-heavy scenario: resumable sessions, chunk progress, resume after a dropped connection, metadata registration. See [docs/testing/upload-load-baseline.md](docs/testing/upload-load-baseline.md) for the scenario, bottlenecks and recommended thresholds.
 - `load-tests/report-generator.mjs` — converts k6 JSON summaries into a simple HTML report.
 
 ## Workflow coverage
@@ -30,6 +31,14 @@ BASE_URL=http://localhost:3000 k6 run ./load-tests/frontend-load.js
 
 ```bash
 BASE_URL=http://localhost:3000 k6 run ./load-tests/contract-load.js
+```
+
+### Upload-heavy load test
+
+```bash
+pnpm test:load:uploads:smoke                          # 2 VUs, 30s; CI on every PR
+BASE_URL=http://localhost:3000 pnpm test:load:uploads  # baseline profile
+pnpm test:load:uploads:report
 ```
 
 ### Generate HTML report
