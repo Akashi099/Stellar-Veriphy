@@ -15,6 +15,7 @@ test-results/
 reports/
 .bundle-reports/
 .stryker-tmp/
+logs/
 
 # k6 load test output
 load-tests/results/

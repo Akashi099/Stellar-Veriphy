@@ -1,0 +1,19 @@
+name: Deploy Smoke Tests
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      url:
+        description: Staging URL to probe
+        required: false
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Run smoke tests
+        run: bash scripts/ci/smoke-test.sh "${{ github.event.inputs.url }}"
