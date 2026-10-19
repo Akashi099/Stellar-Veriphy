@@ -6,14 +6,19 @@ import type { CachedVerificationReads } from "./db/verifications.js";
 import type { HealthMonitor } from "./health/monitor.js";
 import type { JobQueue } from "./jobs/queue.js";
 import type { Logger } from "./lib/logger.js";
-import { registry } from "./lib/metrics.js";
+import { maintenanceRejected, registry } from "./lib/metrics.js";
+import type { MaintenanceMode } from "./maintenance/mode.js";
 import { CleanupAlreadyRunningError, type CleanupScheduler } from "./maintenance/scheduler.js";
+import type { WebhookService } from "./webhooks/service.js";
 
 export interface ServerDeps {
   health: HealthMonitor;
   queue: JobQueue;
   cleanup: CleanupScheduler;
   verifications: CachedVerificationReads;
+  verifications: VerificationRepository;
+  maintenance: MaintenanceMode;
+  webhooks: WebhookService;
   log: Logger;
 }
 
@@ -30,11 +35,37 @@ interface Route {
 const STELLAR_ACCOUNT = /^G[A-Z2-7]{55}$/;
 const CONTENT_HASH = /^(sha256:)?[a-f0-9]{64}$/i;
 const CERT_ID = /^[A-Za-z0-9_-]{1,128}$/;
+const MAX_BODY_BYTES = 64 * 1024;
+/** Requests with these methods are served during maintenance; everything else gets 503. */
+const MAINTENANCE_SAFE_METHODS = new Set(["GET", "HEAD", "OPTIONS"]);
+
+class BadRequestError extends Error {}
 
 function send(res: ServerResponse, status: number, body: unknown): void {
   const payload = JSON.stringify(body);
   res.writeHead(status, { "content-type": "application/json; charset=utf-8", "cache-control": "no-store" });
   res.end(payload);
+}
+
+async function readJson(req: IncomingMessage): Promise<Record<string, unknown>> {
+  const chunks: Buffer[] = [];
+  let size = 0;
+  for await (const chunk of req) {
+    size += (chunk as Buffer).length;
+    if (size > MAX_BODY_BYTES) throw new BadRequestError("Request body too large");
+    chunks.push(chunk as Buffer);
+  }
+  if (size === 0) return {};
+  let body: unknown;
+  try {
+    body = JSON.parse(Buffer.concat(chunks).toString("utf8"));
+  } catch {
+    throw new BadRequestError("Request body must be valid JSON");
+  }
+  if (typeof body !== "object" || body === null || Array.isArray(body)) {
+    throw new BadRequestError("Request body must be a JSON object");
+  }
+  return body as Record<string, unknown>;
 }
 
 function parseObjectId(raw: string): ObjectId | undefined {
@@ -49,7 +80,14 @@ function isAdmin(req: IncomingMessage): boolean {
   return actual.length === expected.length && timingSafeEqual(actual, expected);
 }
 
-export function createHttpServer({ health, queue, cleanup, verifications, log }: ServerDeps): Server {
+/** Health, metrics and operator endpoints keep working during maintenance so it can be observed and ended. */
+function exemptFromMaintenance(route: Route, pathname: string): boolean {
+  return route.admin === true || pathname.startsWith("/health") || pathname === "/metrics";
+}
+
+const WEBHOOK_STATUSES = new Set(["pending", "delivered", "failed"]);
+
+export function createHttpServer({ health, queue, cleanup, verifications, maintenance, webhooks, log }: ServerDeps): Server {
   const routes: Route[] = [
     // --- Health (#774) ----------------------------------------------------------
     {
@@ -197,6 +235,104 @@ export function createHttpServer({ health, queue, cleanup, verifications, log }:
         });
       },
     },
+    // --- Maintenance mode (#787) -----------------------------------------------
+    {
+      method: "GET",
+      pattern: /^\/api\/status\/maintenance$/,
+      handler: async (_req, res) => {
+        const { enabled, message, startedAt, endsAt } = maintenance.current();
+        send(res, 200, enabled ? { enabled, message, startedAt, endsAt } : { enabled });
+      },
+    },
+    {
+      method: "GET",
+      pattern: /^\/admin\/maintenance$/,
+      admin: true,
+      handler: async (_req, res) => send(res, 200, await maintenance.refresh()),
+    },
+    {
+      method: "PUT",
+      pattern: /^\/admin\/maintenance$/,
+      admin: true,
+      handler: async (req, res) => {
+        const body = await readJson(req);
+        const message = body.message;
+        if (message !== undefined && (typeof message !== "string" || message.length > 500)) {
+          return send(res, 400, { error: "message must be a string of at most 500 characters" });
+        }
+        let endsAt: Date | undefined;
+        if (body.endsAt !== undefined) {
+          endsAt = typeof body.endsAt === "string" ? new Date(body.endsAt) : undefined;
+          if (!endsAt || Number.isNaN(endsAt.getTime())) return send(res, 400, { error: "endsAt must be an ISO-8601 date" });
+          if (endsAt.getTime() <= Date.now()) return send(res, 400, { error: "endsAt must be in the future" });
+        }
+        if (body.pauseJobs !== undefined && typeof body.pauseJobs !== "boolean") {
+          return send(res, 400, { error: "pauseJobs must be a boolean" });
+        }
+        const state = await maintenance.enable(
+          { message: message?.trim() || undefined, endsAt, pauseJobs: body.pauseJobs as boolean | undefined },
+          req.socket.remoteAddress ?? "unknown",
+        );
+        send(res, 200, state);
+      },
+    },
+    {
+      method: "DELETE",
+      pattern: /^\/admin\/maintenance$/,
+      admin: true,
+      handler: async (req, res) => {
+        const state = await maintenance.disable(req.socket.remoteAddress ?? "unknown");
+        // Still on when MAINTENANCE_MODE=true forces it; say so instead of pretending it is off.
+        send(res, 200, state.enabled ? { ...state, warning: "Still enabled by MAINTENANCE_MODE; unset it and restart" } : state);
+      },
+    },
+
+    // --- Webhook deliveries (#789) ---------------------------------------------
+    {
+      method: "GET",
+      pattern: /^\/admin\/webhooks\/deliveries$/,
+      admin: true,
+      handler: async (_req, res, _params, url) => {
+        const status = url.searchParams.get("status") ?? undefined;
+        if (status && !WEBHOOK_STATUSES.has(status)) {
+          return send(res, 400, { error: "status must be one of pending, delivered, failed" });
+        }
+        send(
+          res,
+          200,
+          await webhooks.listDeliveries({
+            status: status as "pending" | "delivered" | "failed" | undefined,
+            eventId: url.searchParams.get("eventId") ?? undefined,
+            limit: Number(url.searchParams.get("limit") ?? 50) || 50,
+          }),
+        );
+      },
+    },
+    {
+      method: "GET",
+      pattern: /^\/admin\/webhooks\/deliveries\/(?<id>[^/]+)$/,
+      admin: true,
+      handler: async (_req, res, { id }) => {
+        const objectId = parseObjectId(id);
+        const delivery = objectId && (await webhooks.getDelivery(objectId));
+        if (!delivery) return send(res, 404, { error: "Delivery not found" });
+        send(res, 200, delivery);
+      },
+    },
+    {
+      method: "POST",
+      pattern: /^\/admin\/webhooks\/deliveries\/(?<id>[^/]+)\/redeliver$/,
+      admin: true,
+      handler: async (req, res, { id }) => {
+        const objectId = parseObjectId(id);
+        if (!objectId) return send(res, 404, { error: "Delivery not found" });
+        const requeued = await webhooks.redeliver(objectId, req.socket.remoteAddress ?? "unknown");
+        if (!requeued) return send(res, 409, { error: "Delivery is not in the failed state" });
+        send(res, 202, { requeued: true });
+      },
+    },
+
+    // --- Verification lookups (#773) ---------------------------------------------
     {
       method: "GET",
       pattern: /^\/api\/verifications\/(?<jobId>[^/]+)$/,
@@ -256,10 +392,24 @@ export function createHttpServer({ health, queue, cleanup, verifications, log }:
       });
     }
 
+    if (maintenance.isEnabled()) {
+      res.setHeader("x-maintenance-mode", "on");
+      if (!MAINTENANCE_SAFE_METHODS.has(req.method ?? "") && !exemptFromMaintenance(route, url.pathname)) {
+        const { message, endsAt } = maintenance.current();
+        maintenanceRejected.inc({ method: req.method ?? "unknown" });
+        res.setHeader("retry-after", String(maintenance.retryAfterSeconds(config.maintenance.retryAfterSeconds)));
+        return send(res, 503, { error: "Service is under maintenance", code: "MAINTENANCE", message, endsAt });
+      }
+    }
+
     const params = { ...(route.pattern.exec(url.pathname)?.groups ?? {}) };
     route
       .handler(req, res, params, url)
       .catch((err) => {
+        if (err instanceof BadRequestError) {
+          if (!res.headersSent) send(res, 400, { error: err.message });
+          return;
+        }
         log.error("request failed", { method: req.method, path: url.pathname, err });
         if (!res.headersSent) send(res, 500, { error: "Internal server error" });
       })

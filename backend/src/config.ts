@@ -64,6 +64,15 @@ export const config = {
     oracleHealthUrl: env("ORACLE_HEALTH_URL"),
   },
 
+  /** Defaults for third-party HTTP calls (#788); see externalApiPolicy() for per-service overrides. */
+  externalApi: {
+    timeoutMs: int("EXTERNAL_API_TIMEOUT_MS", 10_000),
+    retries: int("EXTERNAL_API_RETRIES", 2),
+    retryBaseDelayMs: int("EXTERNAL_API_RETRY_BASE_DELAY_MS", 250),
+    retryMaxDelayMs: int("EXTERNAL_API_RETRY_MAX_DELAY_MS", 5_000),
+    totalTimeoutMs: int("EXTERNAL_API_TOTAL_TIMEOUT_MS", 30_000),
+  },
+
   health: {
     intervalMs: int("HEALTH_CHECK_INTERVAL_MS", 30_000),
     timeoutMs: int("HEALTH_CHECK_TIMEOUT_MS", 5_000),
@@ -91,6 +100,23 @@ export const config = {
     /** "Latest verification for this content" can change when the content is re-verified. */
     contentHashTtlMs: int("PUBLIC_CACHE_CONTENT_HASH_TTL_MS", 30_000),
     negativeTtlMs: int("PUBLIC_CACHE_NEGATIVE_TTL_MS", 5_000),
+  webhooks: {
+    /** Comma-separated receiver URLs; every published event is delivered to each. */
+    endpoints: list("WEBHOOK_ENDPOINTS", []),
+    /** HMAC-SHA256 key for the X-Veriphy-Signature header. Unsigned when unset. */
+    signingSecret: env("WEBHOOK_SIGNING_SECRET"),
+    maxAttempts: int("WEBHOOK_MAX_ATTEMPTS", 8),
+  },
+
+  maintenance: {
+    /** Forces maintenance on regardless of the stored flag (break-glass; needs a restart to change). */
+    forceEnabled: bool("MAINTENANCE_MODE", false),
+    defaultMessage: str(
+      "MAINTENANCE_MESSAGE",
+      "StellarVeriphy is undergoing scheduled maintenance. Existing verifications can still be viewed; new submissions are paused.",
+    ),
+    refreshMs: int("MAINTENANCE_REFRESH_MS", 5_000),
+    retryAfterSeconds: int("MAINTENANCE_RETRY_AFTER_SECONDS", 300),
   },
 
   retention: {
@@ -117,3 +143,20 @@ export const config = {
 };
 
 export type Config = typeof config;
+
+/**
+ * Effective timeout/retry policy for one external service. Each default in `config.externalApi`
+ * can be overridden per service, e.g. EXTERNAL_API_HORIZON_TIMEOUT_MS or EXTERNAL_API_WEBHOOK_RETRIES.
+ * The service name is upper-cased: horizon, soroban_rpc, ipfs, kms, tee_oracle, webhook.
+ */
+export function externalApiPolicy(service: string) {
+  const prefix = `EXTERNAL_API_${service.toUpperCase().replace(/[^A-Z0-9]/g, "_")}`;
+  const d = config.externalApi;
+  return {
+    timeoutMs: int(`${prefix}_TIMEOUT_MS`, d.timeoutMs),
+    retries: int(`${prefix}_RETRIES`, d.retries),
+    retryBaseDelayMs: int(`${prefix}_RETRY_BASE_DELAY_MS`, d.retryBaseDelayMs),
+    retryMaxDelayMs: int(`${prefix}_RETRY_MAX_DELAY_MS`, d.retryMaxDelayMs),
+    totalTimeoutMs: int(`${prefix}_TOTAL_TIMEOUT_MS`, d.totalTimeoutMs),
+  };
+}

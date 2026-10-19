@@ -9,8 +9,10 @@ import {
   type ContentVersion,
   type FieldError,
 } from "@stellarveriphy/shared";
+import { randomUUID } from "crypto";
 import { NextRequest, NextResponse } from "next/server";
 import { legacyValidationError } from "@/lib/server/http";
+import { ifMatchFailed, versionEtag, versionLockKey, withKeyLock } from "@/lib/server/write-concurrency";
 
 function getStoredVersions(): ContentVersion[] {
   if (typeof globalThis !== "undefined" && "versions" in globalThis) {
@@ -40,7 +42,11 @@ export async function GET(
       : versions;
 
     const page = paginate(filtered, pageParams.value);
-    return NextResponse.json({ success: true, data: page.items, pagination: page.pagination });
+    const etag = contentHash ? versionEtag(filtered.find((v) => v.isCurrentVersion)) : undefined;
+    return NextResponse.json(
+      { success: true, data: page.items, pagination: page.pagination },
+      etag ? { headers: { ETag: etag } } : undefined,
+    );
   } catch (error) {
     return NextResponse.json(
       { success: false, error: "Failed to fetch versions" },
@@ -68,33 +74,55 @@ export async function POST(
     const changeLog = textField(object.value, "changeLog", { maxLength: 2000 }, errors);
     if (errors.length > 0 || !contentHash || !manifestHash) return legacyValidationError(errors);
     const body = { contentHash, manifestHash, changeLog };
-    const versions = getStoredVersions();
 
-    const contentVersions = versions.filter((v) => v.contentHash === body.contentHash);
-    const versionNumber = contentVersions.length + 1;
+    // Read the current version and append the new one as a single step per
+    // manifest, so rapid saves can't both build on the same predecessor.
+    const outcome = await withKeyLock(versionLockKey(body.contentHash), async () => {
+      const versions = getStoredVersions();
+      const contentVersions = versions.filter((v) => v.contentHash === body.contentHash);
+      const current = contentVersions.find((v) => v.isCurrentVersion) ?? contentVersions.at(-1);
 
-    if (contentVersions.length > 0) {
-      const lastVersion = contentVersions[contentVersions.length - 1];
-      lastVersion.isCurrentVersion = false;
-      lastVersion.nextVersionId = `version_${Date.now()}`;
+      if (ifMatchFailed(request, versionEtag(current))) return { conflict: current } as const;
+
+      const id = `version_${randomUUID()}`;
+      if (current) {
+        current.isCurrentVersion = false;
+        current.nextVersionId = id;
+      }
+
+      const created: ContentVersion = {
+        id,
+        versionNumber: Math.max(0, ...contentVersions.map((v) => v.versionNumber)) + 1,
+        contentHash: body.contentHash,
+        manifestHash: body.manifestHash,
+        creator: "user_placeholder",
+        createdAt: Date.now(),
+        changeLog: body.changeLog,
+        previousVersionId: current?.id,
+        isCurrentVersion: true,
+      };
+
+      versions.push(created);
+      setStoredVersions(versions);
+      return { created } as const;
+    });
+
+    if ("conflict" in outcome) {
+      const current = outcome.conflict;
+      return NextResponse.json(
+        {
+          success: false,
+          error: current
+            ? `This manifest changed since you last read it; the current version is ${current.id}. Re-read and retry with If-Match: "${current.id}".`
+            : "This manifest has no versions yet; retry without If-Match.",
+          ...(current ? { data: current } : {}),
+        },
+        { status: 409, headers: current ? { ETag: versionEtag(current)! } : undefined },
+      );
     }
+    const newVersion = outcome.created;
 
-    const newVersion: ContentVersion = {
-      id: `version_${Date.now()}`,
-      versionNumber,
-      contentHash: body.contentHash,
-      manifestHash: body.manifestHash,
-      creator: "user_placeholder",
-      createdAt: Date.now(),
-      changeLog: body.changeLog,
-      previousVersionId: contentVersions.length > 0 ? contentVersions[contentVersions.length - 1].id : undefined,
-      isCurrentVersion: true,
-    };
-
-    versions.push(newVersion);
-    setStoredVersions(versions);
-
-    return NextResponse.json({ success: true, data: newVersion }, { status: 201 });
+    return NextResponse.json({ success: true, data: newVersion }, { status: 201, headers: { ETag: versionEtag(newVersion)! } });
   } catch (error) {
     return NextResponse.json(
       { success: false, error: "Failed to create version" },

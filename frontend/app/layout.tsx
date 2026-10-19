@@ -9,6 +9,7 @@ import { WizardProvider } from "@/app/context/WizardContext";
 import { ConsentBanner } from "@/components/ConsentBanner";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { KeyboardShortcutsProvider } from "@/components/KeyboardShortcutsProvider";
+import { MaintenanceBanner } from "@/components/MaintenanceBanner";
 import { NotificationProvider } from "@/components/notifications";
 import { OnboardingFlow } from "@/components/onboarding/OnboardingFlow";
 import { PWAInstallPrompt } from "@/components/PWAInstallPrompt";
@@ -21,6 +22,7 @@ import { RouteScrollRestoration } from "@/components/ui/RouteScrollRestoration";
 import { TutorialOverlay } from "@/components/ui/TutorialOverlay";
 // #442 — import centralised constants instead of duplicating them here
 import { SITE_DESCRIPTION, SITE_NAME, SITE_URL } from "@/config/app";
+import { AuthSessionProvider } from "@/context/AuthSessionContext";
 import { HelpProvider } from "@/context/HelpContext";
 import { WalletProvider } from "@/context/WalletContext";
 import { CacheInvalidationProvider } from "@/context/CacheInvalidationContext";
@@ -93,18 +95,19 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           <CacheInvalidationProvider>
             <ThemeProvider>
               <WalletProvider>
+                <AuthSessionProvider>
                 <NotificationProvider>
                   <WizardProvider>
                     <HelpProvider>
                       <KeyboardShortcutsProvider>
                         <ToastProvider>
+                          {/* #787 — site-wide notice while maintenance mode is on */}
+                          <MaintenanceBanner />
                           <SiteHeader />
                           {/* #438 — top-level boundary: catches errors in any provider or page */}
                           <ErrorBoundary section="Application">
                             {/* #438 — boundary around the page content */}
-                            <ErrorBoundary section="Page">
-                              {children}
-                            </ErrorBoundary>
+                            <ErrorBoundary section="Page">{children}</ErrorBoundary>
                           </ErrorBoundary>
                           <ScrollToTop />
                           <RouteScrollRestoration />
@@ -119,6 +122,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                     </HelpProvider>
                   </WizardProvider>
                 </NotificationProvider>
+                </AuthSessionProvider>
               </WalletProvider>
             </ThemeProvider>
           </CacheInvalidationProvider>

@@ -1,5 +1,10 @@
 import type { QueueName } from "../db/collections.js";
+import { WEBHOOK_JOB_TYPE, type WebhookService } from "../webhooks/service.js";
 import type { HandlerMap } from "./worker.js";
+
+export interface JobHandlerDeps {
+  webhooks: WebhookService;
+}
 
 /**
  * Job handlers by queue and job type. A worker is started only for queues listed here, so jobs
@@ -24,4 +29,11 @@ import type { HandlerMap } from "./worker.js";
  *     }
  *   },
  */
-export const jobHandlers: Partial<Record<QueueName, HandlerMap>> = {};
+export function buildJobHandlers({ webhooks }: JobHandlerDeps): Partial<Record<QueueName, HandlerMap>> {
+  return {
+    notification: {
+      // #789 — outbound webhook delivery; retries come from the queue's backoff.
+      [WEBHOOK_JOB_TYPE]: (job, ctx) => webhooks.deliver(job, ctx),
+    },
+  };
+}

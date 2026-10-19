@@ -14,6 +14,12 @@ export const ERROR_DEFINITIONS: Record<ApiErrorCode, ErrorDefinition> = {
   INVALID_JSON: { status: 400, retryable: false, message: "Request body must be valid JSON." },
   VALIDATION_FAILED: { status: 422, retryable: false, message: "One or more fields are invalid." },
   UNAUTHENTICATED: { status: 401, retryable: false, message: "Authentication is required." },
+  SESSION_INVALID: { status: 401, retryable: false, message: "The session token is not recognised. Sign in again." },
+  SESSION_EXPIRED: { status: 401, retryable: false, message: "Your session has expired. Sign in again." },
+  SESSION_REVOKED: { status: 401, retryable: false, message: "This session was signed out. Sign in again." },
+  // Another tab or request already rotated this refresh token moments ago; the
+  // client should pick up the newer tokens instead of signing the user out.
+  SESSION_REFRESH_SUPERSEDED: { status: 409, retryable: true, message: "This session was just refreshed elsewhere. Retry with the latest tokens." },
   FORBIDDEN: { status: 403, retryable: false, message: "You do not have permission to perform this action." },
   NOT_FOUND: { status: 404, retryable: false, message: "The requested resource was not found." },
   CONFLICT: { status: 409, retryable: false, message: "The request conflicts with the current state of the resource." },
