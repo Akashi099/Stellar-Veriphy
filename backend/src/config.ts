@@ -104,6 +104,16 @@ export const config = {
     succeededJobDays: int("RETENTION_SUCCEEDED_JOB_DAYS", 7),
     deadJobDays: int("RETENTION_DEAD_JOB_DAYS", 30),
   },
+
+  /** Orphaned media cleanup (#782). Runs as a retention task when MEDIA_STORAGE_DIR is set. */
+  orphanMedia: {
+    enabled: bool("ORPHAN_MEDIA_CLEANUP_ENABLED", true),
+    storageDir: env("MEDIA_STORAGE_DIR"),
+    /** Files newer than this are never deleted: their record may not be written yet. */
+    minAgeHours: int("ORPHAN_MEDIA_MIN_AGE_HOURS", 48),
+    /** Abort without deleting if more than this share of scanned files look orphaned. */
+    maxDeletePercent: int("ORPHAN_MEDIA_MAX_DELETE_PERCENT", 25),
+  },
 };
 
 export type Config = typeof config;

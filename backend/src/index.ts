@@ -11,6 +11,7 @@ import { JobQueue } from "./jobs/queue.js";
 import { Worker } from "./jobs/worker.js";
 import { logger } from "./lib/logger.js";
 import { RetentionCleaner } from "./maintenance/cleanup.js";
+import { createOrphanMediaCleaner } from "./maintenance/orphans.js";
 import { CleanupScheduler } from "./maintenance/scheduler.js";
 import { createHttpServer } from "./server.js";
 
@@ -37,7 +38,8 @@ async function main(): Promise<void> {
   const queueMonitor = new QueueMonitor(queue, config.jobs, log.child({ component: "queue-monitor" }));
   queueMonitor.start();
 
-  const cleaner = new RetentionCleaner(db, config.retention, log.child({ component: "retention" }));
+  const orphans = createOrphanMediaCleaner(db, log.child({ component: "orphan-media" }));
+  const cleaner = new RetentionCleaner(db, config.retention, log.child({ component: "retention" }), orphans);
   const cleanup = new CleanupScheduler(
     cleaner,
     db,

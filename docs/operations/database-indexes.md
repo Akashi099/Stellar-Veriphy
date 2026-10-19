@@ -13,6 +13,7 @@ All indexes are declared in `backend/src/db/indexes.ts`. That file is the single
 | Creator history, newest first | `listByCreator` | `creator_createdAt { creator: 1, createdAt: -1 }` | Keyset pagination (`before=<createdAt>`), see below. |
 | Requests stuck in a status | `findStale` | `status_updatedAt { status: 1, updatedAt: 1 }` | Also serves the retention safety check (`jobId $in` + `status $in` uses `jobId_unique`). |
 | Lookup by certificate | `findByCertId` | `certId_unique { certId: 1 }`, partial on `certId` existing | Uncertified records aren't indexed, which keeps the index small. |
+| Is a media file referenced? (`storageRef $in`) | `OrphanMediaCleaner` | `storageRef { storageRef: 1 }` | Orphaned media cleanup, see [data-retention.md](data-retention.md#orphaned-media). |
 
 ### `verification_sessions` and archive
 
@@ -24,6 +25,7 @@ All indexes are declared in `backend/src/db/indexes.ts`. That file is the single
 | Retention: stale sessions by state and idle time | `state_lastActivityAt { state, lastActivityAt }` |
 | Retention: purge old archive entries | archive `archivedAt` |
 | Operator lookup and restore | archive `sessionId` |
+| Orphaned media: is a file a (possibly archived) session's temporary upload? | `tempUploadRef` on sessions and archive, partial on `tempUploadRef` existing |
 
 ### `jobs`
 

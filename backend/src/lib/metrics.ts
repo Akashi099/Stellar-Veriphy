@@ -213,3 +213,19 @@ export const cacheEntries = new Gauge({
   labelNames: ["cache"] as const,
   registers,
 });
+
+// --- Orphaned media cleanup (#782) -------------------------------------------
+
+export const orphanMediaObjects = new Counter({
+  name: "sv_orphan_media_objects_total",
+  help: "Orphaned media files processed by cleanup, by outcome: deleted or failed",
+  labelNames: ["storage", "outcome"] as const,
+  registers,
+});
+
+export const orphanMediaBytes = new Counter({
+  name: "sv_orphan_media_deleted_bytes_total",
+  help: "Bytes reclaimed by deleting orphaned media files",
+  labelNames: ["storage"] as const,
+  registers,
+});
