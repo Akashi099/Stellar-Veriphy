@@ -436,6 +436,10 @@ Stellar-Veriphy/
 
 ## Getting Help
 
+- **Security reports**: Read the [private vulnerability reporting summary](./SECURITY.md#quick-reporting-summary) before sharing sensitive findings.
+- **Dependency changes**: Follow the [security and maintenance review process](./docs/security/dependency-review.md), review automated scan results, and keep manifests and lockfiles synchronized.
+- **Service incidents**: Follow the [incident communication runbook](./docs/operations/incident-communication.md) for status updates and escalation.
+
 - **Documentation**: Explore guides in the [`docs/`](./docs/) directory.
 - **Discussions & Issues**: Check [GitHub Issues](https://github.com/Stellar-Veriphy/Stellar-Veriphy/issues) for ongoing discussions.
 - **Maintainers**: Tag `@Stellar-Veriphy/maintainers` in issues or PR comments when you need assistance.

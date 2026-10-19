@@ -1,5 +1,9 @@
 # ⭐ StellarVeriphy — The Truth Engine for the Stellar Ecosystem
 
+Security: [Report a vulnerability](SECURITY.md#quick-reporting-summary) ·
+[Dependency review](docs/security/dependency-review.md) ·
+[Incident communication](docs/operations/incident-communication.md)
+
 [![CI Status](https://github.com/Stellar-Veriphy/Stellar-Veriphy/actions/workflows/ci.yml/badge.svg)](https://github.com/Stellar-Veriphy/Stellar-Veriphy/actions/workflows/ci.yml)
 [![Version](https://img.shields.io/badge/version-1.0.0-blue.svg)](https://github.com/Stellar-Veriphy/Stellar-Veriphy/releases)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](./LICENSE)
