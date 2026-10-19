@@ -1,6 +1,7 @@
 import { createHash, timingSafeEqual } from "node:crypto";
 import type { NextRequest } from "next/server";
 import { ApiError } from "@/lib/api/errors";
+import { authenticateAccessToken, isSessionToken } from "./auth-sessions";
 
 export type Role = "admin" | "moderator" | "user";
 
@@ -38,12 +39,15 @@ function loadTokens(): TokenEntry[] {
   return entries;
 }
 
-export function getActor(req: NextRequest): Actor | null {
+export function bearerToken(req: NextRequest): string | null {
   const header = req.headers.get("authorization");
   const match = header ? /^Bearer\s+(.+)$/i.exec(header) : null;
-  if (!match) return null;
+  return match ? match[1].trim() : null;
+}
 
-  const presented = digest(match[1].trim());
+// Static API_TOKENS only; session access tokens are resolved in requireActor.
+function getTokenActor(raw: string): Actor | null {
+  const presented = digest(raw);
   let found: Actor | null = null;
   for (const entry of loadTokens()) {
     // Compare every entry so timing doesn't reveal which token matched.
@@ -54,8 +58,23 @@ export function getActor(req: NextRequest): Actor | null {
   return found;
 }
 
+export function getActor(req: NextRequest): Actor | null {
+  const raw = bearerToken(req);
+  if (!raw) return null;
+  if (!isSessionToken(raw)) return getTokenActor(raw);
+  try {
+    return authenticateAccessToken(raw).actor;
+  } catch {
+    return null;
+  }
+}
+
+// Throws UNAUTHENTICATED when no credentials are sent, and a SESSION_* error
+// (expired, revoked, invalid) when a session token is sent but can't be used.
 export function requireActor(req: NextRequest, allowedRoles?: readonly Role[]): Actor {
-  const actor = getActor(req);
+  const raw = bearerToken(req);
+  if (!raw) throw new ApiError("UNAUTHENTICATED");
+  const actor = isSessionToken(raw) ? authenticateAccessToken(raw).actor : getTokenActor(raw);
   if (!actor) throw new ApiError("UNAUTHENTICATED");
   if (allowedRoles && !allowedRoles.includes(actor.role)) throw new ApiError("FORBIDDEN");
   return actor;

@@ -118,3 +118,9 @@ Lists sessions, most recently updated first. At least one of `creator` or `conte
 - Session calls retry transient failures with the same backoff as the upload API: 4 attempts, starting near 800 ms and capped at 6 s.
 
 Files are hashed in the browser, and today only metadata is sent to the server. The default chunk transport (`readChunkLocally`) therefore only reads each chunk. Pass a different `transport` to `uploadMissingChunks` when chunks should go to storage, for example IPFS or object storage. The session API stays the same.
+
+## Concurrent updates
+
+Writes to one session are serialized, and `GET`/`PATCH` responses carry an `ETag`.
+Send it as `If-Match` to get `409 conflict` (with the current session in `data`)
+instead of applying an update based on stale state. See [write-concurrency.md](./write-concurrency.md).

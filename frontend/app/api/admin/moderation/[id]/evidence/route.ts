@@ -22,7 +22,8 @@ import {
 } from "@stellarveriphy/shared";
 import { NextRequest, NextResponse } from "next/server";
 
-import { requireApiToken } from "@/lib/security/apiTokenStore";
+import { requireApiToken, type GuardResult } from "@/lib/security/apiTokenStore";
+import { recordModerationAudit, type ModerationAuditAction } from "@/lib/server/moderation-audit";
 import { logOperationalEvent, requestIdFrom } from "@/lib/server/observability";
 
 export const dynamic = "force-dynamic";
@@ -52,16 +53,36 @@ function writeAudit(entries: Array<Omit<AuditLogEntry, "id" | "timestamp" | "act
   );
 }
 
+function roleOf(guard: Extract<GuardResult, { ok: true }>): string {
+  return guard.record ? `${guard.record.surface}_token` : "unverified";
+}
+
+async function auditRefused(request: NextRequest, id: string, action: ModerationAuditAction, status: number) {
+  await recordModerationAudit({
+    actor: request.headers.get("x-actor") ?? "unauthenticated",
+    actorRole: "unknown",
+    action,
+    targetId: id,
+    outcome: status === 404 ? "not_found" : "denied",
+    reason: `HTTP ${status}`,
+    requestId: requestIdFrom(request),
+  });
+}
+
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ): Promise<NextResponse<ApiResponse<{ package: DisputeEvidencePackage; summary: EvidencePackageSummary }>>> {
-  const guard = await requireApiToken(request, "moderation:read", "admin");
-  if (!guard.ok) return guard.response as NextResponse<ApiResponse<never>>;
-
   const { id } = await params;
+  const guard = await requireApiToken(request, "moderation:read", "admin");
+  if (!guard.ok) {
+    await auditRefused(request, id, "evidence_package_viewed", guard.response.status);
+    return guard.response as NextResponse<ApiResponse<never>>;
+  }
+
   const dispute = findDispute(id);
   if (!dispute) {
+    await auditRefused(request, id, "evidence_package_viewed", 404);
     return NextResponse.json({ success: false, error: "Dispute not found." }, { status: 404 });
   }
 
@@ -84,6 +105,16 @@ export async function GET(
     ],
     guard.actor,
   );
+  await recordModerationAudit({
+    actor: guard.actor,
+    actorRole: roleOf(guard),
+    action: "evidence_package_viewed",
+    targetId: id,
+    assetId: dispute.assetId,
+    contentHash: dispute.contentHash,
+    outcome: "success",
+    requestId: requestIdFrom(request),
+  });
 
   return NextResponse.json(
     { success: true, data: { package: pkg, summary: summarizeEvidencePackage(pkg) } },
@@ -96,12 +127,16 @@ export async function POST(
   { params }: { params: Promise<{ id: string }> },
 ): Promise<NextResponse<ApiResponse<{ item: DisputeEvidenceItem; packageHash: string }>>> {
   const requestId = requestIdFrom(request);
-  const guard = await requireApiToken(request, "moderation:write", "admin");
-  if (!guard.ok) return guard.response as NextResponse<ApiResponse<never>>;
-
   const { id } = await params;
+  const guard = await requireApiToken(request, "moderation:write", "admin");
+  if (!guard.ok) {
+    await auditRefused(request, id, "evidence_added", guard.response.status);
+    return guard.response as NextResponse<ApiResponse<never>>;
+  }
+
   const dispute = findDispute(id);
   if (!dispute) {
+    await auditRefused(request, id, "evidence_added", 404);
     return NextResponse.json({ success: false, error: "Dispute not found." }, { status: 404 });
   }
 
@@ -123,6 +158,17 @@ export async function POST(
 
   const problems = validateEvidenceItem(item);
   if (problems.length > 0) {
+    await recordModerationAudit({
+      actor: guard.actor,
+      actorRole: roleOf(guard),
+      action: "evidence_added",
+      targetId: id,
+      assetId: dispute.assetId,
+      contentHash: dispute.contentHash,
+      outcome: "invalid",
+      reason: problems.join("; "),
+      requestId,
+    });
     return NextResponse.json({ success: false, error: problems.join("; ") }, { status: 422 });
   }
 
@@ -147,6 +193,18 @@ export async function POST(
     ],
     guard.actor,
   );
+
+  await recordModerationAudit({
+    actor: guard.actor,
+    actorRole: roleOf(guard),
+    action: "evidence_added",
+    targetId: id,
+    assetId: dispute.assetId,
+    contentHash: dispute.contentHash,
+    outcome: "success",
+    changes: { evidence: { from: null, to: { itemId: item.id, kind: item.kind, packageHash: pkg.packageHash } } },
+    requestId,
+  });
 
   logOperationalEvent("info", "dispute_evidence.item_added", {
     requestId,

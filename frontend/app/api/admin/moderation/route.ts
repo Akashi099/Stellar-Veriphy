@@ -11,6 +11,7 @@ import {
 } from "@stellarveriphy/shared";
 import { NextRequest, NextResponse } from "next/server";
 import { legacyValidationError } from "@/lib/server/http";
+import { recordModerationAudit } from "@/lib/server/moderation-audit";
 import { logOperationalEvent, requestIdFrom } from "@/lib/server/observability";
 import { validateModerationItem } from "@/lib/server/validators";
 
@@ -115,6 +116,19 @@ export async function POST(
   const queue = getQueue();
   queue.push(newItem);
   setQueue(queue);
+
+  await recordModerationAudit({
+    actor: b.reportedBy,
+    actorRole: "reporter",
+    action: "item_created",
+    targetId: newItem.id,
+    assetId: newItem.assetId,
+    contentHash: newItem.contentHash,
+    outcome: "success",
+    reason: b.summary,
+    changes: { status: { from: null, to: newItem.status }, trigger: { from: null, to: newItem.trigger } },
+    requestId,
+  });
 
   logOperationalEvent("info", "moderation_queue.item_created", {
     requestId,

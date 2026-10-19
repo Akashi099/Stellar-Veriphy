@@ -127,3 +127,8 @@ export async function getJobViews(ids: string[]): Promise<VerificationJobView[]>
     return job ? [toView(job, all)] : [];
   });
 }
+
+// Jobs for a set of uploads, e.g. every job that belongs to one account's uploads.
+export async function findJobsForUploads(uploadIds: ReadonlySet<string>): Promise<VerificationJob[]> {
+  return (await jobs().all()).filter((job) => uploadIds.has(job.uploadId));
+}
