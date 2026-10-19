@@ -1,0 +1,81 @@
+name: Dependency security
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  schedule:
+    - cron: "23 6 * * 1"
+  workflow_dispatch:
+  workflow_call:
+
+permissions:
+  contents: read
+
+jobs:
+  packages:
+    name: Package vulnerability scan
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Scan all committed lockfiles (including development dependencies)
+        uses: aquasecurity/trivy-action@0.28.0
+        with:
+          version: v0.58.2
+          scan-type: fs
+          scan-ref: .
+          scanners: vuln
+          severity: HIGH,CRITICAL
+          ignore-unfixed: false
+          exit-code: "1"
+          format: table
+          output: package-vulnerabilities.txt
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: package-vulnerabilities
+          path: package-vulnerabilities.txt
+          if-no-files-found: error
+          retention-days: 30
+
+  images:
+    name: Image vulnerability scan
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build the application image without publishing
+        run: docker build --tag stellarveriphy:security .
+      - name: Collect application and external Compose images
+        shell: bash
+        run: |
+          echo 'stellarveriphy:security' > images.txt
+          python3 - <<'PY'
+          import glob, re
+          with open('images.txt', 'a') as output:
+              for path in glob.glob('docker-compose*.yml'):
+                  for line in open(path):
+                      match = re.match(r'\s*image:\s*["\x27]?([^\s"\x27#]+)', line)
+                      if match and '${' not in match[1]:
+                          output.write(match[1] + '\n')
+          PY
+          sort -u images.txt -o images.txt
+      - uses: aquasecurity/setup-trivy@v0.2.2
+        with:
+          version: v0.58.2
+      - name: Scan every image; fail on HIGH or CRITICAL findings or scan errors
+        shell: bash
+        run: |
+          failed=0
+          mkdir -p image-reports
+          while IFS= read -r image; do
+            report=$(echo "$image" | tr '/:' '__')
+            trivy image --scanners vuln --severity HIGH,CRITICAL --exit-code 1 \
+              --format table --output "image-reports/$report.txt" "$image" || failed=1
+          done < images.txt
+          exit "$failed"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: image-vulnerabilities
+          path: image-reports/
+          retention-days: 30

@@ -25,4 +25,8 @@
 | [Testing Strategy Design Docs](testing/README.md)                           | Contributors picking up testing work                  | Contract snapshot testing, chaos engineering, API contract testing, visual regression testing                       |
 | [Accessibility Review Checklist](testing/accessibility-review-checklist.md) | Frontend contributors and reviewers                   | Keyboard, contrast, semantics, screen-reader basics, and app-specific flows                                         |
 
+Security and operations: [vulnerability reporting](../SECURITY.md#quick-reporting-summary),
+[dependency security and maintenance](security/dependency-review.md), and
+[incident communication](operations/incident-communication.md).
+
 Start with the [Developer Onboarding Guide](onboarding.md) if you're new to the project.

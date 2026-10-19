@@ -1,5 +1,19 @@
 # Security Policy
 
+## Quick reporting summary
+
+Report authorization bypass, exposure, unsafe wallet/contract behavior, exploitable
+dependencies or infrastructure vulnerabilities privately through
+[GitHub private reporting](https://github.com/Stellar-Veriphy/Stellar-Veriphy/security/advisories/new)
+or **security@stellarveriphy.com**. Do not open a public issue. Include the affected
+version/commit, impact and minimal safe reproduction steps; partial reports are welcome.
+Do not include secrets or other users' data, disrupt services or access unnecessary
+data. Coordinate publication with maintainers. Acknowledgement target: 48 hours;
+initial triage: five business days. Full scope and disclosure timelines follow below.
+
+Operational guides: [dependency review](docs/security/dependency-review.md) and
+[incident communication](docs/operations/incident-communication.md).
+
 This document describes StellarVeriphy's vulnerability disclosure process, security scope, known risk areas, and how we handle security reports. For implementation-level security controls (rate limiting, input validation, key management, HTTP headers, smart contract audit procedures), see the detailed guides in [`docs/security/`](./docs/security/).
 
 ---
