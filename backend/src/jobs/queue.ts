@@ -3,14 +3,23 @@ import type { Logger } from "../lib/logger.js";
 import {
   jobDuration,
   jobFailures,
+  jobCheckpoints,
   jobWait,
   jobsEnqueued,
   jobsFinished,
+  jobsResumed,
   jobsStalled,
   jobsStarted,
 } from "../lib/metrics.js";
 import { backoffDelay } from "../lib/retry.js";
-import { Collections, QUEUE_NAMES, type JobDoc, type JobErrorEntry, type QueueName } from "../db/collections.js";
+import {
+  Collections,
+  QUEUE_NAMES,
+  type JobDoc,
+  type JobErrorEntry,
+  type JobProgress,
+  type QueueName,
+} from "../db/collections.js";
 import { describeError, errorCode, errorMessage, isRetryable } from "./errors.js";
 
 const ERROR_HISTORY_LIMIT = 10;
@@ -26,6 +35,8 @@ export interface EnqueueOptions {
   runAt?: Date;
   maxAttempts?: number;
   correlationId?: string;
+  /** Per-attempt timeout for this job; defaults to JOB_TIMEOUT_MS. */
+  timeoutMs?: number;
 }
 
 export type FailOutcome = "retried" | "dead" | "lost";
@@ -45,6 +56,10 @@ const SUMMARY_PROJECTION = {
   heartbeatAt: 1,
   lockedBy: 1,
   correlationId: 1,
+  timeoutMs: 1,
+  progress: 1,
+  checkpointAt: 1,
+  resumedCount: 1,
   "lastError.code": 1,
   "lastError.message": 1,
   "lastError.at": 1,
@@ -105,6 +120,7 @@ export class JobQueue {
       errorHistory: [],
       stalledCount: 0,
       ...(opts.correlationId ? { correlationId: opts.correlationId } : {}),
+      ...(opts.timeoutMs ? { timeoutMs: opts.timeoutMs } : {}),
     };
     const { insertedId } = await this.col.insertOne(doc as JobDoc);
     jobsEnqueued.inc({ queue, type });
@@ -126,8 +142,41 @@ export class JobQueue {
     if (job) {
       jobsStarted.inc({ queue, type: job.type });
       jobWait.observe({ queue, type: job.type }, Math.max(0, now.getTime() - job.runAt.getTime()) / 1000);
+      if (job.checkpoint !== undefined) {
+        await this.col.updateOne({ _id: job._id, lockedBy: workerId }, { $inc: { resumedCount: 1 } });
+        job.resumedCount = (job.resumedCount ?? 0) + 1;
+        jobsResumed.inc({ queue, type: job.type });
+        this.log.info("job resuming from checkpoint", this.jobFields(job, { workerId, checkpointAt: job.checkpointAt }));
+      }
     }
     return job;
+  }
+
+  /**
+   * Records handler progress (#781). Also counts as a heartbeat. Returns false if this worker no
+   * longer owns the job.
+   */
+  async updateProgress(id: ObjectId, workerId: string, progress: Omit<JobProgress, "updatedAt">): Promise<boolean> {
+    const now = new Date();
+    const res = await this.col.updateOne(
+      { _id: id, status: "running", lockedBy: workerId },
+      { $set: { progress: { ...progress, updatedAt: now }, heartbeatAt: now } },
+    );
+    return res.matchedCount === 1;
+  }
+
+  /**
+   * Persists resume state for the next attempt (#781). The checkpoint survives failures, timeouts and
+   * stall recovery, and is cleared when the job succeeds. Returns false if the lock was lost.
+   */
+  async saveCheckpoint(job: WithId<JobDoc>, workerId: string, checkpoint: unknown): Promise<boolean> {
+    const now = new Date();
+    const res = await this.col.updateOne(
+      { _id: job._id, status: "running", lockedBy: workerId },
+      { $set: { checkpoint, checkpointAt: now, heartbeatAt: now } },
+    );
+    if (res.matchedCount === 1) jobCheckpoints.inc({ queue: job.queue, type: job.type });
+    return res.matchedCount === 1;
   }
 
   /** Returns false if this worker no longer owns the job (it was recovered as stalled). */
@@ -143,7 +192,7 @@ export class JobQueue {
     const now = new Date();
     const res = await this.col.updateOne(
       { _id: job._id, status: "running", lockedBy: workerId },
-      { $set: { status: "succeeded", finishedAt: now, updatedAt: now }, $unset: UNLOCK },
+      { $set: { status: "succeeded", finishedAt: now, updatedAt: now }, $unset: { ...UNLOCK, checkpoint: "", checkpointAt: "" } },
     );
     if (res.matchedCount === 0) {
       this.log.warn("job finished after its lock was lost; result not recorded", this.jobFields(job, { workerId }));
@@ -244,17 +293,55 @@ export class JobQueue {
     return recovered;
   }
 
-  /** Operator action: put a dead job back on its queue with a fresh attempt budget. */
-  async retryDead(id: ObjectId, requestedBy: string): Promise<boolean> {
+  /**
+   * Operator action: put a dead job back on its queue with a fresh attempt budget. By default it
+   * resumes from its last checkpoint; `fresh` discards the checkpoint and starts over.
+   */
+  async retryDead(id: ObjectId, requestedBy: string, { fresh = false }: { fresh?: boolean } = {}): Promise<boolean> {
     const now = new Date();
+    const unset: Record<string, ""> = { finishedAt: "" };
+    if (fresh) Object.assign(unset, { checkpoint: "", checkpointAt: "", progress: "" });
     const job = await this.col.findOneAndUpdate(
       { _id: id, status: "dead" },
-      { $set: { status: "queued", runAt: now, updatedAt: now, attempts: 0 }, $unset: { finishedAt: "" }, $inc: { manualRetries: 1 } },
-      { projection: { payload: 0, errorHistory: 0 }, returnDocument: "after" },
+      { $set: { status: "queued", runAt: now, updatedAt: now, attempts: 0 }, $unset: unset, $inc: { manualRetries: 1 } },
+      { projection: { payload: 0, errorHistory: 0, checkpoint: 0 }, returnDocument: "after" },
     );
     if (!job) return false;
-    this.log.info("dead job requeued by operator", { ...this.jobFields(job), requestedBy, manualRetries: job.manualRetries });
+    this.log.info("dead job requeued by operator", {
+      ...this.jobFields(job),
+      requestedBy,
+      manualRetries: job.manualRetries,
+      fresh,
+      resumeFrom: fresh ? undefined : job.checkpointAt,
+    });
     return true;
+  }
+
+  /**
+   * Latest job for a correlation id (e.g. a verification jobId) with its progress, for status
+   * polling. Index: correlationId.
+   */
+  getProgress(correlationId: string) {
+    return this.col.findOne(
+      { correlationId },
+      {
+        sort: { createdAt: -1 },
+        projection: {
+          _id: 0,
+          type: 1,
+          status: 1,
+          attempts: 1,
+          maxAttempts: 1,
+          runAt: 1,
+          startedAt: 1,
+          finishedAt: 1,
+          progress: 1,
+          checkpointAt: 1,
+          resumedCount: 1,
+          "lastError.code": 1,
+        },
+      },
+    );
   }
 
   getJob(id: ObjectId) {

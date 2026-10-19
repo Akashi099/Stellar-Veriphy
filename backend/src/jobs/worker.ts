@@ -1,7 +1,7 @@
 import type { WithId } from "mongodb";
 import type { Logger } from "../lib/logger.js";
 import { sleep } from "../lib/retry.js";
-import type { JobDoc, QueueName } from "../db/collections.js";
+import type { JobDoc, JobProgress, QueueName } from "../db/collections.js";
 import { JobError, describeError } from "./errors.js";
 import type { JobQueue } from "./queue.js";
 
@@ -10,6 +10,18 @@ export interface JobContext {
   log: Logger;
   /** Aborted on timeout or when the job's lock is lost; long-running handlers should honour it. */
   signal: AbortSignal;
+  /**
+   * Resume state saved by an earlier attempt via saveCheckpoint, or undefined on a fresh start.
+   * Handlers should skip work the checkpoint says is done (#781).
+   */
+  checkpoint: unknown;
+  /** Publishes progress to the job document (and counts as a heartbeat). Never throws. */
+  reportProgress(progress: Omit<JobProgress, "updatedAt">): Promise<void>;
+  /**
+   * Persists resume state so an interrupted attempt (crash, timeout, transient error) continues from
+   * here. Keep it small: ids, offsets, completed step names. Throws if the job's lock was lost.
+   */
+  saveCheckpoint(checkpoint: unknown): Promise<void>;
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -109,13 +121,36 @@ export class Worker {
         .catch((err) => log.warn("heartbeat failed", { err }));
     }, this.opts.heartbeatMs);
 
-    log.info("job started", { waitedMs: Date.now() - job.runAt.getTime() });
+    log.info("job started", {
+      waitedMs: Date.now() - job.runAt.getTime(),
+      resumed: job.checkpoint !== undefined,
+      timeoutMs: job.timeoutMs ?? this.opts.jobTimeoutMs,
+    });
     try {
       const handler = this.handlers[job.type];
       if (!handler) {
         throw new JobError(`No handler registered for job type "${job.type}" on queue "${job.queue}"`, "NO_HANDLER", false);
       }
-      await runWithTimeout(handler(job, { log, signal: controller.signal }), this.opts.jobTimeoutMs, controller);
+      const ctx: JobContext = {
+        log,
+        signal: controller.signal,
+        checkpoint: job.checkpoint,
+        reportProgress: async (progress) => {
+          try {
+            if (!(await this.queue.updateProgress(job._id, workerId, progress))) controller.abort();
+          } catch (err) {
+            log.warn("progress update failed", { err });
+          }
+        },
+        saveCheckpoint: async (checkpoint) => {
+          if (!(await this.queue.saveCheckpoint(job, workerId, checkpoint))) {
+            controller.abort();
+            throw new JobError("Lost job lock while saving checkpoint", "LOCK_LOST");
+          }
+          log.debug("checkpoint saved");
+        },
+      };
+      await runWithTimeout(handler(job, ctx), job.timeoutMs ?? this.opts.jobTimeoutMs, controller);
       const durationMs = performance.now() - started;
       if (await this.queue.complete(job, workerId, durationMs)) {
         log.info("job succeeded", { durationMs: Math.round(durationMs) });

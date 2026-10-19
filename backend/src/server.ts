@@ -127,12 +127,14 @@ export function createHttpServer({ health, queue, cleanup, verifications, log }:
       method: "POST",
       pattern: /^\/admin\/jobs\/(?<id>[^/]+)\/retry$/,
       admin: true,
-      handler: async (req, res, { id }) => {
+      handler: async (req, res, { id }, url) => {
         const objectId = parseObjectId(id);
         if (!objectId) return send(res, 404, { error: "Job not found" });
-        const requeued = await queue.retryDead(objectId, req.socket.remoteAddress ?? "unknown");
+        // Resumes from the last checkpoint unless ?fresh=true (#781).
+        const fresh = ["1", "true"].includes(url.searchParams.get("fresh") ?? "");
+        const requeued = await queue.retryDead(objectId, req.socket.remoteAddress ?? "unknown", { fresh });
         if (!requeued) return send(res, 409, { error: "Job is not in the dead state" });
-        send(res, 202, { requeued: true });
+        send(res, 202, { requeued: true, fresh });
       },
     },
 
@@ -171,6 +173,30 @@ export function createHttpServer({ health, queue, cleanup, verifications, log }:
     },
 
     // --- Verification lookups (#773, cached by #779) ----------------------------
+    {
+      method: "GET",
+      pattern: /^\/api\/verifications\/(?<jobId>[^/]+)\/progress$/,
+      handler: async (_req, res, { jobId }) => {
+        // Not cached: progress changes while the job runs (#781).
+        const job = await queue.getProgress(jobId);
+        if (!job) return send(res, 404, { error: "No processing job for this verification" });
+        send(res, 200, {
+          state: job.status,
+          stage: job.progress?.stage ?? null,
+          percent: job.progress?.percent ?? null,
+          completed: job.progress?.completed ?? null,
+          total: job.progress?.total ?? null,
+          progressUpdatedAt: job.progress?.updatedAt ?? null,
+          attempt: job.attempts,
+          maxAttempts: job.maxAttempts,
+          resumed: (job.resumedCount ?? 0) > 0,
+          nextAttemptAt: job.status === "queued" ? job.runAt : null,
+          startedAt: job.startedAt ?? null,
+          finishedAt: job.finishedAt ?? null,
+          lastErrorCode: job.lastError?.code ?? null,
+        });
+      },
+    },
     {
       method: "GET",
       pattern: /^\/api\/verifications\/(?<jobId>[^/]+)$/,

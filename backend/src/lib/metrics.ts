@@ -102,6 +102,20 @@ export const jobsStalled = new Counter({
   registers,
 });
 
+export const jobsResumed = new Counter({
+  name: "sv_jobs_resumed_total",
+  help: "Job attempts that resumed from a checkpoint saved by an earlier attempt instead of starting over",
+  labelNames: ["queue", "type"] as const,
+  registers,
+});
+
+export const jobCheckpoints = new Counter({
+  name: "sv_job_checkpoints_total",
+  help: "Checkpoints saved by long-running job handlers",
+  labelNames: ["queue", "type"] as const,
+  registers,
+});
+
 export const jobDuration = new Histogram({
   name: "sv_job_duration_seconds",
   help: "Job attempt processing time by outcome",

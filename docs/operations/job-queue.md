@@ -32,6 +32,8 @@ enqueue ──► queued ──claim──► running ──success──► suc
 | `sv_jobs_stalled_total{queue,type}` | Jobs recovered after their worker died or hung |
 | `sv_job_duration_seconds{queue,type,outcome}` | Processing time per attempt |
 | `sv_job_wait_seconds{queue,type}` | Time from ready to claimed (worker saturation) |
+| `sv_jobs_resumed_total{queue,type}` | Attempts that resumed from a checkpoint instead of starting over |
+| `sv_job_checkpoints_total{queue,type}` | Checkpoints saved by long-running handlers |
 
 **Current state** (gauges, sampled every `JOB_MONITOR_INTERVAL_MS`):
 
@@ -58,7 +60,8 @@ Every job log line carries `jobId`, `queue`, `type`, `attempt`, `maxAttempts`, `
 | `stalled job requeued` / `stalled job moved to dead-letter` (includes `lockedBy`, `lastHeartbeatAt`) | warn |
 | `possible job retry loop` (logged once per new attempt) | warn |
 | `lost job lock …` / `job finished after its lock was lost` | warn |
-| `dead job requeued by operator` | info |
+| `dead job requeued by operator` (includes `fresh`, `resumeFrom`) | info |
+| `job resuming from checkpoint` (includes `checkpointAt`) | info |
 
 ## Tracing a failed job to its cause
 
@@ -90,5 +93,49 @@ How to read them:
 ## Recovery
 
 - Retryable failures and stalls recover automatically.
-- Once the cause is fixed, retry a dead job manually with: `curl -X POST -H "Authorization: Bearer $ADMIN_TOKEN" http://<host>:4000/admin/jobs/<id>/retry`. This resets the attempt budget, keeps `errorHistory`, and increments `manualRetries`.
+- Once the cause is fixed, retry a dead job manually with: `curl -X POST -H "Authorization: Bearer $ADMIN_TOKEN" http://<host>:4000/admin/jobs/<id>/retry`. This resets the attempt budget, keeps `errorHistory`, and increments `manualRetries`. The job resumes from its last checkpoint. Add `?fresh=true` to throw the checkpoint away and start over, for example when the checkpoint itself is the problem.
 - Dead jobs are kept for `RETENTION_DEAD_JOB_DAYS` (default 30) and succeeded jobs for `RETENTION_SUCCEEDED_JOB_DAYS` (default 7). See [data-retention.md](data-retention.md).
+
+## Long-running jobs
+
+Verification work such as hashing large media or waiting for on-chain confirmation can take minutes. Handlers get three tools for this from `JobContext` (`backend/src/jobs/worker.ts`). An example is in `backend/src/jobs/handlers.ts`.
+
+### Progress
+
+`ctx.reportProgress({ stage, percent, completed, total, message })` stores `progress` on the job document. Each call also counts as a heartbeat, so a handler that reports progress regularly is never mistaken for stalled.
+
+Progress is visible in three places:
+
+- **Public:** `GET /api/verifications/:jobId/progress`. This returns the latest job for that verification (matched by `correlationId`): `state` (`queued` / `running` / `succeeded` / `dead`), `stage`, `percent`, `completed`, `total`, `attempt`, `maxAttempts`, `resumed`, `nextAttemptAt` (set while waiting for a retry) and `lastErrorCode`. It is never cached.
+- **Operators:** `GET /admin/jobs/:id` and `GET /admin/jobs?correlationId=` include `progress`, `checkpointAt`, `resumedCount` and `timeoutMs`.
+
+### Partial retries (checkpoints)
+
+`ctx.saveCheckpoint(state)` stores small, handler-defined resume state on the job, such as the next chunk index or the names of finished steps. On the next attempt, `ctx.checkpoint` holds the last saved value, and the handler skips work that is already done.
+
+| Event | Checkpoint |
+|---|---|
+| Attempt fails (retryable error) | Kept. The retry resumes from it. |
+| Attempt times out (`TIMEOUT`) | Kept |
+| Worker crashes or hangs (`STALLED`) | Kept |
+| Job dead-lettered | Kept. A manual retry resumes from it unless `?fresh=true`. |
+| Job succeeds | Cleared |
+
+Rules for handlers:
+
+- Save a checkpoint after each unit of work is **durably** done, never before.
+- Make each unit idempotent. A crash between finishing the work and saving the checkpoint means the unit runs again.
+- Keep checkpoints small (well under 1 MB). They live on the job document.
+- `saveCheckpoint` throws `LOCK_LOST` if the job was recovered by another worker. Let it propagate. `reportProgress` never throws.
+
+### Timeouts and retries
+
+| Setting | Default | Behaviour |
+|---|---|---|
+| `JOB_TIMEOUT_MS` | 300 000 (5 min) | Per **attempt**. When it is hit, `ctx.signal` is aborted and the attempt fails with `TIMEOUT` (retryable). |
+| `EnqueueOptions.timeoutMs` | — | Per-job override, stored as `timeoutMs`. Use it for job types that legitimately run longer than the default. |
+| `JOB_HEARTBEAT_MS` / `JOB_STALL_TIMEOUT_MS` | 10 s / 60 s | A running job with no heartbeat or progress update for the stall timeout is requeued as `STALLED`. |
+| `JOB_MAX_ATTEMPTS` | 5 | Total attempts, counting timeouts and stalls. Resumed attempts count too. |
+| `JOB_RETRY_BASE_DELAY_MS` / `JOB_RETRY_MAX_DELAY_MS` | 5 s / 10 min | Exponential backoff with jitter between attempts. |
+
+Because each attempt resumes from its checkpoint, a long job that keeps timing out still makes progress. Size `timeoutMs` so that one attempt can finish at least one unit of work. A high `sv_jobs_resumed_total` together with a low success rate means the timeout is too short for the work being done.

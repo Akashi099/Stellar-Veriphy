@@ -84,6 +84,19 @@ export interface JobErrorEntry {
   stack?: string;
 }
 
+/** Progress a long-running handler reports via ctx.reportProgress (#781). */
+export interface JobProgress {
+  /** 0–100, when the handler can estimate it. */
+  percent?: number;
+  /** Short machine-friendly step name, e.g. "hashing", "anchoring". */
+  stage?: string;
+  /** Units done / total, e.g. chunks hashed. */
+  completed?: number;
+  total?: number;
+  message?: string;
+  updatedAt: Date;
+}
+
 export interface JobDoc<P = unknown> {
   _id?: ObjectId;
   queue: QueueName;
@@ -107,6 +120,17 @@ export interface JobDoc<P = unknown> {
   errorHistory: JobErrorEntry[];
   stalledCount: number;
   manualRetries?: number;
+  /** Per-job attempt timeout; overrides JOB_TIMEOUT_MS. */
+  timeoutMs?: number;
+  progress?: JobProgress;
+  /**
+   * Handler-defined resume state saved via ctx.saveCheckpoint. Kept across failed, timed-out and
+   * stalled attempts so the next attempt resumes instead of starting over (#781).
+   */
+  checkpoint?: unknown;
+  checkpointAt?: Date;
+  /** Attempts that started from a saved checkpoint. */
+  resumedCount?: number;
 }
 
 // --- Locks -------------------------------------------------------------------
