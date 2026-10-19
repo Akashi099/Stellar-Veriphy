@@ -9,6 +9,7 @@ import type { Logger } from "./lib/logger.js";
 import { maintenanceRejected, registry } from "./lib/metrics.js";
 import type { MaintenanceMode } from "./maintenance/mode.js";
 import { CleanupAlreadyRunningError, type CleanupScheduler } from "./maintenance/scheduler.js";
+import type { WebhookService } from "./webhooks/service.js";
 
 export interface ServerDeps {
   health: HealthMonitor;
@@ -16,6 +17,7 @@ export interface ServerDeps {
   cleanup: CleanupScheduler;
   verifications: VerificationRepository;
   maintenance: MaintenanceMode;
+  webhooks: WebhookService;
   log: Logger;
 }
 
@@ -81,7 +83,9 @@ function exemptFromMaintenance(route: Route, pathname: string): boolean {
   return route.admin === true || pathname.startsWith("/health") || pathname === "/metrics";
 }
 
-export function createHttpServer({ health, queue, cleanup, verifications, maintenance, log }: ServerDeps): Server {
+const WEBHOOK_STATUSES = new Set(["pending", "delivered", "failed"]);
+
+export function createHttpServer({ health, queue, cleanup, verifications, maintenance, webhooks, log }: ServerDeps): Server {
   const routes: Route[] = [
     // --- Health (#774) ----------------------------------------------------------
     {
@@ -233,6 +237,51 @@ export function createHttpServer({ health, queue, cleanup, verifications, mainte
         const state = await maintenance.disable(req.socket.remoteAddress ?? "unknown");
         // Still on when MAINTENANCE_MODE=true forces it; say so instead of pretending it is off.
         send(res, 200, state.enabled ? { ...state, warning: "Still enabled by MAINTENANCE_MODE; unset it and restart" } : state);
+      },
+    },
+
+    // --- Webhook deliveries (#789) ---------------------------------------------
+    {
+      method: "GET",
+      pattern: /^\/admin\/webhooks\/deliveries$/,
+      admin: true,
+      handler: async (_req, res, _params, url) => {
+        const status = url.searchParams.get("status") ?? undefined;
+        if (status && !WEBHOOK_STATUSES.has(status)) {
+          return send(res, 400, { error: "status must be one of pending, delivered, failed" });
+        }
+        send(
+          res,
+          200,
+          await webhooks.listDeliveries({
+            status: status as "pending" | "delivered" | "failed" | undefined,
+            eventId: url.searchParams.get("eventId") ?? undefined,
+            limit: Number(url.searchParams.get("limit") ?? 50) || 50,
+          }),
+        );
+      },
+    },
+    {
+      method: "GET",
+      pattern: /^\/admin\/webhooks\/deliveries\/(?<id>[^/]+)$/,
+      admin: true,
+      handler: async (_req, res, { id }) => {
+        const objectId = parseObjectId(id);
+        const delivery = objectId && (await webhooks.getDelivery(objectId));
+        if (!delivery) return send(res, 404, { error: "Delivery not found" });
+        send(res, 200, delivery);
+      },
+    },
+    {
+      method: "POST",
+      pattern: /^\/admin\/webhooks\/deliveries\/(?<id>[^/]+)\/redeliver$/,
+      admin: true,
+      handler: async (req, res, { id }) => {
+        const objectId = parseObjectId(id);
+        if (!objectId) return send(res, 404, { error: "Delivery not found" });
+        const requeued = await webhooks.redeliver(objectId, req.socket.remoteAddress ?? "unknown");
+        if (!requeued) return send(res, 409, { error: "Delivery is not in the failed state" });
+        send(res, 202, { requeued: true });
       },
     },
 

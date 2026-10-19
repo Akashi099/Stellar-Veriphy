@@ -1,19 +1,21 @@
-import { config } from "./config.js";
+import { config, externalApiPolicy } from "./config.js";
 import type { QueueName } from "./db/collections.js";
 import { ensureIndexes } from "./db/indexes.js";
 import { connectMongo } from "./db/mongo.js";
 import { VerificationRepository } from "./db/verifications.js";
 import { buildDependencyChecks } from "./health/checks.js";
 import { HealthMonitor } from "./health/monitor.js";
-import { jobHandlers } from "./jobs/handlers.js";
+import { buildJobHandlers } from "./jobs/handlers.js";
 import { QueueMonitor } from "./jobs/monitor.js";
 import { JobQueue } from "./jobs/queue.js";
 import { Worker } from "./jobs/worker.js";
+import { ExternalApiClient } from "./lib/http.js";
 import { logger } from "./lib/logger.js";
 import { RetentionCleaner } from "./maintenance/cleanup.js";
 import { MaintenanceMode } from "./maintenance/mode.js";
 import { CleanupScheduler } from "./maintenance/scheduler.js";
 import { createHttpServer } from "./server.js";
+import { WebhookService } from "./webhooks/service.js";
 
 const SHUTDOWN_TIMEOUT_MS = 30_000;
 
@@ -30,7 +32,17 @@ async function main(): Promise<void> {
   await maintenance.start();
 
   const queue = new JobQueue(db, config.jobs, log.child({ component: "queue" }));
-  const workers = Object.entries(jobHandlers)
+  const webhooks = new WebhookService(
+    db,
+    queue,
+    new ExternalApiClient("webhook", externalApiPolicy("webhook"), log.child({ component: "webhook-http" })),
+    config.webhooks,
+    log.child({ component: "webhooks" }),
+  );
+  if (!webhooks.enabled) log.info("outbound webhooks disabled (WEBHOOK_ENDPOINTS is empty)");
+  else if (!config.webhooks.signingSecret) log.warn("WEBHOOK_SIGNING_SECRET is not set; webhook deliveries are unsigned");
+
+  const workers = Object.entries(buildJobHandlers({ webhooks }))
     .filter(([, handlers]) => handlers && Object.keys(handlers).length > 0)
     .map(
       ([name, handlers]) =>
@@ -66,6 +78,7 @@ async function main(): Promise<void> {
     cleanup,
     verifications: new VerificationRepository(db),
     maintenance,
+    webhooks,
     log: log.child({ component: "http" }),
   });
   server.listen(config.port, () => log.info("backend listening", { port: config.port }));

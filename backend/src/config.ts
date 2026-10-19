@@ -93,6 +93,14 @@ export const config = {
     monitorIntervalMs: int("JOB_MONITOR_INTERVAL_MS", 15_000),
   },
 
+  webhooks: {
+    /** Comma-separated receiver URLs; every published event is delivered to each. */
+    endpoints: list("WEBHOOK_ENDPOINTS", []),
+    /** HMAC-SHA256 key for the X-Veriphy-Signature header. Unsigned when unset. */
+    signingSecret: env("WEBHOOK_SIGNING_SECRET"),
+    maxAttempts: int("WEBHOOK_MAX_ATTEMPTS", 8),
+  },
+
   maintenance: {
     /** Forces maintenance on regardless of the stored flag (break-glass; needs a restart to change). */
     forceEnabled: bool("MAINTENANCE_MODE", false),

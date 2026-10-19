@@ -216,3 +216,27 @@ export const maintenanceRejected = new Counter({
   labelNames: ["method"] as const,
   registers,
 });
+
+// --- Webhook deliveries (#789) -----------------------------------------------
+
+export const webhookDeliveries = new Counter({
+  name: "sv_webhook_deliveries_total",
+  help: "Webhook delivery attempts by outcome: delivered, retry, failed (permanent), duplicate (publish deduplicated), skipped (already delivered)",
+  labelNames: ["outcome"] as const,
+  registers,
+});
+
+export const webhookDeliveryDuration = new Histogram({
+  name: "sv_webhook_delivery_duration_seconds",
+  help: "Duration of one webhook delivery attempt",
+  labelNames: ["outcome"] as const,
+  buckets: [0.05, 0.1, 0.25, 0.5, 1, 2.5, 5, 10, 30],
+  registers,
+});
+
+export const webhookDeliveriesInState = new Gauge({
+  name: "sv_webhook_deliveries",
+  help: "Webhook deliveries currently in each state (sampled when operators list deliveries)",
+  labelNames: ["status"] as const,
+  registers,
+});

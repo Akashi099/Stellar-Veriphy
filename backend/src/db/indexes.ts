@@ -106,6 +106,25 @@ export const INDEXES: Record<string, IndexSpec[]> = {
       serves: "Trace all jobs for a verification (GET /admin/jobs?correlationId=)",
     },
   ],
+
+  [Collections.webhookDeliveries]: [
+    {
+      name: "idempotencyKey_unique",
+      key: { idempotencyKey: 1 },
+      unique: true,
+      serves: "WebhookService.publish — one delivery per (event, endpoint); duplicate publishes are rejected",
+    },
+    {
+      name: "status_updatedAt",
+      key: { status: 1, updatedAt: -1 },
+      serves: "WebhookService.listDeliveries — failed/pending deliveries for operators, newest first; status counts",
+    },
+    {
+      name: "eventId",
+      key: { eventId: 1 },
+      serves: "WebhookService.listDeliveries?eventId= — every delivery of one event",
+    },
+  ],
 };
 
 /** MongoDB error codes raised when an index exists with the same name/key but different options. */

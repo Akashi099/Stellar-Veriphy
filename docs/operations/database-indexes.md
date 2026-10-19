@@ -6,38 +6,46 @@ All indexes are declared in `backend/src/db/indexes.ts`. That file is the single
 
 ### `verifications`
 
-| Query | Repository method | Index | Notes |
-|---|---|---|---|
-| Status poll by `jobId` (`GET /api/verifications/:jobId`, README's `/api/verify/status/:jobId`) | `getStatus` | `jobId_unique { jobId: 1 }` | The hottest path. Unique, which also enforces one record per job. Uses a projection so only status fields are returned. |
-| Latest verification for a piece of content | `findLatestByContentHash` | `contentHash_createdAt { contentHash: 1, createdAt: -1 }` | The sort is satisfied by the index, so there's no in-memory sort. |
-| Creator history, newest first | `listByCreator` | `creator_createdAt { creator: 1, createdAt: -1 }` | Keyset pagination (`before=<createdAt>`), see below. |
-| Requests stuck in a status | `findStale` | `status_updatedAt { status: 1, updatedAt: 1 }` | Also serves the retention safety check (`jobId $in` + `status $in` uses `jobId_unique`). |
-| Lookup by certificate | `findByCertId` | `certId_unique { certId: 1 }`, partial on `certId` existing | Uncertified records aren't indexed, which keeps the index small. |
+| Query                                                                                          | Repository method         | Index                                                       | Notes                                                                                                                   |
+| ---------------------------------------------------------------------------------------------- | ------------------------- | ----------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------- |
+| Status poll by `jobId` (`GET /api/verifications/:jobId`, README's `/api/verify/status/:jobId`) | `getStatus`               | `jobId_unique { jobId: 1 }`                                 | The hottest path. Unique, which also enforces one record per job. Uses a projection so only status fields are returned. |
+| Latest verification for a piece of content                                                     | `findLatestByContentHash` | `contentHash_createdAt { contentHash: 1, createdAt: -1 }`   | The sort is satisfied by the index, so there's no in-memory sort.                                                       |
+| Creator history, newest first                                                                  | `listByCreator`           | `creator_createdAt { creator: 1, createdAt: -1 }`           | Keyset pagination (`before=<createdAt>`), see below.                                                                    |
+| Requests stuck in a status                                                                     | `findStale`               | `status_updatedAt { status: 1, updatedAt: 1 }`              | Also serves the retention safety check (`jobId $in` + `status $in` uses `jobId_unique`).                                |
+| Lookup by certificate                                                                          | `findByCertId`            | `certId_unique { certId: 1 }`, partial on `certId` existing | Uncertified records aren't indexed, which keeps the index small.                                                        |
 
 ### `verification_sessions` and archive
 
-| Query | Index |
-|---|---|
-| `touch` / point lookup by `sessionId` | `sessionId_unique` |
-| Resume a creator's latest open session | `creator_state_lastActivityAt { creator, state, lastActivityAt: -1 }` |
-| Close the session when its verification finishes | `verificationJobId` (partial) |
-| Retention: stale sessions by state and idle time | `state_lastActivityAt { state, lastActivityAt }` |
-| Retention: purge old archive entries | archive `archivedAt` |
-| Operator lookup and restore | archive `sessionId` |
+| Query                                            | Index                                                                 |
+| ------------------------------------------------ | --------------------------------------------------------------------- |
+| `touch` / point lookup by `sessionId`            | `sessionId_unique`                                                    |
+| Resume a creator's latest open session           | `creator_state_lastActivityAt { creator, state, lastActivityAt: -1 }` |
+| Close the session when its verification finishes | `verificationJobId` (partial)                                         |
+| Retention: stale sessions by state and idle time | `state_lastActivityAt { state, lastActivityAt }`                      |
+| Retention: purge old archive entries             | archive `archivedAt`                                                  |
+| Operator lookup and restore                      | archive `sessionId`                                                   |
 
 ### `jobs`
 
-| Query | Index |
-|---|---|
-| Claim the oldest ready job (`queue`, `status: queued`, `runAt ≤ now`, sort `runAt`) and per-queue counts | `queue_status_runAt` |
-| Stall detection (`status: running`, `heartbeatAt < cutoff`) | `running_heartbeatAt`, partial on `status: "running"` |
-| Recent dead jobs, retention purge of finished jobs | `status_finishedAt` |
-| All jobs for one verification | `correlationId` (partial) |
+| Query                                                                                                    | Index                                                 |
+| -------------------------------------------------------------------------------------------------------- | ----------------------------------------------------- |
+| Claim the oldest ready job (`queue`, `status: queued`, `runAt ≤ now`, sort `runAt`) and per-queue counts | `queue_status_runAt`                                  |
+| Stall detection (`status: running`, `heartbeatAt < cutoff`)                                              | `running_heartbeatAt`, partial on `status: "running"` |
+| Recent dead jobs, retention purge of finished jobs                                                       | `status_finishedAt`                                   |
+| All jobs for one verification                                                                            | `correlationId` (partial)                             |
+
+### `webhook_deliveries` (#789)
+
+| Query                                                                     | Index                                           |
+| ------------------------------------------------------------------------- | ----------------------------------------------- |
+| One delivery per (event, endpoint); duplicate publishes rejected          | `idempotencyKey_unique { idempotencyKey: 1 }`   |
+| Operator list of failed / pending deliveries, newest first; status counts | `status_updatedAt { status: 1, updatedAt: -1 }` |
+| Every delivery of one event                                               | `eventId { eventId: 1 }`                        |
 
 ## Decisions
 
 1. **Equality → Sort → Range field order.** Compound indexes put equality-matched fields first, then the sort field, then range fields (for example `queue, status, runAt`). Each query is then one bounded index scan with no blocking sort.
-2. **Keyset pagination instead of `skip`.** `skip(n)` still walks and discards *n* index entries, so page 50 of a creator's history costs 50× page 1. `listByCreator` takes the previous page's last `createdAt` as `before`, so every page is a fresh bounded scan. The API returns `nextCursor` for this.
+2. **Keyset pagination instead of `skip`.** `skip(n)` still walks and discards _n_ index entries, so page 50 of a creator's history costs 50× page 1. `listByCreator` takes the previous page's last `createdAt` as `before`, so every page is a fresh bounded scan. The API returns `nextCursor` for this.
 3. **Unique indexes where the data model requires uniqueness** (`jobId`, `certId`, `sessionId`). The same index serves the lookup and enforces the invariant.
 4. **Partial indexes for sparse or narrow fields.** `certId`, `verificationJobId`, and `correlationId` only exist on some documents. The running-jobs index only covers jobs in `running`, a small fraction of the collection. Partial indexes stay small and cheap to maintain. A partial index is only used when the query includes its filter condition (for example `status: "running"`), and the repository queries always include it.
 5. **Projections on hot paths.** The status endpoint returns only status fields, so large manifest metadata never crosses the wire.
@@ -47,11 +55,15 @@ All indexes are declared in `backend/src/db/indexes.ts`. That file is the single
 ## Observing query performance
 
 - Every MongoDB command is timed into `sv_db_command_duration_seconds{command,collection,outcome}`.
-- Commands slower than `MONGODB_SLOW_QUERY_MS` (default 200 ms) increment `sv_db_slow_commands_total` and log a `slow mongodb command` warning. The warning includes the collection and the query *shape* (filter and sort field names only, never values, which may contain creator keys or hashes).
+- Commands slower than `MONGODB_SLOW_QUERY_MS` (default 200 ms) increment `sv_db_slow_commands_total` and log a `slow mongodb command` warning. The warning includes the collection and the query _shape_ (filter and sort field names only, never values, which may contain creator keys or hashes).
 - To check a query plan, run it with `explain` in `mongosh` and confirm the winning plan is an `IXSCAN` on the expected index, with `totalDocsExamined` close to `nReturned`:
 
   ```js
-  db.verifications.find({ creator: "G..." }).sort({ createdAt: -1 }).limit(20).explain("executionStats")
+  db.verifications
+    .find({ creator: "G..." })
+    .sort({ createdAt: -1 })
+    .limit(20)
+    .explain("executionStats");
   ```
 
 ## Changing indexes
