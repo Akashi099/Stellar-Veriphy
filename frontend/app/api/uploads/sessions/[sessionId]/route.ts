@@ -1,7 +1,13 @@
 import { describeUploadSession, validateUploadSessionUpdate, type UploadSessionView } from "@stellarveriphy/shared";
 import { readValidated, respond, serverError, validationError } from "@/lib/server/http";
 import { logOperationalEvent, requestIdFrom } from "@/lib/server/observability";
-import { getSession, updateSession } from "@/lib/server/upload-sessions";
+import { getSession, sessionEtag, updateSession } from "@/lib/server/upload-sessions";
+import { ifMatchFailed } from "@/lib/server/write-concurrency";
+
+function withEtag<T extends Response>(response: T, etag: string): T {
+  response.headers.set("ETag", etag);
+  return response;
+}
 
 type Params = { params: Promise<{ sessionId: string }> };
 
@@ -11,14 +17,15 @@ export async function GET(_req: Request, { params }: Params) {
   try {
     const session = await getSession(sessionId);
     if (!session) return respond(404, { status: "not_found", message: "No upload session exists with this ID." });
-    return respond<UploadSessionView>(200, { status: "ok", data: describeUploadSession(session) });
+    return withEtag(respond<UploadSessionView>(200, { status: "ok", data: describeUploadSession(session) }), sessionEtag(session));
   } catch (err) {
     return serverError("GET /api/uploads/sessions/[sessionId]", err);
   }
 }
 
 // PATCH /api/uploads/sessions/:sessionId { action, … }: record progress, resume,
-// restart, abort or complete the session.
+// restart, abort or complete the session. Send the ETag from the last read as
+// If-Match to reject the write if the session changed in between (#786).
 export async function PATCH(req: Request, { params }: Params) {
   const { sessionId } = await params;
   const requestId = requestIdFrom(req);
@@ -26,9 +33,21 @@ export async function PATCH(req: Request, { params }: Params) {
   if ("response" in parsed) return parsed.response;
 
   try {
-    const result = await updateSession(sessionId, parsed.value);
+    const result = await updateSession(sessionId, parsed.value, new Date(), (current) =>
+      ifMatchFailed(req, sessionEtag(current)),
+    );
     if (!result) return respond(404, { status: "not_found", message: "No upload session exists with this ID." });
     if (!result.ok) {
+      if (result.reason === "stale") {
+        return withEtag(
+          respond<UploadSessionView>(409, {
+            status: "conflict",
+            message: "This upload session changed since you last read it. Re-read it (see `data`) and retry with the new ETag.",
+            data: describeUploadSession(result.session),
+          }),
+          sessionEtag(result.session),
+        );
+      }
       if (result.reason === "invalid") return validationError(result.errors);
       if (result.reason === "expired") {
         return respond(410, {
@@ -52,7 +71,7 @@ export async function PATCH(req: Request, { params }: Params) {
         details: { sessionId, attempt: view.attempt, progress: view.progress },
       });
     }
-    return respond<UploadSessionView>(200, { status: "ok", data: view });
+    return withEtag(respond<UploadSessionView>(200, { status: "ok", data: view }), sessionEtag(result.session));
   } catch (err) {
     return serverError("PATCH /api/uploads/sessions/[sessionId]", err);
   }
