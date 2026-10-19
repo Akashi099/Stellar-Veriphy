@@ -23,6 +23,8 @@ Small, easily-reversible implementation details (variable naming, a single funct
 
 ## Index
 
+- [ADR-0020: Separate verification orchestration from on-chain evidence](0020-verification-pipeline.md) — Proposed; records current implementation boundaries and trade-offs.
+
 | ADR                                           | Title                                               | Status   |
 | --------------------------------------------- | --------------------------------------------------- | -------- |
 | [0001](0001-record-architecture-decisions.md) | Record architecture decisions                       | Accepted |

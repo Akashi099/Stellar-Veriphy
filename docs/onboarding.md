@@ -2,9 +2,9 @@
 
 This guide gets a new contributor from a fresh clone to a running local environment, and explains how day-to-day development, testing, and contribution works in this repository.
 
-StellarVeriphy is a monorepo with two toolchains: **Node.js/pnpm** for the frontend and shared TypeScript packages, and **Rust/Cargo** for the Soroban smart contracts. You'll need both set up, even if you only plan to work on one side.
+Install only what your task needs: Git and an editor for documentation; **Node.js 20+ and pnpm 10.18.2** for frontend/shared TypeScript; **stable Rust/Cargo and Stellar CLI** for contracts; MongoDB for backend work. Freighter is needed for real wallet flows. Docker is optional; Bash scripts need WSL or Git Bash on Windows.
 
-> Project status: this is an early-stage scaffold. Some of what's described below (automated tests, CI, a configured pre-commit hook) doesn't exist yet — this guide says so explicitly where that's the case, rather than describing an idealized setup you won't find in the repo. See [Common Issues](#common-issues-and-solutions) for the current gaps.
+For recurring tasks, use [common contributor tasks](contributor-tasks.md). Automated tests, CI, and Husky/lint-staged configuration exist; select checks for the workspace you change.
 
 ## Table of contents
 
@@ -30,7 +30,7 @@ Each step leads directly to the next action, so creators can complete setup with
 
 ## Environment setup
 
-Install these before touching the repo:
+Choose the relevant tools below; the table covers all supported work areas:
 
 | Tool                                                                                     | Version                                                 | Why                                                                                            |
 | ---------------------------------------------------------------------------------------- | ------------------------------------------------------- | ---------------------------------------------------------------------------------------------- |
@@ -51,7 +51,7 @@ Verify everything is on your `PATH`:
 ```bash
 node -v          # v20.x or newer
 pnpm -v           # 10.18.2
-cargo -v
+cargo --version
 rustc --version
 stellar --version
 ```
@@ -76,6 +76,10 @@ pnpm install
 Rust dependencies for each contract are fetched automatically the first time you build that contract with Cargo or the Stellar CLI — there's no separate "install" step for the contracts side.
 
 ## Local development workflow
+
+Before starting the frontend, copy `frontend/.env.local.example` to `frontend/.env.local` (`cp` in Bash, or `Copy-Item` in PowerShell). Keep testnet defaults; optionally set `NEXT_PUBLIC_MOCK_WALLET=true` for local UI work. Mock mode does not submit real transactions. Leave contract IDs empty until testing a deployment; never commit secrets or put them in `NEXT_PUBLIC_*` values.
+
+For backend work, start MongoDB and export settings from [backend/.env.example](../backend/.env.example) into the launching shell before `pnpm dev:backend`. The backend reads `process.env`; copying an example to `.env` alone does not load it. In PowerShell, for example, use `$env:MONGODB_URI = "mongodb://localhost:27017"`. Check `http://localhost:4000/health/ready`; see the [health runbook](operations/health-checks.md) if dependencies fail.
 
 **Frontend** (Next.js app in `frontend/`):
 
@@ -110,20 +114,20 @@ See the [Contract Deployment Guide](deployment.md) for taking a built contract f
 
 ## Testing
 
-There is currently **no automated test suite** in this repository — no `pnpm test` script, no Rust `#[test]` modules in the contracts, and no CI configured to run either. If you're adding a feature, treat writing its first tests as part of the change rather than assuming a harness is already there to slot into.
+Use the [testing command matrix](contributor-tasks.md) for frontend Jest, shared tests, Playwright, backend suites, and Cargo tests. `pnpm test` runs workspace scripts named `test`; it does not run Cargo or separately named backend suites.
 
-Until a project-wide test setup exists, here's how to verify your changes manually:
+Supplement automated checks with focused manual review:
 
 - **Frontend**: run `pnpm dev:frontend` and exercise the page/route you changed in a browser. For API routes (e.g. `frontend/app/api/health/route.ts`), hit them directly with `curl` as shown above.
-- **Contracts**: Soroban contracts support unit tests in the same crate using `#[cfg(test)]` and `soroban_sdk::testutils` — none exist yet in `contracts/*/src/lib.rs`. If you're changing contract logic, add tests alongside it using `cargo test` inside that contract's directory, following the [Soroban testing docs](https://developers.stellar.org/docs/build/guides/testing).
+- **Contracts**: extend the existing Rust tests for changed behavior and run `cargo test` inside the affected contract directory.
 - **End-to-end**: after building and deploying a contract to testnet (see the [deployment guide](deployment.md)), invoke it with `stellar contract invoke` to confirm behavior against a real network before opening a PR that touches contract logic.
 
-If your change is a good candidate for introducing the first real test harness (e.g. `vitest` for the frontend, `cargo test` wired into a root script), say so in your PR description — that's a welcome contribution, not scope creep.
+Record actual check results and anything you could not run in the PR description.
 
 ## Code style guidelines
 
-- **TypeScript**: `strict` mode is enabled repo-wide via `tsconfig.base.json` — don't weaken it locally. The frontend has `next lint` available (`pnpm --filter frontend lint`); there's no custom ESLint config beyond Next's defaults yet. Favor the patterns already in `packages/shared` (small, explicit interfaces; no default exports for types) and `frontend/app` (server components by default; only add `"use client"` when you actually need interactivity or state).
-- **Rust**: run `cargo fmt` and `cargo clippy` before committing changes to any `contracts/*` crate — neither is currently enforced by a hook, so this is on you until that's automated (see [Common Issues](#common-issues-and-solutions)). Contracts are `#![no_std]` — don't pull in `std`-only crates.
+- **TypeScript**: preserve strict typing and use the configured ESLint rules through `pnpm check:frontend`. Follow [STYLE-GUIDE](../STYLE-GUIDE.md) and nearby code.
+- **Rust**: run `cargo fmt` and `cargo clippy` for affected contract crates, as well as their tests. Contracts are `#![no_std]`; avoid `std`-only dependencies.
 - **Naming**: match what's already there — `camelCase` for TS values, `PascalCase` for TS types/React components, `snake_case` for Rust. Contract entry points are short verbs (`submit`, `mint`, `register`, `get`, `is_approved`) — keep new ones consistent with that.
 - **Commit messages**: this repo's own history uses short, imperative subject lines (`feat: scaffold StellarVeriphy monorepo`) — follow [Conventional Commits](https://www.conventionalcommits.org/) style (`feat:`, `fix:`, `docs:`, `chore:`) where it fits.
 
@@ -149,7 +153,7 @@ Run `rustup target add wasm32-unknown-unknown`. This is easy to miss if you alre
 Output lands under `contracts/<name>/target/wasm32-unknown-unknown/release/<name>.wasm`. `target/` is gitignored — don't expect build artifacts to show up in `git status`.
 
 **You expected a pre-commit hook to lint/format your changes automatically, and nothing happened.**
-`husky` and `lint-staged` are listed as dependencies and `prepare` runs `husky` on install, but no `.husky/pre-commit` hook file or `lint-staged` config exists yet in this repo — so nothing currently runs automatically on commit. Until that's added, run `cargo fmt`/`cargo clippy` and `pnpm --filter frontend lint` manually before pushing.
+Check that dependency installation ran the Husky `prepare` script and that Git hooks are enabled. The root package configures lint-staged. Run relevant checks manually as well; hooks do not replace the full test suite.
 
 **Frontend dev server starts but changes to `packages/shared` don't seem to apply.**
 Restart `pnpm dev:frontend` — Next's dev server doesn't always pick up changes in a linked workspace package without a restart, since it isn't watching that package's files the same way it watches `frontend/`.

@@ -1,5 +1,7 @@
 # Documentation
 
+Start with [onboarding](onboarding.md), then bookmark [common contributor tasks](contributor-tasks.md) for setup, tests, issue triage, and release validation.
+
 | Guide                                                                       | For                                                   | Covers                                                                                                              |
 | --------------------------------------------------------------------------- | ----------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------- |
 | [Developer Onboarding Guide](onboarding.md)                                 | Contributors                                          | Environment setup, dependency install, local dev workflow, testing, code style, contribution process, common issues |

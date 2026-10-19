@@ -1,5 +1,7 @@
 # Verification Pipeline Architecture
 
+> **Implementation boundary:** The flow below is the intended end-to-end architecture. The frontend job worker currently validates metadata and manifest hashes without on-chain anchoring. `verify_attestation` checks provider/code authorization and the supplied signature but does not mint a certificate in that call. See [ADR-0020](adr/0020-verification-pipeline.md) for the current boundaries, alternatives, and constraints; do not interpret local job completion as chain confirmation.
+
 This document describes the end-to-end verification pipeline in StellarVeriphy, from media upload to on-chain certificate minting. The pipeline ensures cryptographic proof that digital content has not been altered and that its metadata is authentic.
 
 ## Table of Contents
