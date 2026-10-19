@@ -27,12 +27,14 @@ For coding standards and style rules, see [STYLE-GUIDE.md](./STYLE-GUIDE.md). Fo
 
 ## 1. Prerequisites
 
+For your first contribution, use the [onboarding guide](docs/onboarding.md). Install tools only for your area: documentation needs Git/editor; TypeScript needs Node.js/pnpm; contracts need Rust/Stellar; the backend needs MongoDB. Wallets and Docker are optional unless your workflow uses them. Use [common contributor tasks](docs/contributor-tasks.md) for focused checks and release validation.
+
 Install the following tools before starting.
 
 | Tool | Minimum Version | Install |
 |---|---|---|
 | **Node.js** | `>= 20.0.0` | [nodejs.org](https://nodejs.org) |
-| **pnpm** | `>= 10.18.2` | `npm install -g pnpm@10.18.2` |
+| **pnpm** | `10.18.2` (pinned) | Use the [onboarding instructions](docs/onboarding.md#environment-setup) |
 | **Rust** | `stable` | [rustup.rs](https://rustup.rs) |
 | **Stellar CLI** | latest | `cargo install --locked stellar-cli --features opt` |
 | **Docker** | latest | [docker.com](https://www.docker.com) (optional, for containerised dev) |
@@ -48,7 +50,7 @@ Verify everything is in place:
 
 ```bash
 node -v          # should print v20.x.x or higher
-pnpm -v          # should print 10.18.2 or higher
+pnpm -v          # should print 10.18.2
 rustc --version  # should print stable toolchain
 stellar --version
 ```

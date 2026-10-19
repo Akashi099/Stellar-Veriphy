@@ -212,18 +212,22 @@ See [docs/api](docs/api/README.md) for the implemented endpoints, [versioning](d
 
 ## ⚡ Getting Started
 
+New contributors: follow the [onboarding guide](docs/onboarding.md) and bookmark [common contributor tasks](docs/contributor-tasks.md) for tests, issue triage, and release validation. Documentation work needs Git and an editor; frontend work needs Node.js 20+ and pnpm **10.18.2**. Add Rust/Stellar tools for contracts and MongoDB for backend work; a wallet is needed only for wallet flows.
+
 ### Prerequisites
+Choose the tools needed for your work; the complete project uses:
+
 - Node.js 20+
 - Rust (latest stable) + Cargo
 - [Stellar CLI](https://developers.stellar.org/docs/tools/developer-tools/cli/stellar-cli)
-- pnpm
+- pnpm 10.18.2 (pinned in the root package manifest)
 - Freighter wallet (for Stellar testnet)
 
 ### Installation
 
 ```bash
-git clone https://github.com/your-org/StellarVeriphy.git
-cd StellarVeriphy
+git clone https://github.com/Stellar-Veriphy/Stellar-Veriphy.git
+cd Stellar-Veriphy
 pnpm install
 ```
 

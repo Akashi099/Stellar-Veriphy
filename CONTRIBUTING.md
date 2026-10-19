@@ -99,14 +99,16 @@ Open a new issue using the **Feature Request** template including:
 
 ## Development Setup
 
+Start with the [onboarding guide](docs/onboarding.md) for the shortest setup path and [common contributor tasks](docs/contributor-tasks.md) for testing, triage, and release validation. Install only tools for the area you change: Git/editor for docs, Node.js 20+ and pnpm **10.18.2** for TypeScript, Rust/Stellar tools for contracts, and MongoDB for the backend. Freighter is needed for real wallet flows.
+
 ### Prerequisites
 
-Ensure you have the following tools installed:
+Choose the tools relevant to your contribution:
 
 | Tool                 | Required Version                           | Purpose                                           |
 | -------------------- | ------------------------------------------ | ------------------------------------------------- |
 | **Node.js**          | `>= 20.0.0`                                | Frontend and shared tooling                       |
-| **pnpm**             | `>= 10.18.2`                               | Workspace package manager                         |
+| **pnpm**             | `10.18.2`                                  | Workspace package manager (pinned at root)         |
 | **Rust**             | `stable` (`wasm32-unknown-unknown` target) | Soroban smart contracts                           |
 | **Stellar CLI**      | `latest`                                   | Contract compilation and deployment               |
 | **Freighter Wallet** | `latest`                                   | Browser extension for Stellar wallet interactions |
@@ -141,11 +143,10 @@ cargo install --locked stellar-cli --features opt
 3. **Configure environment variables**:
 
    ```bash
-   cd frontend
-   cp .env.local.example .env.local
+   cp frontend/.env.local.example frontend/.env.local
    ```
 
-   Update `.env.local` with the appropriate network RPC URLs and contract IDs.
+   In PowerShell, use `Copy-Item frontend/.env.local.example frontend/.env.local`. Keep testnet defaults; contract IDs are needed for real chain calls. For local UI work, optionally enable `NEXT_PUBLIC_MOCK_WALLET=true`. Restart the server after environment changes.
 
 ### Running the Project
 

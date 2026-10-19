@@ -1,10 +1,11 @@
 # StellarVeriphy User Guide
 
-> **Where the product is today:** StellarVeriphy is an active scaffold. The smart contracts are deployed and fully functional on testnet. The frontend has a home page, an upload page (static placeholder), a certificate lookup page, and a file verification page. The upload flow and wallet integration are still being built. See [Getting started](#getting-started) for what you can do right now.
+> **Current behavior:** The repository includes upload/metadata forms, local job processing, certificate lookup, file comparison, and wallet adapters. Availability depends on your deployment and configuration. Local jobs validate metadata and manifest hashes; they do not automatically mint on-chain certificates. See [ADR-0020](adr/0020-verification-pipeline.md) for that boundary.
 
 ## Table of contents
 
 - [Getting started](#getting-started)
+- [Practical workflow examples](#practical-workflow-examples)
 - [Submitting content (creators)](#submitting-content-creators)
 - [Tracking verification](#tracking-verification)
 - [Checking a file against its provenance record](#checking-a-file-against-its-provenance-record)
@@ -28,7 +29,38 @@ What works today:
 - **`/verify`** — hash-comparison tool and guided verification wizard.
 - **`/api/health`** — confirms the API layer is running (`{"status":"ok"}`).
 
-The upload flow (`/creator/upload-content`) is a placeholder — no file picker or submission is wired up yet.
+The upload route (`/creator/upload-content`) contains upload workflow components. The separate `/verify` wizard currently has a simulated submission handler; use its comparison view for file integrity checks, and do not treat wizard completion as chain confirmation.
+
+## Practical workflow examples
+
+### Creator: register an original photograph
+
+**Prepare:** keep the original `harbour-original.jpg`, your Stellar public address (`G…`), and the capture time. Never enter a secret key.
+
+1. Open `/creator/upload-content` and select the upload mode/file controls available in your deployment. Choose the original image; allow hashing to finish.
+2. Enter the creator public key and capture time. Add a descriptive title and optional device, location, or AI-model details where offered. Review the metadata preview and correct highlighted fields.
+3. Submit once and retain the returned job ID. If the connection drops, use the resumable upload prompt when offered and reselect the same original file.
+4. Follow the job status. Local completion confirms the worker's metadata/manifest checks; it does not provide a blockchain transaction or certificate. Share a certificate only after independently confirming issuance in the configured network.
+
+**Expected outcome:** a tracked submission and its status, or actionable field/upload errors. If your deployment exposes only mode selection, continue through the available workflow; do not assume the separate `/verify` wizard submits a real job.
+
+### Verifier: compare a received copy with the original record
+
+**Prepare:** obtain the file and recorded content SHA-256 hash from its provenance record.
+
+1. Open `/verify` and select its file-comparison view.
+2. Choose the received file and paste the recorded content hash, or use the record search control. The comparison hashes the file locally.
+3. Read **Match**, **No match**, or the invalid-hash message. A resized messaging-app copy can fail even if it looks identical; request the original bytes and compare again.
+
+**Expected outcome:** a match establishes byte equality with the recorded fingerprint. It does not establish factual truth, ownership, or that an on-chain certificate was issued.
+
+### Reviewer: inspect a shared certificate
+
+1. Open `/certificate` and search by the supplied certificate ID or verification code.
+2. Compare creator identity, storage reference, hashes, history, and confidence evidence with what the sender claims.
+3. If a chain transaction is provided, check it on the configured network using the explorer action or the CLI example below. Do not interpret a missing result as proof of fraud: first confirm the ID and network.
+
+**Expected outcome:** a readable record and its evidence, or a lookup error to investigate. A confidence score supports provenance review; it does not prove the content's claims are true.
 
 ---
 
@@ -51,7 +83,7 @@ After submitting, your content enters a verification queue. **My jobs** shows ev
 |--------|---------------|----------------|
 | **Queued** | Waiting for a verifier | Your position in the queue and an estimated wait |
 | **Running** | Being verified inside a secure enclave | Usually short; the page updates automatically |
-| **Complete** | Verified and certificate minted | The provenance record is on-chain and permanently readable |
+| **Complete** | Local metadata and manifest validation finished | On-chain issuance requires separate integration and confirmation |
 | **Failed** | Could not be verified | The reason is shown; fix it and resubmit |
 
 Your job list is stored in this browser only — a different device or a cleared browser won't show it.
@@ -159,7 +191,7 @@ This returns the full `ProvenanceCert` struct directly from the contract. See [d
 ## Troubleshooting
 
 **The upload page doesn't do anything when I try to use it.**
-Expected — the file input and submission handler are not yet wired up. See [Getting started](#getting-started).
+Check which workflow your deployment exposes, correct highlighted fields, and wait for hashing. The separate `/verify` wizard uses simulated submission; its completion is not a real upload or chain receipt. See [practical examples](#practical-workflow-examples).
 
 **`pnpm dev:frontend` starts but `/api/health` 404s.**
 Confirm you're hitting `http://localhost:3000/api/health` (not `/health`). If still 404, check the terminal — the server may not have finished starting.
@@ -168,7 +200,7 @@ Confirm you're hitting `http://localhost:3000/api/health` (not `/health`). If st
 The score reflects oracle evidence, not just certificate existence. If the oracle has not yet run or the evidence was not stored with this certificate, all attestation checks score 0. This is expected for certificates minted before evidence tracking was added.
 
 **My Freighter wallet isn't connecting.**
-Wallet connection isn't wired into the frontend yet. All contract interaction currently goes through the Stellar CLI. See [docs/deployment.md](deployment.md).
+Confirm the extension is available, the wallet and app use the same network, and mock wallet mode is disabled for real transactions. Check contract IDs and initialization using [docs/deployment.md](deployment.md).
 
 ---
 
