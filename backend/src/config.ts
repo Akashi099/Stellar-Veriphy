@@ -84,6 +84,15 @@ export const config = {
     monitorIntervalMs: int("JOB_MONITOR_INTERVAL_MS", 15_000),
   },
 
+  cache: {
+    maxEntries: int("PUBLIC_CACHE_MAX_ENTRIES", 10_000),
+    /** Terminal verification status and certificate lookups never change, so they can live longer. */
+    statusTtlMs: int("PUBLIC_CACHE_STATUS_TTL_MS", 300_000),
+    /** "Latest verification for this content" can change when the content is re-verified. */
+    contentHashTtlMs: int("PUBLIC_CACHE_CONTENT_HASH_TTL_MS", 30_000),
+    negativeTtlMs: int("PUBLIC_CACHE_NEGATIVE_TTL_MS", 5_000),
+  },
+
   retention: {
     enabled: bool("RETENTION_CLEANUP_ENABLED", true),
     intervalMinutes: int("RETENTION_INTERVAL_MINUTES", 60),

@@ -2,7 +2,7 @@ import { config } from "./config.js";
 import type { QueueName } from "./db/collections.js";
 import { ensureIndexes } from "./db/indexes.js";
 import { connectMongo } from "./db/mongo.js";
-import { VerificationRepository } from "./db/verifications.js";
+import { CachedVerificationReads, VerificationRepository, createPublicVerificationCaches } from "./db/verifications.js";
 import { buildDependencyChecks } from "./health/checks.js";
 import { HealthMonitor } from "./health/monitor.js";
 import { jobHandlers } from "./jobs/handlers.js";
@@ -48,11 +48,16 @@ async function main(): Promise<void> {
   if (config.retention.enabled) cleanup.start();
   else log.warn("retention cleanup disabled (RETENTION_CLEANUP_ENABLED=false)");
 
+  const verifications = new CachedVerificationReads(
+    new VerificationRepository(db),
+    createPublicVerificationCaches(config.cache, log.child({ component: "cache" })),
+  );
+
   const server = createHttpServer({
     health,
     queue,
     cleanup,
-    verifications: new VerificationRepository(db),
+    verifications,
     log: log.child({ component: "http" }),
   });
   server.listen(config.port, () => log.info("backend listening", { port: config.port }));

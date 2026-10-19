@@ -2,7 +2,7 @@ import { timingSafeEqual } from "node:crypto";
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from "node:http";
 import { ObjectId } from "mongodb";
 import { config } from "./config.js";
-import type { VerificationRepository } from "./db/verifications.js";
+import type { CachedVerificationReads } from "./db/verifications.js";
 import type { HealthMonitor } from "./health/monitor.js";
 import type { JobQueue } from "./jobs/queue.js";
 import type { Logger } from "./lib/logger.js";
@@ -13,7 +13,7 @@ export interface ServerDeps {
   health: HealthMonitor;
   queue: JobQueue;
   cleanup: CleanupScheduler;
-  verifications: VerificationRepository;
+  verifications: CachedVerificationReads;
   log: Logger;
 }
 
@@ -29,6 +29,7 @@ interface Route {
 
 const STELLAR_ACCOUNT = /^G[A-Z2-7]{55}$/;
 const CONTENT_HASH = /^(sha256:)?[a-f0-9]{64}$/i;
+const CERT_ID = /^[A-Za-z0-9_-]{1,128}$/;
 
 function send(res: ServerResponse, status: number, body: unknown): void {
   const payload = JSON.stringify(body);
@@ -151,7 +152,25 @@ export function createHttpServer({ health, queue, cleanup, verifications, log }:
       },
     },
 
-    // --- Verification lookups (#773) ---------------------------------------------
+    // --- Public read cache (#779) -----------------------------------------------
+    {
+      method: "GET",
+      pattern: /^\/admin\/cache$/,
+      admin: true,
+      handler: async (_req, res) => send(res, 200, { entries: verifications.stats() }),
+    },
+    {
+      method: "DELETE",
+      pattern: /^\/admin\/cache$/,
+      admin: true,
+      handler: async (req, res) => {
+        const cleared = verifications.clear();
+        log.info("public read cache cleared by operator", { cleared, requestedBy: req.socket.remoteAddress ?? "unknown" });
+        send(res, 200, { cleared });
+      },
+    },
+
+    // --- Verification lookups (#773, cached by #779) ----------------------------
     {
       method: "GET",
       pattern: /^\/api\/verifications\/(?<jobId>[^/]+)$/,
@@ -185,6 +204,16 @@ export function createHttpServer({ health, queue, cleanup, verifications, log }:
           return send(res, 200, { items, nextCursor: last ? last.createdAt.toISOString() : null });
         }
         send(res, 400, { error: "Provide contentHash or creator" });
+      },
+    },
+    {
+      method: "GET",
+      pattern: /^\/api\/certificates\/(?<certId>[^/]+)$/,
+      handler: async (_req, res, { certId }) => {
+        if (!CERT_ID.test(certId)) return send(res, 400, { error: "Invalid certId" });
+        const verification = await verifications.findByCertId(certId);
+        if (!verification) return send(res, 404, { error: "Certificate not found" });
+        send(res, 200, verification);
       },
     },
   ];

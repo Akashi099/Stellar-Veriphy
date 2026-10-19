@@ -176,3 +176,26 @@ export const cleanupLastSuccess = new Gauge({
   labelNames: ["task"] as const,
   registers,
 });
+
+// --- Public read cache (#779) ------------------------------------------------
+
+export const cacheRequests = new Counter({
+  name: "sv_cache_requests_total",
+  help: "Public read cache lookups by outcome: hit, negative_hit, miss, coalesced or bypass (cache disabled)",
+  labelNames: ["cache", "outcome"] as const,
+  registers,
+});
+
+export const cacheEvictions = new Counter({
+  name: "sv_cache_evictions_total",
+  help: "Entries removed from a public read cache before expiry, by reason: capacity, invalidated or cleared",
+  labelNames: ["cache", "reason"] as const,
+  registers,
+});
+
+export const cacheEntries = new Gauge({
+  name: "sv_cache_entries",
+  help: "Entries currently held by a public read cache (per instance)",
+  labelNames: ["cache"] as const,
+  registers,
+});
