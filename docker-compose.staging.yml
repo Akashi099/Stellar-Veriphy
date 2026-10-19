@@ -119,12 +119,61 @@ services:
       - staging-network
     restart: unless-stopped
 
+  # Exporters feeding the infrastructure health dashboard
+  postgres-exporter:
+    image: quay.io/prometheuscommunity/postgres-exporter:v0.15.0
+    container_name: stellar-veriphy-staging-postgres-exporter
+    environment:
+      DATA_SOURCE_NAME: postgresql://staging_user:${STAGING_DB_PASSWORD:-staging_password_change_me}@postgres:5432/stellar_veriphy_staging?sslmode=disable
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - staging-network
+    restart: unless-stopped
+
+  redis-exporter:
+    image: oliver006/redis_exporter:v1.62.0
+    container_name: stellar-veriphy-staging-redis-exporter
+    environment:
+      REDIS_ADDR: redis://redis:6379
+      REDIS_PASSWORD: ${STAGING_REDIS_PASSWORD:-staging_redis_password}
+    depends_on:
+      redis:
+        condition: service_healthy
+    networks:
+      - staging-network
+    restart: unless-stopped
+
+  # Infrastructure health dashboard (docs/operations/infrastructure-dashboard.md)
+  grafana:
+    image: grafana/grafana:11.2.0
+    container_name: stellar-veriphy-staging-grafana
+    environment:
+      GF_SECURITY_ADMIN_USER: ${STAGING_GRAFANA_USER:-admin}
+      GF_SECURITY_ADMIN_PASSWORD: ${STAGING_GRAFANA_PASSWORD:-staging_grafana_password}
+      GF_USERS_ALLOW_SIGN_UP: "false"
+      GF_DASHBOARDS_DEFAULT_HOME_DASHBOARD_PATH: /var/lib/grafana/dashboards/infrastructure-health.json
+    volumes:
+      - ./monitoring/grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./monitoring/grafana/dashboards:/var/lib/grafana/dashboards:ro
+      - staging_grafana_data:/var/lib/grafana
+    ports:
+      - "3002:3000"
+    depends_on:
+      - prometheus
+    networks:
+      - staging-network
+    restart: unless-stopped
+
 volumes:
   staging_postgres_data:
     driver: local
   staging_redis_data:
     driver: local
   staging_prometheus_data:
+    driver: local
+  staging_grafana_data:
     driver: local
 
 networks:

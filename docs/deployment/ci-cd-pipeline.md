@@ -56,6 +56,8 @@ See the blue-green deploy script for the implementation. Summary: two containers
 
 ## Rollback
 
+The step-by-step operator checklist (decide, roll back, verify) is in [`../operations/rollback-checklist.md`](../operations/rollback-checklist.md).
+
 Two distinct paths:
 
 1. **Automatic, during a deploy:** if the new color passes its Docker healthcheck and gets promoted, but the workflow's own post-deploy smoke test (`curl $DEPLOY_URL/api/health`, 5 attempts) still fails, the workflow immediately calls `blue-green-deploy.sh rollback`, which flips nginx back to the previously-active color. This catches failures the container-internal healthcheck can't see (e.g. the host's reverse proxy misrouting).

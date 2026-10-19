@@ -114,6 +114,8 @@ stellar contract invoke --id <CONTRACT_ID> --source deployer --network testnet \
 
 ## Rollback procedures
 
+> For an ordered, operator-facing checklist covering configuration, frontend/API, database and contract rollback plus post-rollback verification, see [`operations/rollback-checklist.md`](operations/rollback-checklist.md).
+
 Soroban contract code is content-addressed by its WASM hash and, as deployed here, **immutable** — none of these three contracts call `env.deployer().update_current_contract_wasm()` or otherwise implement an upgrade path. There is no "revert this contract to its previous version" operation.
 
 If a deployed contract has a bug:
@@ -145,16 +147,16 @@ The frontend dynamically resolves backend API endpoints and behaviors based on t
 
 Endpoints and behavioral defaults are controlled by environment variables:
 
-| Environment | Variable | Default Value | Notes |
-| ----------- | -------- | ------------- | ----- |
-| **Development** | `NEXT_PUBLIC_API_URL` | `http://localhost:3000` | Mock fallbacks permitted, debug logging |
-| **Staging** | `NEXT_PUBLIC_API_URL` | `https://staging-api.stellarveriphy.io` | Testnet contracts, HTTPS enforced |
-| **Production** | `NEXT_PUBLIC_API_URL` | `https://api.stellarveriphy.io` | Mainnet contracts, strict HTTPS enforced |
+| Environment     | Variable              | Default Value                           | Notes                                    |
+| --------------- | --------------------- | --------------------------------------- | ---------------------------------------- |
+| **Development** | `NEXT_PUBLIC_API_URL` | `http://localhost:3000`                 | Mock fallbacks permitted, debug logging  |
+| **Staging**     | `NEXT_PUBLIC_API_URL` | `https://staging-api.stellarveriphy.io` | Testnet contracts, HTTPS enforced        |
+| **Production**  | `NEXT_PUBLIC_API_URL` | `https://api.stellarveriphy.io`         | Mainnet contracts, strict HTTPS enforced |
 
 ### Misconfiguration Detection
 
 The configuration layer validates at runtime:
+
 - **HTTPS Enforcement**: In staging and production, non-HTTPS URLs are rejected.
 - **Localhost Prevention**: In production, endpoints configured to `localhost` or `127.0.0.1` throw an explicit runtime configuration error.
 - **Clear Guidance**: Malformed URLs or missing mandatory configurations display clear remediation instructions in console and build logs.
-

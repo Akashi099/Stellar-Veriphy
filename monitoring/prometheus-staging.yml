@@ -32,22 +32,14 @@ scrape_configs:
     metrics_path: "/metrics"
     scrape_interval: 10s
 
-  # PostgreSQL exporter (if enabled)
+  # PostgreSQL exporter (exposes pg_up and database stats)
   - job_name: "postgres"
     static_configs:
-      - targets: ["postgres:5432"]
-    metrics_path: "/metrics"
+      - targets: ["postgres-exporter:9187"]
     scrape_interval: 30s
 
-  # Redis exporter (if enabled)
+  # Redis exporter (exposes redis_up and cache stats)
   - job_name: "redis"
     static_configs:
-      - targets: ["redis:6379"]
-    metrics_path: "/metrics"
+      - targets: ["redis-exporter:9121"]
     scrape_interval: 30s
-
-  # Docker stats
-  - job_name: "docker"
-    static_configs:
-      - targets: ["unix:///var/run/docker.sock"]
-    metrics_path: "/metrics"

@@ -18,6 +18,7 @@
     "setup": "bash scripts/setup.sh",
     "clean": "bash scripts/clean.sh",
     "reset-db": "bash scripts/reset-db.sh",
+    "reset:staging": "bash scripts/reset-staging.sh",
     "generate-mock-data": "node scripts/generate-mock-data.mjs",
     "provenance:recover": "node scripts/provenance-recovery.mjs",
     "replay:events": "node scripts/contract-event-replay.mjs --all",

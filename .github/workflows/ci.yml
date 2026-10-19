@@ -1,0 +1,117 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+# Superseded runs on the same branch/PR are cancelled so they don't compete
+# for runners or write caches that the newer run would replace anyway.
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+env:
+  NODE_VERSION: "20"
+  # Bump to invalidate every cache below at once (see docs/ci/caching.md).
+  CACHE_VERSION: v1
+
+jobs:
+  frontend:
+    name: Frontend (lint, build, test)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # Reads the pnpm version from package.json "packageManager".
+      - uses: pnpm/action-setup@v4
+
+      # Caches the pnpm content-addressable store, keyed on pnpm-lock.yaml.
+      # node_modules is deliberately not cached: it contains platform-specific
+      # binaries and symlinks that go stale, while the store is safe to reuse
+      # and makes `pnpm install --frozen-lockfile` mostly a linking step.
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: pnpm
+          cache-dependency-path: pnpm-lock.yaml
+
+      - run: pnpm install --frozen-lockfile
+
+      # Next.js incremental build cache. The exact key matches only when both
+      # dependencies and sources are unchanged; the restore key falls back to
+      # the latest cache for the same lockfile, which Next validates per module
+      # so stale entries are rebuilt rather than served.
+      - uses: actions/cache@v4
+        with:
+          path: frontend/.next/cache
+          key: nextjs-${{ env.CACHE_VERSION }}-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}-${{ hashFiles('frontend/**/*.ts', 'frontend/**/*.tsx', 'frontend/**/*.js', 'frontend/**/*.jsx', 'frontend/**/*.css', 'packages/*/src/**', '!frontend/node_modules/**', '!frontend/.next/**') }}
+          restore-keys: |
+            nextjs-${{ env.CACHE_VERSION }}-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}-
+
+      - run: pnpm check:frontend
+      - run: pnpm build:frontend
+      - run: pnpm --filter frontend test:coverage
+
+  backend:
+    name: Backend (build)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: pnpm
+          cache-dependency-path: pnpm-lock.yaml
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm build:backend
+
+  contracts:
+    name: Contract (${{ matrix.contract }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        contract: [oracle, provenance, registry]
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: wasm32-unknown-unknown
+          components: rustfmt, clippy
+
+      # Caches ~/.cargo registry/git and the contract's target/ dir. The key
+      # includes the rustc version, Cargo.lock and Cargo.toml for this contract,
+      # so a toolchain or dependency change starts from a clean cache.
+      # Workspace crates are pruned before saving, keeping only dependencies.
+      # Caches are saved from main only: PRs restore main's cache but never
+      # write their own, which keeps cache storage from being evicted by
+      # short-lived branches and stops a PR from seeding what main restores.
+      - uses: Swatinem/rust-cache@v2
+        with:
+          prefix-key: ${{ env.CACHE_VERSION }}-rust
+          key: ${{ matrix.contract }}
+          workspaces: contracts/${{ matrix.contract }} -> target
+          save-if: ${{ github.ref == 'refs/heads/main' }}
+
+      - name: Format
+        working-directory: contracts/${{ matrix.contract }}
+        run: cargo fmt --check
+
+      - name: Clippy
+        working-directory: contracts/${{ matrix.contract }}
+        run: cargo clippy --target wasm32-unknown-unknown --release -- -D warnings
+
+      - name: Build
+        working-directory: contracts/${{ matrix.contract }}
+        run: cargo build --target wasm32-unknown-unknown --release
+
+      - name: Test
+        working-directory: contracts/${{ matrix.contract }}
+        run: cargo test --lib

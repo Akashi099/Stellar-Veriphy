@@ -38,6 +38,7 @@ The staging environment mirrors the production setup with:
 # Set environment variables
 export STAGING_DB_PASSWORD=your_secure_password
 export STAGING_REDIS_PASSWORD=your_secure_password
+export STAGING_GRAFANA_PASSWORD=your_secure_password
 
 # Start services
 docker-compose -f docker-compose.staging.yml up -d
@@ -116,16 +117,41 @@ docker-compose -f docker-compose.staging.yml exec postgres \
   psql -U staging_user stellar_veriphy_staging < staging_backup.sql
 ```
 
-### Reset Database
+### Reset the environment
+
+Use `scripts/reset-staging.sh` (or `pnpm reset:staging`) to return the local staging stack to a known state. It:
+
+1. Starts `postgres` and `redis` if they aren't running and waits until both report healthy.
+2. Drops `stellar_veriphy_staging` (terminating open connections) and recreates it.
+3. Re-applies `scripts/init-staging-db.sql`, which creates the schema and the sample rows.
+4. Flushes the staging Redis cache.
+5. Verifies the result: database exists, `content_items`, `verification_proofs` and `provenance_records` are present, seed rows match the requested mode, and Redis is empty. Any mismatch exits non-zero.
 
 ```bash
-# Drop and recreate
-docker-compose -f docker-compose.staging.yml exec postgres \
-  dropdb -U staging_user stellar_veriphy_staging
+export STAGING_DB_PASSWORD=your_secure_password
+export STAGING_REDIS_PASSWORD=your_secure_password
 
-docker-compose -f docker-compose.staging.yml exec postgres \
-  createdb -U staging_user stellar_veriphy_staging
+# Preview what will happen; changes nothing
+scripts/reset-staging.sh --dry-run
+
+# Interactive reset (asks you to type "reset")
+scripts/reset-staging.sh
+
+# Non-interactive, e.g. from CI or another script
+scripts/reset-staging.sh --yes
+
+# Empty tables instead of sample data, and keep cached sessions
+scripts/reset-staging.sh --yes --no-seed --keep-cache
+
+# Check the current state without touching anything
+scripts/reset-staging.sh --verify-only
 ```
+
+**Safe to rerun.** Every step is idempotent: `DROP DATABASE IF EXISTS`, `CREATE ... IF NOT EXISTS` throughout the init script, `DROP TRIGGER IF EXISTS` before recreating the trigger, and `ON CONFLICT DO NOTHING` for sample rows. If a reset is interrupted halfway, run it again.
+
+**Guard rails.** The script only targets `docker-compose.staging.yml`, refuses to run when `NODE_ENV`, `ENVIRONMENT` or `DEPLOY_ENV` is `production`, and refuses to run without `--yes` when there is no terminal to confirm on.
+
+**Passwords.** `STAGING_DB_PASSWORD` and `STAGING_REDIS_PASSWORD` must match the values the stack was first started with. Postgres only reads its password when the data volume is created; to change it, run `docker-compose -f docker-compose.staging.yml down -v` and start again.
 
 ## Testing in Staging
 
@@ -168,6 +194,10 @@ cargo audit
 ### Prometheus Metrics
 
 Access Prometheus at `http://localhost:9090`
+
+### Infrastructure Health Dashboard
+
+Grafana runs at `http://localhost:3002` with the **Infrastructure Health** dashboard as its home page. It shows the app services, Postgres, Redis and the backend's external dependencies at a glance. See [docs/operations/infrastructure-dashboard.md](docs/operations/infrastructure-dashboard.md).
 
 ### Container Logs
 

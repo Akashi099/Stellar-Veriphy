@@ -1,8 +1,10 @@
 -- Staging Database Initialization Script
--- This script initializes the staging database with test data and schema
+-- This script initializes the staging database with test data and schema.
+-- It is idempotent: scripts/reset-staging.sh re-applies it after every reset,
+-- so every statement must be safe to run against an already-initialized database.
 
 -- Create extensions
-CREATE EXTENSION IF NOT EXISTS uuid-ossp;
+CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 CREATE EXTENSION IF NOT EXISTS pgcrypto;
 
 -- Create schemas
@@ -49,13 +51,13 @@ CREATE TABLE IF NOT EXISTS provenance_records (
 );
 
 -- Create indexes for better query performance
-CREATE INDEX idx_content_creator ON content_items(creator_address);
-CREATE INDEX idx_content_hash ON content_items(content_hash);
-CREATE INDEX idx_content_status ON content_items(status);
-CREATE INDEX idx_verification_content ON verification_proofs(content_id);
-CREATE INDEX idx_verification_verifier ON verification_proofs(verifier_address);
-CREATE INDEX idx_provenance_content ON provenance_records(content_id);
-CREATE INDEX idx_provenance_timestamp ON provenance_records(timestamp);
+CREATE INDEX IF NOT EXISTS idx_content_creator ON content_items(creator_address);
+CREATE INDEX IF NOT EXISTS idx_content_hash ON content_items(content_hash);
+CREATE INDEX IF NOT EXISTS idx_content_status ON content_items(status);
+CREATE INDEX IF NOT EXISTS idx_verification_content ON verification_proofs(content_id);
+CREATE INDEX IF NOT EXISTS idx_verification_verifier ON verification_proofs(verifier_address);
+CREATE INDEX IF NOT EXISTS idx_provenance_content ON provenance_records(content_id);
+CREATE INDEX IF NOT EXISTS idx_provenance_timestamp ON provenance_records(timestamp);
 
 -- Grant table permissions to staging_user
 GRANT ALL PRIVILEGES ON ALL TABLES IN SCHEMA public TO staging_user;
@@ -88,6 +90,7 @@ END;
 $$ LANGUAGE plpgsql;
 
 -- Create trigger for content_items
+DROP TRIGGER IF EXISTS update_content_items_updated_at ON content_items;
 CREATE TRIGGER update_content_items_updated_at
 BEFORE UPDATE ON content_items
 FOR EACH ROW
