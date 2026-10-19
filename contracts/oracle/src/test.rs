@@ -52,6 +52,73 @@ mod reject_registry {
     }
 }
 
+#[cfg(test)]
+mod property_tests {
+    extern crate std;
+    use super::*;
+    use quickcheck::quickcheck;
+
+    quickcheck! {
+        fn prop_request_ids_are_monotonic(priority_bytes: std::vec::Vec<u8>) -> bool {
+            let env = make_env();
+            env.mock_all_auths();
+            let (cid, ..) = setup_oracle(&env);
+            let client = OracleContractClient::new(&env, &cid);
+            let bytes = Bytes::from_slice(&env, b"property");
+            let requester = Address::generate(&env);
+            let mut previous = 0u64;
+
+            for value in priority_bytes.iter().take(20) {
+                let priority = match value % 4 {
+                    0 => Priority::Low,
+                    1 => Priority::Normal,
+                    2 => Priority::High,
+                    _ => Priority::Urgent,
+                };
+                let id = client.submit_request(&bytes, &bytes, &requester, &priority);
+                if id <= previous {
+                    return false;
+                }
+                previous = id;
+                let request = client.get_request(&id).unwrap();
+                if request.requester != requester || request.priority != priority {
+                    return false;
+                }
+            }
+
+            true
+        }
+
+        fn prop_duplicate_provider_registration_is_idempotent(_values: std::vec::Vec<u8>) -> bool {
+            let env = make_env();
+            env.mock_all_auths();
+            let (cid, ..) = setup_oracle(&env);
+            let client = OracleContractClient::new(&env, &cid);
+            let provider = Address::generate(&env);
+
+            client.add_provider(&provider);
+            client.add_provider(&provider);
+
+            let providers = client.get_provider_list();
+            providers.len() == 1 && client.is_provider(&provider)
+        }
+
+        fn prop_pause_prevents_further_requests(value: u8) -> bool {
+            let env = make_env();
+            env.mock_all_auths();
+            let (cid, ..) = setup_oracle(&env);
+            let client = OracleContractClient::new(&env, &cid);
+            let bytes = Bytes::from_slice(&env, &[value]);
+            let requester = Address::generate(&env);
+
+            client.pause();
+            client
+                .try_submit_request(&bytes, &bytes, &requester, &Priority::Normal)
+                .is_err()
+        }
+    }
+}
+
 fn setup_oracle(env: &Env) -> (Address, Address, Address) {
     let registry = Address::generate(env);
     let provenance = Address::generate(env);

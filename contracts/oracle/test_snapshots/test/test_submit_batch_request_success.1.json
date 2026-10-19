@@ -173,6 +173,12 @@
                   "map": [
                     {
                       "key": {
+                        "symbol": "comment"
+                      },
+                      "val": "void"
+                    },
+                    {
+                      "key": {
                         "symbol": "manifest_hash"
                       },
                       "val": {
@@ -265,6 +271,12 @@
                 "durability": "temporary",
                 "val": {
                   "map": [
+                    {
+                      "key": {
+                        "symbol": "comment"
+                      },
+                      "val": "void"
+                    },
                     {
                       "key": {
                         "symbol": "manifest_hash"

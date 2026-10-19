@@ -8,6 +8,8 @@
  * next/image can serve IPFS and Arweave assets.
  *
  * Constants are sourced from `config/app.ts` to avoid magic strings.
+ *
+ * Bundle analysis can be enabled with: ANALYZE=true pnpm build
  */
 
 import withBundleAnalyzer from "@next/bundle-analyzer";
@@ -39,39 +41,17 @@ const cspValue = [
 // ---------------------------------------------------------------------------
 
 const nextConfig: NextConfig = {
+  transpilePackages: ["@stellarveriphy/shared"],
+
   // -------------------------------------------------------------------------
   // Image optimisation
   // -------------------------------------------------------------------------
   images: {
-    /**
-     * Allow next/image to fetch and optimise images from IPFS gateways and
-     * Arweave.  Patterns are maintained in config/app.ts so they stay in sync
-     * with the CSP connect-src and the TypeScript types.
-     */
     remotePatterns: ALLOWED_IMAGE_URL_PATTERNS,
-    /**
-     * Serve AVIF first (best compression), then WebP as a fallback.
-     * Browsers that support neither receive the original format.
-     */
     formats: ["image/avif", "image/webp"],
-    /**
-     * Device widths used to generate the srcset for responsive images.
-     * Covers from small mobile (320) up to wide-screen (1920).
-     */
     deviceSizes: [320, 480, 640, 750, 828, 1080, 1200, 1920],
-    /**
-     * Fixed-size widths for the `sizes` attribute on icon / thumbnail images.
-     */
     imageSizes: [16, 32, 48, 64, 96, 128, 256, 384],
-    /**
-     * Minimum seconds a generated image variant is kept in the cache.
-     * Default is 60 s; bump to 10 min since IPFS content is immutable.
-     */
     minimumCacheTTL: 600,
-    /**
-     * Disable the blur placeholder computation on the server-side for
-     * remote images (we supply our own static blur URI from config/app.ts).
-     */
     dangerouslyAllowSVG: false,
     contentDispositionType: "attachment",
   },
@@ -111,18 +91,18 @@ const nextConfig: NextConfig = {
   // #437 — code splitting: keep heavy vendor chunks separate so unchanged
   // pages don't bust the cache for unrelated vendor code.
   experimental: {
-    optimizePackageImports: [
-      "lucide-react",
-      "recharts",
-      "framer-motion",
-      "react-icons",
-    ],
+    optimizePackageImports: ["lucide-react", "recharts", "framer-motion", "react-icons"],
   },
 };
 
 // #437 — wrap with bundle analyser; run `ANALYZE=true pnpm build` to open report
 const analyzer = withBundleAnalyzer({
   enabled: process.env.ANALYZE === "true",
+  openAnalyzer: process.env.ANALYZE === "true" && process.env.CI !== "true",
+  analyzerMode: "static",
+  reportFilename: ".bundle-reports/bundle-analysis.html",
+  generateStatsFile: true,
+  statsFilename: ".bundle-reports/bundle-stats.json",
 });
 
 export default analyzer(nextConfig);

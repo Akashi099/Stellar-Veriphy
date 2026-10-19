@@ -11,12 +11,12 @@ export async function registerServiceWorker(): Promise<ServiceWorkerRegistration
       scope: "/",
     });
 
-    logger.info("Service Worker registered:", registration.scope);
+    logger.info("Service Worker registered:", { operation: registration.scope });
     setInterval(() => registration.update(), 60 * 60 * 1000);
 
     return registration;
   } catch (error) {
-    logger.error("Service Worker registration failed:", error);
+    logger.error("Service Worker registration failed:", { error });
     return null;
   }
 }
@@ -29,10 +29,10 @@ export async function unregisterServiceWorker(): Promise<boolean> {
   try {
     const registration = await navigator.serviceWorker.ready;
     const success = await registration.unregister();
-    logger.info("Service Worker unregistered:", success);
+    logger.info("Service Worker unregistered:", { operation: String(success) });
     return success;
   } catch (error) {
-    logger.error("Service Worker unregistration failed:", error);
+    logger.error("Service Worker unregistration failed:", { error });
     return false;
   }
 }
@@ -69,7 +69,7 @@ export async function subscribeToPushNotifications(
       applicationServerKey: urlBase64ToArrayBuffer(vapidPublicKey),
     });
   } catch (error) {
-    logger.error("Push subscription failed:", error);
+    logger.error("Push subscription failed:", { error });
     return null;
   }
 }
@@ -84,7 +84,7 @@ export async function unsubscribeFromPushNotifications(): Promise<boolean> {
     const subscription = await registration.pushManager.getSubscription();
     return subscription ? subscription.unsubscribe() : true;
   } catch (error) {
-    logger.error("Push unsubscribe failed:", error);
+    logger.error("Push unsubscribe failed:", { error });
     return false;
   }
 }
@@ -177,9 +177,9 @@ export async function registerBackgroundSync(
     await (
       registration as ServiceWorkerRegistration & { sync: { register(t: string): Promise<void> } }
     ).sync.register(tag);
-    logger.info("Background sync registered:", tag);
+    logger.info("Background sync registered:", { operation: tag });
   } catch (error) {
-    logger.error("Background sync registration failed:", error);
+    logger.error("Background sync registration failed:", { error });
   }
 }
 

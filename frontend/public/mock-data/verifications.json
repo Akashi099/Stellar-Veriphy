@@ -1,0 +1,882 @@
+[
+  {
+    "id": "p0zkk9qoo",
+    "itemId": "b0g4vgcae",
+    "verifier": "du759igkj",
+    "verifierName": "Test User 11",
+    "status": "approved",
+    "confidence": "79.13",
+    "evidence": {
+      "sources": [
+        "https://example.com/source-0",
+        "https://archive.org/item-0"
+      ],
+      "analysis": "Comprehensive verification analysis for item 0",
+      "metadata": {
+        "method": "automated",
+        "timestamp": "2026-08-30T01:29:25.658Z"
+      }
+    },
+    "blockchainTx": "0xe6173c35753cd7543ccb38100c8",
+    "createdAt": "2026-07-19T09:54:45.430Z",
+    "expiresAt": "2026-11-28T01:29:25.658Z"
+  },
+  {
+    "id": "j3gpze0ak",
+    "itemId": "cxpylymyj",
+    "verifier": "yyw4zbk3i",
+    "verifierName": "Test User 4",
+    "status": "approved",
+    "confidence": "59.47",
+    "evidence": {
+      "sources": [
+        "https://example.com/source-1",
+        "https://archive.org/item-1"
+      ],
+      "analysis": "Comprehensive verification analysis for item 1",
+      "metadata": {
+        "method": "automated",
+        "timestamp": "2026-08-30T01:29:25.658Z"
+      }
+    },
+    "blockchainTx": "0x2d246c8e1caa79925e00e66e2a",
+    "createdAt": "2023-02-21T08:38:19.825Z",
+    "expiresAt": "2026-11-28T01:29:25.658Z"
+  },
+  {
+    "id": "jllhmhwqa",
+    "itemId": "yn0wz5qly",
+    "verifier": "0qb07misn",
+    "verifierName": "Test User 13",
+    "status": "pending",
+    "confidence": "74.81",
+    "evidence": {
+      "sources": [
+        "https://example.com/source-2",
+        "https://archive.org/item-2"
+      ],
+      "analysis": "Comprehensive verification analysis for item 2",
+      "metadata": {
+        "method": "automated",
+        "timestamp": "2026-08-30T01:29:25.658Z"
+      }
+    },
+    "blockchainTx": "0x5875246e3ee0e969edee2da0d5",
+    "createdAt": "2023-09-25T17:16:57.152Z",
+    "expiresAt": "2026-11-28T01:29:25.658Z"
+  },
+  {
+    "id": "kehhhqyee",
+    "itemId": "phuhxyub5",
+    "verifier": "tyf9lm9u4",
+    "verifierName": "Test User 2",
+    "status": "pending",
+    "confidence": "16.34",
+    "evidence": {
+      "sources": [
+        "https://example.com/source-3",
+        "https://archive.org/item-3"
+      ],
+      "analysis": "Comprehensive verification analysis for item 3",
+      "metadata": {
+        "method": "automated",
+        "timestamp": "2026-08-30T01:29:25.658Z"
+      }
+    },
+    "blockchainTx": "0x9f8400b6a796284b0207faa57dd",
+    "createdAt": "2024-06-12T15:54:34.021Z",
+    "expiresAt": "2026-11-28T01:29:25.658Z"
+  },
+  {
+    "id": "ap0awy8rq",
+    "itemId": "8cdsgzes9",
+    "verifier": "m82s8wuvt",
+    "verifierName": "Test User 14",
+    "status": "approved",
+    "confidence": "49.29",
+    "evidence": {
+      "sources": [
+        "https://example.com/source-4",
+        "https://archive.org/item-4"
+      ],
+      "analysis": "Comprehensive verification analysis for item 4",
+      "metadata": {
+        "method": "automated",
+        "timestamp": "2026-08-30T01:29:25.658Z"
+      }
+    },
+    "blockchainTx": "0x6f51ec58b38e2cb0ddfb4e042a8",
+    "createdAt": "2025-01-26T03:17:21.227Z",
+    "expiresAt": "2026-11-28T01:29:25.658Z"
+  },
+  {
+    "id": "0juf2jz3p",
+    "itemId": "28qdh90fj",
+    "verifier": "du759igkj",
+    "verifierName": "Test User 11",
+    "status": "pending",
+    "confidence": "76.65",
+    "evidence": {
+      "sources": [
+        "https://example.com/source-5",
+        "https://archive.org/item-5"
+      ],
+      "analysis": "Comprehensive verification analysis for item 5",
+      "metadata": {
+        "method": "automated",
+        "timestamp": "2026-08-30T01:29:25.658Z"
+      }
+    },
+    "blockchainTx": "0x996101d25d0f08cd006d20afd13",
+    "createdAt": "2024-03-06T05:28:19.837Z",
+    "expiresAt": "2026-11-28T01:29:25.658Z"
+  },
+  {
+    "id": "w96py73nl",
+    "itemId": "yn0wz5qly",
+    "verifier": "b5y34oelm",
+    "verifierName": "Test User 9",
+    "status": "rejected",
+    "confidence": "11.01",
+    "evidence": {
+      "sources": [
+        "https://example.com/source-6",
+        "https://archive.org/item-6"
+      ],
+      "analysis": "Comprehensive verification analysis for item 6",
+      "metadata": {
+        "method": "automated",
+        "timestamp": "2026-08-30T01:29:25.658Z"
+      }
+    },
+    "blockchainTx": "0x8e54a21c7379d83c847d5dfa7d28",
+    "createdAt": "2025-02-13T15:24:08.860Z",
+    "expiresAt": "2026-11-28T01:29:25.658Z"
+  },
+  {
+    "id": "gglifnbso",
+    "itemId": "cxpylymyj",
+    "verifier": "du759igkj",
+    "verifierName": "Test User 11",
+    "status": "approved",
+    "confidence": "59.26",
+    "evidence": {
+      "sources": [
+        "https://example.com/source-7",
+        "https://archive.org/item-7"
+      ],
+      "analysis": "Comprehensive verification analysis for item 7",
+      "metadata": {
+        "method": "automated",
+        "timestamp": "2026-08-30T01:29:25.658Z"
+      }
+    },
+    "blockchainTx": "0x3ac6c5198ddd6e7394a94939978",
+    "createdAt": "2025-07-26T12:14:04.357Z",
+    "expiresAt": "2026-11-28T01:29:25.658Z"
+  },
+  {
+    "id": "lz9e3g1p8",
+    "itemId": "qggi6qnms",
+    "verifier": "du759igkj",
+    "verifierName": "Test User 11",
+    "status": "approved",
+    "confidence": "11.95",
+    "evidence": {
+      "sources": [
+        "https://example.com/source-8",
+        "https://archive.org/item-8"
+      ],
+      "analysis": "Comprehensive verification analysis for item 8",
+      "metadata": {
+        "method": "automated",
+        "timestamp": "2026-08-30T01:29:25.658Z"
+      }
+    },
+    "blockchainTx": "0x87de315c65d65cf4792ac197838",
+    "createdAt": "2026-01-08T12:59:45.256Z",
+    "expiresAt": "2026-11-28T01:29:25.658Z"
+  },
+  {
+    "id": "qtbjwkrku",
+    "itemId": "uzvlru7eh",
+    "verifier": "k401y5f0r",
+    "verifierName": "Test User 12",
+    "status": "approved",
+    "confidence": "76.49",
+    "evidence": {
+      "sources": [
+        "https://example.com/source-9",
+        "https://archive.org/item-9"
+      ],
+      "analysis": "Comprehensive verification analysis for item 9",
+      "metadata": {
+        "method": "automated",
+        "timestamp": "2026-08-30T01:29:25.658Z"
+      }
+    },
+    "blockchainTx": "0x31768a154ac17b0473378d07ac8",
+    "createdAt": "2025-03-23T00:46:32.201Z",
+    "expiresAt": "2026-11-28T01:29:25.658Z"
+  },
+  {
+    "id": "djnc0crry",
+    "itemId": "4yory04sy",
+    "verifier": "m82s8wuvt",
+    "verifierName": "Test User 14",
+    "status": "approved",
+    "confidence": "22.31",
+    "evidence": {
+      "sources": [
+        "https://example.com/source-10",
+        "https://archive.org/item-10"
+      ],
+      "analysis": "Comprehensive verification analysis for item 10",
+      "metadata": {
+        "method": "automated",
+        "timestamp": "2026-08-30T01:29:25.658Z"
+      }
+    },
+    "blockchainTx": "0xb6eba3b849577582753afa7fba8",
+    "createdAt": "2025-05-07T07:16:05.101Z",
+    "expiresAt": "2026-11-28T01:29:25.658Z"
+  },
+  {
+    "id": "6k3b7q9xt",
+    "itemId": "dynt8qsox",
+    "verifier": "yyw4zbk3i",
+    "verifierName": "Test User 4",
+    "status": "approved",
+    "confidence": "97.81",
+    "evidence": {
+      "sources": [
+        "https://example.com/source-11",
+        "https://archive.org/item-11"
+      ],
+      "analysis": "Comprehensive verification analysis for item 11",
+      "metadata": {
+        "method": "automated",
+        "timestamp": "2026-08-30T01:29:25.658Z"
+      }
+    },
+    "blockchainTx": "0x2dcea9b4df81b8c5aaa624001bf8",
+    "createdAt": "2025-04-28T06:25:24.276Z",
+    "expiresAt": "2026-11-28T01:29:25.658Z"
+  },
+  {
+    "id": "p3jqenxkb",
+    "itemId": "gekbecfci",
+    "verifier": "m82s8wuvt",
+    "verifierName": "Test User 14",
+    "status": "rejected",
+    "confidence": "84.10",
+    "evidence": {
+      "sources": [
+        "https://example.com/source-12",
+        "https://archive.org/item-12"
+      ],
+      "analysis": "Comprehensive verification analysis for item 12",
+      "metadata": {
+        "method": "automated",
+        "timestamp": "2026-08-30T01:29:25.658Z"
+      }
+    },
+    "blockchainTx": "0x80d7e062392e1c829d53f6a8968",
+    "createdAt": "2024-01-02T10:10:15.244Z",
+    "expiresAt": "2026-11-28T01:29:25.658Z"
+  },
+  {
+    "id": "fw1gqtf8p",
+    "itemId": "ppnfv76gu",
+    "verifier": "m82s8wuvt",
+    "verifierName": "Test User 14",
+    "status": "pending",
+    "confidence": "2.21",
+    "evidence": {
+      "sources": [
+        "https://example.com/source-13",
+        "https://archive.org/item-13"
+      ],
+      "analysis": "Comprehensive verification analysis for item 13",
+      "metadata": {
+        "method": "automated",
+        "timestamp": "2026-08-30T01:29:25.658Z"
+      }
+    },
+    "blockchainTx": "0x84b4babf8913ba4ba3e4b494618",
+    "createdAt": "2025-02-24T20:07:16.420Z",
+    "expiresAt": "2026-11-28T01:29:25.658Z"
+  },
+  {
+    "id": "arbcmcf8l",
+    "itemId": "a84ynw45l",
+    "verifier": "tyf9lm9u4",
+    "verifierName": "Test User 2",
+    "status": "rejected",
+    "confidence": "41.81",
+    "evidence": {
+      "sources": [
+        "https://example.com/source-14",
+        "https://archive.org/item-14"
+      ],
+      "analysis": "Comprehensive verification analysis for item 14",
+      "metadata": {
+        "method": "automated",
+        "timestamp": "2026-08-30T01:29:25.658Z"
+      }
+    },
+    "blockchainTx": "0x16800dc595c6467e0bc34d0f48",
+    "createdAt": "2025-07-10T15:20:11.393Z",
+    "expiresAt": "2026-11-28T01:29:25.658Z"
+  },
+  {
+    "id": "mjb8qaday",
+    "itemId": "pqkz6szrp",
+    "verifier": "b5y34oelm",
+    "verifierName": "Test User 9",
+    "status": "pending",
+    "confidence": "64.99",
+    "evidence": {
+      "sources": [
+        "https://example.com/source-15",
+        "https://archive.org/item-15"
+      ],
+      "analysis": "Comprehensive verification analysis for item 15",
+      "metadata": {
+        "method": "automated",
+        "timestamp": "2026-08-30T01:29:25.658Z"
+      }
+    },
+    "blockchainTx": "0x3d01ec95eb8cc6ffd69e93a5ed8",
+    "createdAt": "2024-07-02T22:16:47.793Z",
+    "expiresAt": "2026-11-28T01:29:25.658Z"
+  },
+  {
+    "id": "ojv5d1ymx",
+    "itemId": "ofrnsvh0z",
+    "verifier": "k401y5f0r",
+    "verifierName": "Test User 12",
+    "status": "approved",
+    "confidence": "56.17",
+    "evidence": {
+      "sources": [
+        "https://example.com/source-16",
+        "https://archive.org/item-16"
+      ],
+      "analysis": "Comprehensive verification analysis for item 16",
+      "metadata": {
+        "method": "automated",
+        "timestamp": "2026-08-30T01:29:25.658Z"
+      }
+    },
+    "blockchainTx": "0x613887a62bc570484e9d4e49a5",
+    "createdAt": "2026-03-09T05:57:19.016Z",
+    "expiresAt": "2026-11-28T01:29:25.658Z"
+  },
+  {
+    "id": "0ibbi9a5j",
+    "itemId": "vzi59m2wp",
+    "verifier": "kwxrbynpj",
+    "verifierName": "Test User 6",
+    "status": "pending",
+    "confidence": "70.00",
+    "evidence": {
+      "sources": [
+        "https://example.com/source-17",
+        "https://archive.org/item-17"
+      ],
+      "analysis": "Comprehensive verification analysis for item 17",
+      "metadata": {
+        "method": "automated",
+        "timestamp": "2026-08-30T01:29:25.658Z"
+      }
+    },
+    "blockchainTx": "0x7400656727d4382789580cc37a",
+    "createdAt": "2026-03-14T00:53:29.435Z",
+    "expiresAt": "2026-11-28T01:29:25.658Z"
+  },
+  {
+    "id": "nvcm1wr1g",
+    "itemId": "b0g4vgcae",
+    "verifier": "0qb07misn",
+    "verifierName": "Test User 13",
+    "status": "approved",
+    "confidence": "85.77",
+    "evidence": {
+      "sources": [
+        "https://example.com/source-18",
+        "https://archive.org/item-18"
+      ],
+      "analysis": "Comprehensive verification analysis for item 18",
+      "metadata": {
+        "method": "automated",
+        "timestamp": "2026-08-30T01:29:25.658Z"
+      }
+    },
+    "blockchainTx": "0x80952cff1ce2839764cc4e00e68",
+    "createdAt": "2025-06-06T22:08:06.895Z",
+    "expiresAt": "2026-11-28T01:29:25.658Z"
+  },
+  {
+    "id": "n8756b05p",
+    "itemId": "9yjkixr71",
+    "verifier": "b5y34oelm",
+    "verifierName": "Test User 9",
+    "status": "approved",
+    "confidence": "18.62",
+    "evidence": {
+      "sources": [
+        "https://example.com/source-19",
+        "https://archive.org/item-19"
+      ],
+      "analysis": "Comprehensive verification analysis for item 19",
+      "metadata": {
+        "method": "automated",
+        "timestamp": "2026-08-30T01:29:25.658Z"
+      }
+    },
+    "blockchainTx": "0x636268da0b1ef981cb1a9a920b",
+    "createdAt": "2024-04-22T00:43:13.198Z",
+    "expiresAt": "2026-11-28T01:29:25.658Z"
+  },
+  {
+    "id": "v1miuyc1r",
+    "itemId": "dynt8qsox",
+    "verifier": "b5y34oelm",
+    "verifierName": "Test User 9",
+    "status": "approved",
+    "confidence": "71.71",
+    "evidence": {
+      "sources": [
+        "https://example.com/source-20",
+        "https://archive.org/item-20"
+      ],
+      "analysis": "Comprehensive verification analysis for item 20",
+      "metadata": {
+        "method": "automated",
+        "timestamp": "2026-08-30T01:29:25.658Z"
+      }
+    },
+    "blockchainTx": "0x25fd6506bda4fb010d844f8691",
+    "createdAt": "2025-07-25T14:10:35.093Z",
+    "expiresAt": "2026-11-28T01:29:25.658Z"
+  },
+  {
+    "id": "m1wktu2jl",
+    "itemId": "yn0wz5qly",
+    "verifier": "yyw4zbk3i",
+    "verifierName": "Test User 4",
+    "status": "approved",
+    "confidence": "25.07",
+    "evidence": {
+      "sources": [
+        "https://example.com/source-21",
+        "https://archive.org/item-21"
+      ],
+      "analysis": "Comprehensive verification analysis for item 21",
+      "metadata": {
+        "method": "automated",
+        "timestamp": "2026-08-30T01:29:25.658Z"
+      }
+    },
+    "blockchainTx": "0x5da3344e9056b626d52ffc4e758",
+    "createdAt": "2023-04-10T04:27:51.598Z",
+    "expiresAt": "2026-11-28T01:29:25.658Z"
+  },
+  {
+    "id": "f4uozwzim",
+    "itemId": "hscyfrqdi",
+    "verifier": "m82s8wuvt",
+    "verifierName": "Test User 14",
+    "status": "pending",
+    "confidence": "55.96",
+    "evidence": {
+      "sources": [
+        "https://example.com/source-22",
+        "https://archive.org/item-22"
+      ],
+      "analysis": "Comprehensive verification analysis for item 22",
+      "metadata": {
+        "method": "automated",
+        "timestamp": "2026-08-30T01:29:25.658Z"
+      }
+    },
+    "blockchainTx": "0xdd30b971096428c305d722ee128",
+    "createdAt": "2024-01-16T22:55:36.157Z",
+    "expiresAt": "2026-11-28T01:29:25.658Z"
+  },
+  {
+    "id": "c1yvn0bre",
+    "itemId": "su8pm880w",
+    "verifier": "m82s8wuvt",
+    "verifierName": "Test User 14",
+    "status": "approved",
+    "confidence": "70.32",
+    "evidence": {
+      "sources": [
+        "https://example.com/source-23",
+        "https://archive.org/item-23"
+      ],
+      "analysis": "Comprehensive verification analysis for item 23",
+      "metadata": {
+        "method": "automated",
+        "timestamp": "2026-08-30T01:29:25.658Z"
+      }
+    },
+    "blockchainTx": "0x42f04f6b5054b1fc348e15079",
+    "createdAt": "2025-04-09T19:31:23.321Z",
+    "expiresAt": "2026-11-28T01:29:25.658Z"
+  },
+  {
+    "id": "4votelesa",
+    "itemId": "b0g4vgcae",
+    "verifier": "tyf9lm9u4",
+    "verifierName": "Test User 2",
+    "status": "pending",
+    "confidence": "1.98",
+    "evidence": {
+      "sources": [
+        "https://example.com/source-24",
+        "https://archive.org/item-24"
+      ],
+      "analysis": "Comprehensive verification analysis for item 24",
+      "metadata": {
+        "method": "automated",
+        "timestamp": "2026-08-30T01:29:25.658Z"
+      }
+    },
+    "blockchainTx": "0xf6d10868f7753c576066d6f343",
+    "createdAt": "2023-03-22T16:12:48.280Z",
+    "expiresAt": "2026-11-28T01:29:25.658Z"
+  },
+  {
+    "id": "755hdf82p",
+    "itemId": "eip2al09c",
+    "verifier": "k401y5f0r",
+    "verifierName": "Test User 12",
+    "status": "approved",
+    "confidence": "23.96",
+    "evidence": {
+      "sources": [
+        "https://example.com/source-25",
+        "https://archive.org/item-25"
+      ],
+      "analysis": "Comprehensive verification analysis for item 25",
+      "metadata": {
+        "method": "automated",
+        "timestamp": "2026-08-30T01:29:25.658Z"
+      }
+    },
+    "blockchainTx": "0x5b189979313ab878973c304b4a78",
+    "createdAt": "2024-12-21T00:09:12.037Z",
+    "expiresAt": "2026-11-28T01:29:25.658Z"
+  },
+  {
+    "id": "sp3h6o9t1",
+    "itemId": "pqkz6szrp",
+    "verifier": "b5y34oelm",
+    "verifierName": "Test User 9",
+    "status": "pending",
+    "confidence": "40.26",
+    "evidence": {
+      "sources": [
+        "https://example.com/source-26",
+        "https://archive.org/item-26"
+      ],
+      "analysis": "Comprehensive verification analysis for item 26",
+      "metadata": {
+        "method": "automated",
+        "timestamp": "2026-08-30T01:29:25.658Z"
+      }
+    },
+    "blockchainTx": "0xf0b1b6dce9ce0845c1a9a4c36c6",
+    "createdAt": "2024-08-27T04:26:25.999Z",
+    "expiresAt": "2026-11-28T01:29:25.658Z"
+  },
+  {
+    "id": "of66we7nw",
+    "itemId": "cxpylymyj",
+    "verifier": "b5y34oelm",
+    "verifierName": "Test User 9",
+    "status": "rejected",
+    "confidence": "98.35",
+    "evidence": {
+      "sources": [
+        "https://example.com/source-27",
+        "https://archive.org/item-27"
+      ],
+      "analysis": "Comprehensive verification analysis for item 27",
+      "metadata": {
+        "method": "automated",
+        "timestamp": "2026-08-30T01:29:25.658Z"
+      }
+    },
+    "blockchainTx": "0x5638d05ee22d582739db15900c18",
+    "createdAt": "2023-10-09T22:00:59.585Z",
+    "expiresAt": "2026-11-28T01:29:25.658Z"
+  },
+  {
+    "id": "qupwbp7t4",
+    "itemId": "b0g4vgcae",
+    "verifier": "kwxrbynpj",
+    "verifierName": "Test User 6",
+    "status": "rejected",
+    "confidence": "62.66",
+    "evidence": {
+      "sources": [
+        "https://example.com/source-28",
+        "https://archive.org/item-28"
+      ],
+      "analysis": "Comprehensive verification analysis for item 28",
+      "metadata": {
+        "method": "automated",
+        "timestamp": "2026-08-30T01:29:25.658Z"
+      }
+    },
+    "blockchainTx": "0x5c473f45e7618552b69520cbd28",
+    "createdAt": "2024-10-18T16:44:39.124Z",
+    "expiresAt": "2026-11-28T01:29:25.658Z"
+  },
+  {
+    "id": "62tgxvw0w",
+    "itemId": "su8pm880w",
+    "verifier": "0qb07misn",
+    "verifierName": "Test User 13",
+    "status": "approved",
+    "confidence": "51.24",
+    "evidence": {
+      "sources": [
+        "https://example.com/source-29",
+        "https://archive.org/item-29"
+      ],
+      "analysis": "Comprehensive verification analysis for item 29",
+      "metadata": {
+        "method": "automated",
+        "timestamp": "2026-08-30T01:29:25.658Z"
+      }
+    },
+    "blockchainTx": "0x871f8e158ae5406804c056102c8",
+    "createdAt": "2023-06-06T14:18:46.322Z",
+    "expiresAt": "2026-11-28T01:29:25.658Z"
+  },
+  {
+    "id": "xesdfhroj",
+    "itemId": "rwck782om",
+    "verifier": "tyf9lm9u4",
+    "verifierName": "Test User 2",
+    "status": "pending",
+    "confidence": "76.15",
+    "evidence": {
+      "sources": [
+        "https://example.com/source-30",
+        "https://archive.org/item-30"
+      ],
+      "analysis": "Comprehensive verification analysis for item 30",
+      "metadata": {
+        "method": "automated",
+        "timestamp": "2026-08-30T01:29:25.658Z"
+      }
+    },
+    "blockchainTx": "0x3d99109fccb23643b2b36a7b658",
+    "createdAt": "2024-07-23T21:22:49.482Z",
+    "expiresAt": "2026-11-28T01:29:25.658Z"
+  },
+  {
+    "id": "8noivivyr",
+    "itemId": "cxpylymyj",
+    "verifier": "tk5bshfed",
+    "verifierName": "Test User 8",
+    "status": "pending",
+    "confidence": "5.51",
+    "evidence": {
+      "sources": [
+        "https://example.com/source-31",
+        "https://archive.org/item-31"
+      ],
+      "analysis": "Comprehensive verification analysis for item 31",
+      "metadata": {
+        "method": "automated",
+        "timestamp": "2026-08-30T01:29:25.658Z"
+      }
+    },
+    "blockchainTx": "0x3437c91a587855d1bccce62f788",
+    "createdAt": "2024-03-18T13:06:03.831Z",
+    "expiresAt": "2026-11-28T01:29:25.658Z"
+  },
+  {
+    "id": "nxf7yigq1",
+    "itemId": "dynt8qsox",
+    "verifier": "0qb07misn",
+    "verifierName": "Test User 13",
+    "status": "pending",
+    "confidence": "28.97",
+    "evidence": {
+      "sources": [
+        "https://example.com/source-32",
+        "https://archive.org/item-32"
+      ],
+      "analysis": "Comprehensive verification analysis for item 32",
+      "metadata": {
+        "method": "automated",
+        "timestamp": "2026-08-30T01:29:25.658Z"
+      }
+    },
+    "blockchainTx": "0xf89082eac677c13e60342be8908",
+    "createdAt": "2025-03-11T01:16:53.738Z",
+    "expiresAt": "2026-11-28T01:29:25.658Z"
+  },
+  {
+    "id": "iye0i070k",
+    "itemId": "a84ynw45l",
+    "verifier": "du759igkj",
+    "verifierName": "Test User 11",
+    "status": "rejected",
+    "confidence": "33.56",
+    "evidence": {
+      "sources": [
+        "https://example.com/source-33",
+        "https://archive.org/item-33"
+      ],
+      "analysis": "Comprehensive verification analysis for item 33",
+      "metadata": {
+        "method": "automated",
+        "timestamp": "2026-08-30T01:29:25.658Z"
+      }
+    },
+    "blockchainTx": "0xeecf77e0981da97cdb0084517",
+    "createdAt": "2023-04-09T20:04:33.265Z",
+    "expiresAt": "2026-11-28T01:29:25.658Z"
+  },
+  {
+    "id": "1tjrdqvdf",
+    "itemId": "9yjkixr71",
+    "verifier": "k401y5f0r",
+    "verifierName": "Test User 12",
+    "status": "approved",
+    "confidence": "57.91",
+    "evidence": {
+      "sources": [
+        "https://example.com/source-34",
+        "https://archive.org/item-34"
+      ],
+      "analysis": "Comprehensive verification analysis for item 34",
+      "metadata": {
+        "method": "automated",
+        "timestamp": "2026-08-30T01:29:25.658Z"
+      }
+    },
+    "blockchainTx": "0x41691df8e4e161f1c819495a368",
+    "createdAt": "2023-12-08T22:46:01.796Z",
+    "expiresAt": "2026-11-28T01:29:25.658Z"
+  },
+  {
+    "id": "gpmxmger6",
+    "itemId": "rwck782om",
+    "verifier": "tyf9lm9u4",
+    "verifierName": "Test User 2",
+    "status": "pending",
+    "confidence": "14.86",
+    "evidence": {
+      "sources": [
+        "https://example.com/source-35",
+        "https://archive.org/item-35"
+      ],
+      "analysis": "Comprehensive verification analysis for item 35",
+      "metadata": {
+        "method": "automated",
+        "timestamp": "2026-08-30T01:29:25.658Z"
+      }
+    },
+    "blockchainTx": "0xb25cd2d8366577a5e41dc1d0ca",
+    "createdAt": "2024-03-16T13:27:27.197Z",
+    "expiresAt": "2026-11-28T01:29:25.658Z"
+  },
+  {
+    "id": "ndjrta1dw",
+    "itemId": "eip2al09c",
+    "verifier": "kwxrbynpj",
+    "verifierName": "Test User 6",
+    "status": "approved",
+    "confidence": "14.60",
+    "evidence": {
+      "sources": [
+        "https://example.com/source-36",
+        "https://archive.org/item-36"
+      ],
+      "analysis": "Comprehensive verification analysis for item 36",
+      "metadata": {
+        "method": "automated",
+        "timestamp": "2026-08-30T01:29:25.658Z"
+      }
+    },
+    "blockchainTx": "0xfa8d75c577c5684a045f2bd0ccb",
+    "createdAt": "2024-10-07T04:52:17.814Z",
+    "expiresAt": "2026-11-28T01:29:25.658Z"
+  },
+  {
+    "id": "f1taxbwdm",
+    "itemId": "vzi59m2wp",
+    "verifier": "yyw4zbk3i",
+    "verifierName": "Test User 4",
+    "status": "pending",
+    "confidence": "12.89",
+    "evidence": {
+      "sources": [
+        "https://example.com/source-37",
+        "https://archive.org/item-37"
+      ],
+      "analysis": "Comprehensive verification analysis for item 37",
+      "metadata": {
+        "method": "automated",
+        "timestamp": "2026-08-30T01:29:25.658Z"
+      }
+    },
+    "blockchainTx": "0x3f65dbeb83c63d64c4993a875f",
+    "createdAt": "2025-10-29T05:40:43.659Z",
+    "expiresAt": "2026-11-28T01:29:25.658Z"
+  },
+  {
+    "id": "q4qx6rp6q",
+    "itemId": "hscyfrqdi",
+    "verifier": "b5y34oelm",
+    "verifierName": "Test User 9",
+    "status": "rejected",
+    "confidence": "59.27",
+    "evidence": {
+      "sources": [
+        "https://example.com/source-38",
+        "https://archive.org/item-38"
+      ],
+      "analysis": "Comprehensive verification analysis for item 38",
+      "metadata": {
+        "method": "automated",
+        "timestamp": "2026-08-30T01:29:25.658Z"
+      }
+    },
+    "blockchainTx": "0x45ae9b76b3130152cda68d8688",
+    "createdAt": "2024-05-18T07:07:10.457Z",
+    "expiresAt": "2026-11-28T01:29:25.658Z"
+  },
+  {
+    "id": "6pmsyomxr",
+    "itemId": "g2yki4v0i",
+    "verifier": "k401y5f0r",
+    "verifierName": "Test User 12",
+    "status": "pending",
+    "confidence": "78.83",
+    "evidence": {
+      "sources": [
+        "https://example.com/source-39",
+        "https://archive.org/item-39"
+      ],
+      "analysis": "Comprehensive verification analysis for item 39",
+      "metadata": {
+        "method": "automated",
+        "timestamp": "2026-08-30T01:29:25.658Z"
+      }
+    },
+    "blockchainTx": "0x3595a833d1fbf8b5a7c693fa9d08",
+    "createdAt": "2025-02-18T08:30:24.400Z",
+    "expiresAt": "2026-11-28T01:29:25.658Z"
+  }
+]

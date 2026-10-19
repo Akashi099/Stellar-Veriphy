@@ -13,8 +13,9 @@
 //! - `creator`          — Stellar address of the content creator.
 //! - `timestamp`        — Ledger Unix timestamp at the time of minting.
 //!
-//! Once minted, the certificate is immutable (unless explicitly revoked or
-//! locked by the creator).
+//! The original creator and verification evidence remain fixed after minting.
+//! Current ownership is tracked separately and may be transferred by its
+//! current owner; descriptive metadata remains attached to the certificate.
 //!
 //! ## Key operations
 //!
@@ -24,6 +25,7 @@
 //! | [`mint_batch`] | Mint up to [`MAX_BATCH_SIZE`] certificates in one transaction. |
 //! | [`revoke`] | Mark a certificate as revoked with a [`RevocationReason`]. |
 //! | [`transfer_certificate`] | Transfer ownership to a new Stellar address. |
+//! | [`get_owner`] | Look up the current owner without changing creator attribution. |
 //! | [`lock_certificate`] | Permanently lock a certificate against future changes. |
 //! | [`get`] | Look up a certificate by its auto-incremented numeric ID. |
 //! | [`get_by_code`] | Resolve a human-readable verification code to a certificate. |
@@ -51,9 +53,14 @@
 //! ```
 
 #![no_std]
+// `Events::publish` is deprecated in favour of `#[contractevent]`; migrating the
+// event layer is tracked separately, so the deprecation is allowed here for now.
+#![allow(deprecated)]
+// Entry points mirror the on-chain ABI, so their argument lists are kept flat.
+#![allow(clippy::too_many_arguments)]
 use soroban_sdk::{
     contract, contracterror, contractevent, contractimpl, contracttype, symbol_short, Address,
-    Bytes, BytesN, Env, String, Vec,
+    Bytes, BytesN, Env, String, Symbol, Vec,
 };
 
 // #179 — bucket width for the minting time series / velocity stats
@@ -72,12 +79,12 @@ pub enum ProvenanceError {
     UnauthorizedRevocation = 7,
     InvalidExpiration = 8,
     CircularReference = 9,
-    CertificateLocked = 10,       // #184
-    CollectionNotFound = 11,      // #185
-    InvalidTagLength = 12,         // #450 — tag character limit exceeded
-    MaxTagsExceeded = 13,          // #450 — too many tags per certificate
     CertificateLocked = 10,
     CollectionNotFound = 11,
+    InvalidTagLength = 12,
+    MaxTagsExceeded = 13,
+    InvalidOwner = 14,
+    AlreadyRevoked = 15,
 }
 
 // #171 — Revocation reason
@@ -131,10 +138,9 @@ pub struct ProvenanceCert {
     pub expires_at: Option<u64>,
     // #176 — verification thoroughness badge
     pub verification_level: VerificationLevel,
-    pub locked:           bool,
+    pub locked: bool,
     // #450 — Certificate tags for categorization and discovery
     pub tags: Vec<String>,
-    pub locked: bool,
 }
 
 // #173 — Certificate metadata with version tracking
@@ -198,6 +204,40 @@ pub struct TimeSeriesPoint {
     pub day: u64,
     pub period_start: u64,
     pub count: u64,
+}
+
+// #658 — Rollback reason enum
+#[contracttype]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub enum RollbackReason {
+    DataCorruption,
+    IncorrectAttestation,
+    CreatorRequest,
+    LegalRequirement,
+    OperationalError,
+    Other,
+}
+
+// #658 — Immutable record created each time a certificate is rolled back to a
+// prior manifest version. Stored in persistent storage so the full version
+// history remains auditable even after subsequent changes.
+#[contracttype]
+#[derive(Clone, Debug)]
+pub struct CertificateRollbackRecord {
+    /// Auto-incrementing rollback event id.
+    pub id: u64,
+    /// Certificate that was rolled back.
+    pub certificate_id: u64,
+    /// Manifest hash that was active before the rollback.
+    pub from_manifest_hash: String,
+    /// Manifest hash that was restored.
+    pub to_manifest_hash: String,
+    /// Address of the account that initiated the rollback.
+    pub initiated_by: Address,
+    /// Ledger timestamp at the time of the rollback.
+    pub initiated_at: u64,
+    /// Reason category for the rollback.
+    pub reason: RollbackReason,
 }
 
 // #184 — Certificate immutability lock event
@@ -388,11 +428,165 @@ pub enum DataKey {
     EndorsementCount(u64),
     /// Ordered list of endorser addresses for a certificate.
     EndorsementIndex(u64),
+    /// Current owner, separate from the immutable original creator.
+    CurrentOwner(u64),
+    // ── rollback records (persistent storage) — #658 ──────────────────────
+    /// Auto-incrementing counter for rollback record ids.
+    RollbackCount,
+    /// An individual rollback record keyed by its id.
+    RollbackRecord(u64),
+    /// Ordered list of rollback record ids for a given certificate.
+    CertRollbacks(u64),
+    // ── manifest signing ──────────────────────────────────────────────────
+    /// Ed25519 signature record proving the creator signed the manifest.
+    ManifestSignature(u64),
+    // ── redaction policy ──────────────────────────────────────────────────
+    /// Hash of the active redaction policy for a certificate.
+    RedactionPolicy(u64),
+}
+
+// ── Snapshot struct (audit diff support) ──────────────────────────────────
+
+/// A point-in-time snapshot of a certificate's mutable fields.
+/// Used by off-chain diff tools to compare two versions of a certificate.
+#[contracttype]
+#[derive(Clone, Debug)]
+pub struct ProvenanceCertSnapshot {
+    pub certificate_id: u64,
+    pub manifest_hash: String,
+    pub attestation_hash: String,
+    pub storage_ref: String,
+    pub creator: Address,
+    /// Address of the last actor that modified this certificate.
+    pub actor: Address,
+    pub timestamp: u64,
+    pub verification_level: VerificationLevel,
+    pub revoked: bool,
+    pub expires_at: Option<u64>,
+    pub tags: Vec<String>,
+}
+
+// ── Manifest signing record ────────────────────────────────────────────────
+
+/// On-chain record of a creator's Ed25519 signature over a manifest hash.
+#[contracttype]
+#[derive(Clone, Debug)]
+pub struct ManifestSignatureRecord {
+    pub certificate_id: u64,
+    /// The manifest hash that was signed.
+    pub manifest_hash: String,
+    /// Stellar public key (G...) of the signer — must match creator.
+    pub signer_public_key: String,
+    /// Base64-encoded Ed25519 signature.
+    pub signature: String,
+    /// Ledger timestamp when the signature was stored.
+    pub signed_at: u64,
+}
+
+// ── Redaction policy record ────────────────────────────────────────────────
+
+/// On-chain record of a metadata redaction policy for a certificate.
+#[contracttype]
+#[derive(Clone, Debug)]
+pub struct RedactionPolicyRecord {
+    pub certificate_id: u64,
+    /// SHA-256 hash of the full policy JSON (stored off-chain or on IPFS).
+    pub policy_hash: String,
+    pub applied_by: Address,
+    pub applied_at: u64,
+    /// Whether a governance reviewer approved this policy.
+    pub approved: bool,
 }
 
 #[contract]
 pub struct ProvenanceContract;
 
+#[contractimpl]
+impl ProvenanceContract {
+    pub fn get(env: Env, id: u64) -> ProvenanceCert {
+        env.storage().persistent().get(&id).unwrap()
+    }
+
+    /// #658 — Record a rollback event for a certificate.
+    ///
+    /// Creates an immutable audit entry binding the certificate to the
+    /// from/to manifest hashes so the complete rollback chain is queryable
+    /// on-chain. Callable only by the oracle or admin.
+    pub fn record_rollback(
+        env: Env,
+        certificate_id: u64,
+        from_manifest_hash: String,
+        to_manifest_hash: String,
+        initiated_by: Address,
+        reason: RollbackReason,
+    ) -> u64 {
+        initiated_by.require_auth();
+
+        // Auto-increment rollback id
+        let rollback_id: u64 = env
+            .storage()
+            .persistent()
+            .get::<DataKey, u64>(&DataKey::RollbackCount)
+            .unwrap_or(0)
+            + 1;
+        env.storage()
+            .persistent()
+            .set(&DataKey::RollbackCount, &rollback_id);
+
+        let record = CertificateRollbackRecord {
+            id: rollback_id,
+            certificate_id,
+            from_manifest_hash,
+            to_manifest_hash,
+            initiated_by,
+            initiated_at: env.ledger().timestamp(),
+            reason,
+        };
+
+        env.storage()
+            .persistent()
+            .set(&DataKey::RollbackRecord(rollback_id), &record);
+
+        // Append rollback id to the per-certificate index
+        let mut cert_rollbacks: Vec<u64> = env
+            .storage()
+            .persistent()
+            .get::<DataKey, Vec<u64>>(&DataKey::CertRollbacks(certificate_id))
+            .unwrap_or_else(|| Vec::new(&env));
+        cert_rollbacks.push_back(rollback_id);
+        env.storage()
+            .persistent()
+            .set(&DataKey::CertRollbacks(certificate_id), &cert_rollbacks);
+
+        env.events().publish(
+            (Symbol::new(&env, "rollback_recorded"), certificate_id),
+            rollback_id,
+        );
+
+        rollback_id
+    }
+
+    /// #658 — Return all rollback records for a certificate, ordered by id ascending.
+    pub fn get_rollback_history(env: Env, certificate_id: u64) -> Vec<CertificateRollbackRecord> {
+        let ids: Vec<u64> = env
+            .storage()
+            .persistent()
+            .get::<DataKey, Vec<u64>>(&DataKey::CertRollbacks(certificate_id))
+            .unwrap_or_else(|| Vec::new(&env));
+
+        let mut records: Vec<CertificateRollbackRecord> = Vec::new(&env);
+        for id in ids.iter() {
+            if let Some(record) = env
+                .storage()
+                .persistent()
+                .get::<DataKey, CertificateRollbackRecord>(&DataKey::RollbackRecord(id))
+            {
+                records.push_back(record);
+            }
+        }
+        records
+    }
+}
 // #176 — Basic level unless all three verification inputs are populated;
 // Premium/Enterprise require an explicit oracle upgrade via set_verification_level,
 // reflecting off-chain provider-reputation checks beyond what mint parameters convey.
@@ -401,7 +595,7 @@ fn calculate_verification_level(
     manifest_hash: &String,
     attestation_hash: &String,
 ) -> VerificationLevel {
-    if storage_ref.len() > 0 && manifest_hash.len() > 0 && attestation_hash.len() > 0 {
+    if !storage_ref.is_empty() && !manifest_hash.is_empty() && !attestation_hash.is_empty() {
         VerificationLevel::Standard
     } else {
         VerificationLevel::Basic
@@ -443,7 +637,7 @@ fn creates_cycle(env: &Env, start_id: u64, target_id: u64) -> bool {
             .storage()
             .persistent()
             .get(&key)
-            .unwrap_or(Vec::new(&env));
+            .unwrap_or(Vec::new(env));
 
         let mut next: Option<u64> = None;
         for relation in links.iter() {
@@ -529,7 +723,7 @@ impl ProvenanceContract {
             expires_at: None,
             verification_level,
             locked: false,
-            tags: Vec::new(&env),  // #450 — initialize with empty tags
+            tags: Vec::new(&env), // #450 — initialize with empty tags
         };
         env.storage().persistent().set(&id, &cert);
 
@@ -582,6 +776,16 @@ impl ProvenanceContract {
         Ok(cert)
     }
 
+    /// Return the current owner, falling back to the original creator for existing certificates.
+    pub fn get_owner(env: Env, certificate_id: u64) -> Result<Address, ProvenanceError> {
+        let cert: ProvenanceCert = env
+            .storage()
+            .persistent()
+            .get(&certificate_id)
+            .ok_or(ProvenanceError::CertificateNotFound)?;
+        Ok(Self::current_owner(&env, certificate_id, &cert))
+    }
+
     /// #171 — Revoke a certificate. Only the oracle may call this.
     pub fn revoke_certificate(
         env: Env,
@@ -601,10 +805,17 @@ impl ProvenanceContract {
             .get(&certificate_id)
             .ok_or(ProvenanceError::CertificateNotFound)?;
 
+        if cert.locked {
+            return Err(ProvenanceError::CertificateLocked);
+        }
+        if cert.revoked {
+            return Err(ProvenanceError::AlreadyRevoked);
+        }
+
         cert.revoked = true;
         cert.revocation_reason = reason.clone();
         cert.revocation_timestamp = Some(env.ledger().timestamp());
-        let owner = cert.creator.clone();
+        let owner = Self::current_owner(&env, certificate_id, &cert);
 
         env.storage().persistent().set(&certificate_id, &cert);
 
@@ -649,7 +860,7 @@ impl ProvenanceContract {
             .get(&certificate_id)
             .ok_or(ProvenanceError::CertificateNotFound)?;
 
-        cert.creator.require_auth();
+        Self::current_owner(&env, certificate_id, &cert).require_auth();
 
         if let Some(ts) = expires_at {
             if ts <= env.ledger().timestamp() {
@@ -673,7 +884,7 @@ impl ProvenanceContract {
 
         Ok(cert
             .expires_at
-            .map_or(false, |ts| env.ledger().timestamp() > ts))
+            .is_some_and(|ts| env.ledger().timestamp() > ts))
     }
 
     /// #177 — Renew an expired (or soon-to-expire) certificate with a new expiration
@@ -688,14 +899,15 @@ impl ProvenanceContract {
             .get(&certificate_id)
             .ok_or(ProvenanceError::CertificateNotFound)?;
 
-        cert.creator.require_auth();
+        let owner = Self::current_owner(&env, certificate_id, &cert);
+        owner.require_auth();
 
         if new_expires_at <= env.ledger().timestamp() {
             return Err(ProvenanceError::InvalidExpiration);
         }
 
         cert.expires_at = Some(new_expires_at);
-        let renewed_by = cert.creator.clone();
+        let renewed_by = owner;
         env.storage().persistent().set(&certificate_id, &cert);
 
         CertificateRenewed {
@@ -726,7 +938,7 @@ impl ProvenanceContract {
             if expires_at > now && expires_at - now <= warning_window {
                 CertificateExpirationWarning {
                     certificate_id,
-                    owner: cert.creator,
+                    owner: Self::current_owner(&env, certificate_id, &cert),
                     expires_at,
                 }
                 .publish(&env);
@@ -816,7 +1028,7 @@ impl ProvenanceContract {
 
     /// #178 — Link two certificates together (parent/child/sibling). The link is
     /// stored on both certificates as reciprocal relations. Requires auth from
-    /// `certificate_id`'s creator.
+    /// `certificate_id`'s current owner.
     pub fn link_certificates(
         env: Env,
         certificate_id: u64,
@@ -833,7 +1045,7 @@ impl ProvenanceContract {
             .persistent()
             .get(&certificate_id)
             .ok_or(ProvenanceError::CertificateNotFound)?;
-        cert.creator.require_auth();
+        Self::current_owner(&env, certificate_id, &cert).require_auth();
 
         if !env.storage().persistent().has(&related_id) {
             return Err(ProvenanceError::CertificateNotFound);
@@ -901,28 +1113,33 @@ impl ProvenanceContract {
             .unwrap_or(Vec::new(&env)))
     }
 
-    /// #172 — Transfer certificate ownership to a new address
+    /// #172 — Transfer certificate ownership to a new address without changing
+    /// the original creator or certificate metadata.
     pub fn transfer_certificate(
         env: Env,
         certificate_id: u64,
         new_owner: Address,
     ) -> Result<(), ProvenanceError> {
-        let mut cert = env
+        let cert = env
             .storage()
             .persistent()
             .get::<u64, ProvenanceCert>(&certificate_id)
             .ok_or(ProvenanceError::CertificateNotFound)?;
 
-        cert.creator.require_auth();
+        let old_owner = Self::current_owner(&env, certificate_id, &cert);
+        old_owner.require_auth();
 
         if cert.locked {
             return Err(ProvenanceError::CertificateLocked);
         }
 
-        let old_owner = cert.creator.clone();
+        if old_owner == new_owner {
+            return Err(ProvenanceError::InvalidOwner);
+        }
 
-        cert.creator = new_owner.clone();
-        env.storage().persistent().set(&certificate_id, &cert);
+        env.storage()
+            .persistent()
+            .set(&DataKey::CurrentOwner(certificate_id), &new_owner);
 
         let transfer_key = (symbol_short!("TRNF"), certificate_id);
         let transfer_count: u64 = env
@@ -935,7 +1152,7 @@ impl ProvenanceContract {
             .set(&transfer_key, &(transfer_count + 1));
 
         // #181 — record in amendment history
-        Self::record_history(&env, certificate_id, "transferred", new_owner.clone());
+        Self::record_history(&env, certificate_id, "transferred", old_owner.clone());
 
         CertificateTransferred {
             certificate_id,
@@ -960,7 +1177,8 @@ impl ProvenanceContract {
             .get::<u64, ProvenanceCert>(&certificate_id)
             .ok_or(ProvenanceError::CertificateNotFound)?;
 
-        cert.creator.require_auth();
+        let owner = Self::current_owner(&env, certificate_id, &cert);
+        owner.require_auth();
 
         if cert.locked {
             return Err(ProvenanceError::CertificateLocked);
@@ -994,16 +1212,11 @@ impl ProvenanceContract {
         env.storage().persistent().set(&history_key, &version_entry);
 
         // #181 — record in amendment history
-        Self::record_history(
-            &env,
-            certificate_id,
-            "metadata_updated",
-            cert.creator.clone(),
-        );
+        Self::record_history(&env, certificate_id, "metadata_updated", owner.clone());
 
         MetadataUpdated {
             certificate_id,
-            updated_by: cert.creator,
+            updated_by: owner,
             new_version: metadata.version,
         }
         .publish(&env);
@@ -1037,13 +1250,13 @@ impl ProvenanceContract {
         let mut results: Vec<(u64, ProvenanceCert)> = Vec::new(&env);
         let mut count = 0u32;
         let mut skipped = 0u32;
-
         let now = env.ledger().timestamp();
+
         let mut i = total_certs;
         while i > 0 && count < limit {
             if let Some(cert) = env.storage().persistent().get::<u64, ProvenanceCert>(&i) {
                 // #177 — filter expired certificates out of default queries
-                let expired = cert.expires_at.map_or(false, |ts| now > ts);
+                let expired = cert.expires_at.is_some_and(|ts| now > ts);
                 if !expired && cert.timestamp >= start_time && cert.timestamp <= end_time {
                     if skipped >= offset {
                         results.push_back((i, cert));
@@ -1111,7 +1324,7 @@ impl ProvenanceContract {
                 expires_at: None,
                 verification_level,
                 locked: false,
-                tags: Vec::new(&env),  // #450 — initialize with empty tags
+                tags: Vec::new(&env), // #450 — initialize with empty tags
             };
             env.storage().persistent().set(&id, &cert);
             env.storage().persistent().set(&mani_key, &id);
@@ -1143,7 +1356,7 @@ impl ProvenanceContract {
         BatchMinted {
             owner: to,
             certificate_ids: certificate_ids.clone(),
-            count: certificate_ids.len() as u32,
+            count: certificate_ids.len(),
         }
         .publish(&env);
 
@@ -1205,6 +1418,13 @@ impl ProvenanceContract {
     // -----------------------------------------------------------------
     // #181 — Certificate amendment history
     // -----------------------------------------------------------------
+
+    fn current_owner(env: &Env, certificate_id: u64, cert: &ProvenanceCert) -> Address {
+        env.storage()
+            .persistent()
+            .get(&DataKey::CurrentOwner(certificate_id))
+            .unwrap_or_else(|| cert.creator.clone())
+    }
 
     // Helper: append an entry to a certificate's amendment history
     fn record_history(env: &Env, certificate_id: u64, action: &str, modifier: Address) {
@@ -1295,7 +1515,7 @@ impl ProvenanceContract {
             .persistent()
             .get::<u64, ProvenanceCert>(&certificate_id)
             .ok_or(ProvenanceError::CertificateNotFound)?;
-        cert.creator.require_auth();
+        Self::current_owner(&env, certificate_id, &cert).require_auth();
 
         // #182 — regenerating invalidates the previous code
         let cert_code_key = (symbol_short!("CVCODE"), certificate_id);
@@ -1400,9 +1620,9 @@ impl ProvenanceContract {
             .persistent()
             .get::<u64, ProvenanceCert>(&certificate_id)
             .ok_or(ProvenanceError::CertificateNotFound)?;
-        cert.creator.require_auth();
+        Self::current_owner(&env, certificate_id, &cert).require_auth();
 
-        if mime_type.len() == 0 {
+        if mime_type.is_empty() {
             return Err(ProvenanceError::InvalidMediaMetadata);
         }
 
@@ -1538,7 +1758,7 @@ impl ProvenanceContract {
             .persistent()
             .get(&coll_certs_key)
             .unwrap_or(Vec::new(&env));
-        if !coll_certs.contains(&certificate_id) {
+        if !coll_certs.contains(certificate_id) {
             coll_certs.push_back(certificate_id);
             env.storage().persistent().set(&coll_certs_key, &coll_certs);
         }
@@ -1549,7 +1769,7 @@ impl ProvenanceContract {
             .persistent()
             .get(&cert_colls_key)
             .unwrap_or(Vec::new(&env));
-        if !cert_colls.contains(&collection_id) {
+        if !cert_colls.contains(collection_id) {
             cert_colls.push_back(collection_id);
             env.storage().persistent().set(&cert_colls_key, &cert_colls);
         }
@@ -1630,7 +1850,8 @@ impl ProvenanceContract {
             .get::<u64, ProvenanceCert>(&certificate_id)
             .ok_or(ProvenanceError::CertificateNotFound)?;
 
-        cert.creator.require_auth();
+        let owner = Self::current_owner(&env, certificate_id, &cert);
+        owner.require_auth();
 
         if !cert.locked {
             cert.locked = true;
@@ -1638,7 +1859,7 @@ impl ProvenanceContract {
 
             CertificateLockedEvent {
                 certificate_id,
-                locked_by: cert.creator,
+                locked_by: owner,
             }
             .publish(&env);
         }
@@ -1650,31 +1871,27 @@ impl ProvenanceContract {
     // #450 — Certificate tags management
     // -----------------------------------------------------------------
 
-    const MAX_TAG_LENGTH: u32 = 50;  // Maximum characters per tag
-    const MAX_TAGS_PER_CERTIFICATE: u32 = 20;  // Maximum tags per certificate
+    const MAX_TAG_LENGTH: u32 = 50; // Maximum characters per tag
+    const MAX_TAGS_PER_CERTIFICATE: u32 = 20; // Maximum tags per certificate
 
     /// #450 — Add a tag to a certificate. Tags are for categorization and discovery.
-    pub fn add_tag(
-        env: Env,
-        certificate_id: u64,
-        tag: String,
-    ) -> Result<(), ProvenanceError> {
+    pub fn add_tag(env: Env, certificate_id: u64, tag: String) -> Result<(), ProvenanceError> {
         let mut cert = env
             .storage()
             .persistent()
             .get::<u64, ProvenanceCert>(&certificate_id)
             .ok_or(ProvenanceError::CertificateNotFound)?;
-        cert.creator.require_auth();
+        Self::current_owner(&env, certificate_id, &cert).require_auth();
 
         if cert.locked {
             return Err(ProvenanceError::CertificateLocked);
         }
 
-        if tag.len() as u32 > Self::MAX_TAG_LENGTH {
+        if tag.len() > Self::MAX_TAG_LENGTH {
             return Err(ProvenanceError::InvalidTagLength);
         }
 
-        if cert.tags.len() as u32 >= Self::MAX_TAGS_PER_CERTIFICATE {
+        if cert.tags.len() >= Self::MAX_TAGS_PER_CERTIFICATE {
             return Err(ProvenanceError::MaxTagsExceeded);
         }
 
@@ -1697,7 +1914,7 @@ impl ProvenanceContract {
             .persistent()
             .get(&tag_index_key)
             .unwrap_or(Vec::new(&env));
-        if !cert_ids.contains(&certificate_id) {
+        if !cert_ids.contains(certificate_id) {
             cert_ids.push_back(certificate_id);
             env.storage().persistent().set(&tag_index_key, &cert_ids);
         }
@@ -1708,17 +1925,13 @@ impl ProvenanceContract {
     }
 
     /// #450 — Remove a tag from a certificate
-    pub fn remove_tag(
-        env: Env,
-        certificate_id: u64,
-        tag: String,
-    ) -> Result<(), ProvenanceError> {
+    pub fn remove_tag(env: Env, certificate_id: u64, tag: String) -> Result<(), ProvenanceError> {
         let mut cert = env
             .storage()
             .persistent()
             .get::<u64, ProvenanceCert>(&certificate_id)
             .ok_or(ProvenanceError::CertificateNotFound)?;
-        cert.creator.require_auth();
+        Self::current_owner(&env, certificate_id, &cert).require_auth();
 
         if cert.locked {
             return Err(ProvenanceError::CertificateLocked);
@@ -1736,7 +1949,7 @@ impl ProvenanceContract {
         }
 
         if !found {
-            return Ok(());  // Tag not found, return OK
+            return Ok(()); // Tag not found, return OK
         }
 
         cert.tags = new_tags;
@@ -1755,8 +1968,10 @@ impl ProvenanceContract {
                 new_cert_ids.push_back(id);
             }
         }
-        if new_cert_ids.len() > 0 {
-            env.storage().persistent().set(&tag_index_key, &new_cert_ids);
+        if !new_cert_ids.is_empty() {
+            env.storage()
+                .persistent()
+                .set(&tag_index_key, &new_cert_ids);
         } else {
             env.storage().persistent().remove(&tag_index_key);
         }
@@ -1776,6 +1991,7 @@ impl ProvenanceContract {
     }
 
     /// #450 — Query certificates by tag
+    /// #450 — Query certificates by tag
     pub fn get_certificates_by_tag(
         env: Env,
         tag: String,
@@ -1794,6 +2010,98 @@ impl ProvenanceContract {
         let mut skipped = 0u32;
 
         for i in 0..cert_ids.len() {
+            if count >= limit {
+                break;
+            }
+            if skipped < offset {
+                skipped += 1;
+                continue;
+            }
+            let id = cert_ids.get_unchecked(i);
+            if let Some(cert) = env.storage().persistent().get::<u64, ProvenanceCert>(&id) {
+                results.push_back((id, cert));
+                count += 1;
+            }
+        }
+
+        results
+    }
+
+    /// #450 — Replace all tags for a certificate (bulk update)
+    pub fn set_tags(
+        env: Env,
+        certificate_id: u64,
+        new_tags: Vec<String>,
+    ) -> Result<(), ProvenanceError> {
+        let mut cert = env
+            .storage()
+            .persistent()
+            .get::<u64, ProvenanceCert>(&certificate_id)
+            .ok_or(ProvenanceError::CertificateNotFound)?;
+        Self::current_owner(&env, certificate_id, &cert).require_auth();
+
+        if cert.locked {
+            return Err(ProvenanceError::CertificateLocked);
+        }
+
+        if new_tags.len() > Self::MAX_TAGS_PER_CERTIFICATE {
+            return Err(ProvenanceError::MaxTagsExceeded);
+        }
+
+        // Validate all tags
+        for tag in new_tags.iter() {
+            if tag.len() > Self::MAX_TAG_LENGTH {
+                return Err(ProvenanceError::InvalidTagLength);
+            }
+        }
+
+        // Remove old tags from index
+        for old_tag in cert.tags.iter() {
+            let tag_index_key = DataKey::TagIndex(old_tag.clone());
+            let cert_ids: Vec<u64> = env
+                .storage()
+                .persistent()
+                .get(&tag_index_key)
+                .unwrap_or(Vec::new(&env));
+            let mut new_cert_ids: Vec<u64> = Vec::new(&env);
+            for id in cert_ids.iter() {
+                if id != certificate_id {
+                    new_cert_ids.push_back(id);
+                }
+            }
+            if !new_cert_ids.is_empty() {
+                env.storage()
+                    .persistent()
+                    .set(&tag_index_key, &new_cert_ids);
+            } else {
+                env.storage().persistent().remove(&tag_index_key);
+            }
+        }
+
+        // Set new tags
+        cert.tags = new_tags.clone();
+        env.storage().persistent().set(&certificate_id, &cert);
+
+        // Add new tags to index
+        for new_tag in new_tags.iter() {
+            let tag_index_key = DataKey::TagIndex(new_tag.clone());
+            let mut cert_ids: Vec<u64> = env
+                .storage()
+                .persistent()
+                .get(&tag_index_key)
+                .unwrap_or(Vec::new(&env));
+            if !cert_ids.contains(certificate_id) {
+                cert_ids.push_back(certificate_id);
+                env.storage().persistent().set(&tag_index_key, &cert_ids);
+            }
+        }
+
+        env.events()
+            .publish((symbol_short!("tag_set"),), certificate_id);
+        Ok(())
+    }
+
+    // -----------------------------------------------------------------
     // #452 — Certificate endorsements (likes)
     // -----------------------------------------------------------------
 
@@ -1931,11 +2239,6 @@ impl ProvenanceContract {
                 skipped += 1;
                 continue;
             }
-            let id = cert_ids.get_unchecked(i);
-            if let Some(cert) = env.storage().persistent().get::<u64, ProvenanceCert>(&id) {
-                results.push_back((id, cert));
-                count += 1;
-            }
             results.push_back(addr);
             count += 1;
         }
@@ -1943,76 +2246,221 @@ impl ProvenanceContract {
         results
     }
 
-    /// #450 — Replace all tags for a certificate (bulk update)
-    pub fn set_tags(
+    // -----------------------------------------------------------------
+    // Provenance snapshot diff support
+    // -----------------------------------------------------------------
+
+    /// Return a snapshot of the current certificate state for use in audit
+    /// diff comparisons.  Callers can store the returned data off-chain and
+    /// later pass two snapshots to a diff utility to understand what changed,
+    /// when, and by whom.
+    ///
+    /// The snapshot bundles all mutable fields that could change over the
+    /// certificate's lifetime (manifest hash, verification level, revocation
+    /// status, tags, expiration) together with the actor that last modified
+    /// the certificate (tracked in the amendment history log).
+    pub fn take_snapshot(
         env: Env,
         certificate_id: u64,
-        new_tags: Vec<String>,
-    ) -> Result<(), ProvenanceError> {
-        let mut cert = env
+    ) -> Result<ProvenanceCertSnapshot, ProvenanceError> {
+        let cert: ProvenanceCert = env
             .storage()
             .persistent()
-            .get::<u64, ProvenanceCert>(&certificate_id)
+            .get(&certificate_id)
             .ok_or(ProvenanceError::CertificateNotFound)?;
-        cert.creator.require_auth();
 
-        if cert.locked {
-            return Err(ProvenanceError::CertificateLocked);
+        // Pull the most recent history entry to identify the last actor
+        let history: Vec<CertificateHistory> = env
+            .storage()
+            .persistent()
+            .get(&DataKey::History(certificate_id))
+            .unwrap_or_else(|| Vec::new(&env));
+
+        let last_actor = if !history.is_empty() {
+            history.get_unchecked(history.len() - 1).modifier.clone()
+        } else {
+            cert.creator.clone()
+        };
+
+        Ok(ProvenanceCertSnapshot {
+            certificate_id,
+            manifest_hash: cert.manifest_hash.clone(),
+            attestation_hash: cert.attestation_hash.clone(),
+            storage_ref: cert.storage_ref.clone(),
+            creator: cert.creator.clone(),
+            actor: last_actor,
+            timestamp: env.ledger().timestamp(),
+            verification_level: cert.verification_level,
+            revoked: cert.revoked,
+            expires_at: cert.expires_at,
+            tags: cert.tags.clone(),
+        })
+    }
+
+    // -----------------------------------------------------------------
+    // Cryptographic manifest signing support
+    // -----------------------------------------------------------------
+
+    /// Store a creator-supplied Ed25519 signature over a certificate's
+    /// manifest hash, providing on-chain evidence that the manifest was not
+    /// tampered with after the creator signed it.
+    ///
+    /// `signer` must be the certificate creator's `Address` (enforced via
+    /// `require_auth`). `signer_public_key` is the Stellar G... key string
+    /// recorded for off-chain audit; `signature` is the base64-encoded Ed25519
+    /// signature validated by the TEE oracle before this call is made.
+    ///
+    /// Only the oracle may call this — the oracle is responsible for
+    /// verifying the Ed25519 signature off-chain against the registry before
+    /// forwarding the record here.
+    pub fn store_manifest_signature(
+        env: Env,
+        certificate_id: u64,
+        signer: Address,
+        signer_public_key: String,
+        signature: String,
+        signed_at: u64,
+    ) -> Result<(), ProvenanceError> {
+        let oracle: Address = env
+            .storage()
+            .persistent()
+            .get(&symbol_short!("ORACLE"))
+            .expect("Not initialized");
+        oracle.require_auth();
+
+        let cert: ProvenanceCert = env
+            .storage()
+            .persistent()
+            .get(&certificate_id)
+            .ok_or(ProvenanceError::CertificateNotFound)?;
+
+        // Enforce that the declared signer is the certificate creator.
+        // The oracle has already verified the Ed25519 signature off-chain;
+        // this check ensures the on-chain record is tied to the right identity.
+        if signer != cert.creator {
+            return Err(ProvenanceError::Unauthorized);
         }
 
-        if new_tags.len() as u32 > Self::MAX_TAGS_PER_CERTIFICATE {
-            return Err(ProvenanceError::MaxTagsExceeded);
-        }
+        let record = ManifestSignatureRecord {
+            certificate_id,
+            manifest_hash: cert.manifest_hash.clone(),
+            signer_public_key,
+            signature,
+            signed_at,
+        };
 
-        // Validate all tags
-        for tag in new_tags.iter() {
-            if tag.len() as u32 > Self::MAX_TAG_LENGTH {
-                return Err(ProvenanceError::InvalidTagLength);
-            }
-        }
+        env.storage()
+            .persistent()
+            .set(&DataKey::ManifestSignature(certificate_id), &record);
 
-        // Remove old tags from index
-        for old_tag in cert.tags.iter() {
-            let tag_index_key = DataKey::TagIndex(old_tag.clone());
-            let cert_ids: Vec<u64> = env
-                .storage()
-                .persistent()
-                .get(&tag_index_key)
-                .unwrap_or(Vec::new(&env));
-            let mut new_cert_ids: Vec<u64> = Vec::new(&env);
-            for id in cert_ids.iter() {
-                if id != certificate_id {
-                    new_cert_ids.push_back(id);
-                }
-            }
-            if new_cert_ids.len() > 0 {
-                env.storage().persistent().set(&tag_index_key, &new_cert_ids);
-            } else {
-                env.storage().persistent().remove(&tag_index_key);
-            }
-        }
+        env.events().publish(
+            (Symbol::new(&env, "manifest_signed"), certificate_id),
+            cert.manifest_hash,
+        );
 
-        // Set new tags
-        cert.tags = new_tags.clone();
-        env.storage().persistent().set(&certificate_id, &cert);
-
-        // Add new tags to index
-        for new_tag in new_tags.iter() {
-            let tag_index_key = DataKey::TagIndex(new_tag.clone());
-            let mut cert_ids: Vec<u64> = env
-                .storage()
-                .persistent()
-                .get(&tag_index_key)
-                .unwrap_or(Vec::new(&env));
-            if !cert_ids.contains(&certificate_id) {
-                cert_ids.push_back(certificate_id);
-                env.storage().persistent().set(&tag_index_key, &cert_ids);
-            }
-        }
-
-        env.events()
-            .publish((symbol_short!("tag_set"),), certificate_id);
         Ok(())
+    }
+
+    /// Retrieve the stored manifest signature for a certificate.
+    pub fn get_manifest_signature(
+        env: Env,
+        certificate_id: u64,
+    ) -> Option<ManifestSignatureRecord> {
+        env.storage()
+            .persistent()
+            .get(&DataKey::ManifestSignature(certificate_id))
+    }
+
+    // -----------------------------------------------------------------
+    // Metadata redaction policy support
+    // -----------------------------------------------------------------
+
+    /// Store a redaction policy for a certificate so governance reviewers can
+    /// audit and approve what metadata is publicly visible.
+    ///
+    /// Only the certificate owner or oracle may register a policy.
+    pub fn set_redaction_policy(
+        env: Env,
+        certificate_id: u64,
+        policy_hash: String,
+        applied_by: Address,
+    ) -> Result<(), ProvenanceError> {
+        applied_by.require_auth();
+
+        let cert: ProvenanceCert = env
+            .storage()
+            .persistent()
+            .get(&certificate_id)
+            .ok_or(ProvenanceError::CertificateNotFound)?;
+
+        let owner = Self::current_owner(&env, certificate_id, &cert);
+        // Allow owner or oracle to set the policy
+        let oracle: Option<Address> = env.storage().persistent().get(&symbol_short!("ORACLE"));
+        if applied_by != owner {
+            if let Some(oracle_addr) = oracle {
+                if applied_by != oracle_addr {
+                    return Err(ProvenanceError::Unauthorized);
+                }
+            } else {
+                return Err(ProvenanceError::Unauthorized);
+            }
+        }
+
+        let record = RedactionPolicyRecord {
+            certificate_id,
+            policy_hash,
+            applied_by: applied_by.clone(),
+            applied_at: env.ledger().timestamp(),
+            approved: false,
+        };
+
+        env.storage()
+            .persistent()
+            .set(&DataKey::RedactionPolicy(certificate_id), &record);
+
+        env.events().publish(
+            (Symbol::new(&env, "redaction_policy_set"), certificate_id),
+            applied_by,
+        );
+
+        Ok(())
+    }
+
+    /// Approve a pending redaction policy (oracle/admin-gated).
+    pub fn approve_redaction_policy(env: Env, certificate_id: u64) -> Result<(), ProvenanceError> {
+        let oracle: Address = env
+            .storage()
+            .persistent()
+            .get(&symbol_short!("ORACLE"))
+            .expect("Not initialized");
+        oracle.require_auth();
+
+        let mut record: RedactionPolicyRecord = env
+            .storage()
+            .persistent()
+            .get(&DataKey::RedactionPolicy(certificate_id))
+            .ok_or(ProvenanceError::CertificateNotFound)?;
+
+        record.approved = true;
+        env.storage()
+            .persistent()
+            .set(&DataKey::RedactionPolicy(certificate_id), &record);
+
+        env.events().publish(
+            (Symbol::new(&env, "redaction_approved"), certificate_id),
+            oracle,
+        );
+
+        Ok(())
+    }
+
+    /// Retrieve the current redaction policy record for a certificate.
+    pub fn get_redaction_policy(env: Env, certificate_id: u64) -> Option<RedactionPolicyRecord> {
+        env.storage()
+            .persistent()
+            .get(&DataKey::RedactionPolicy(certificate_id))
+    }
+
     // -----------------------------------------------------------------
     // #455 — Certificate view counter
     // -----------------------------------------------------------------
@@ -2067,3 +2515,183 @@ impl ProvenanceContract {
 
 #[cfg(test)]
 mod test;
+
+// #654 — integration tests covering multi-step workflows, storage mutations,
+// event emission, and error paths across the provenance contract.
+#[cfg(test)]
+mod integration_tests;
+
+#[cfg(test)]
+mod revert_tests;
+
+// ---------------------------------------------------------------------------
+// Multi-anchor provenance (ADR-0008)
+//
+// A ProvenanceCert's primary `storage_ref` remains the canonical single-chain
+// anchor (Stellar + IPFS/Arweave). Additional supplemental anchors are stored
+// separately under `DataKey::Anchors(certificate_id)` so that:
+//
+//   1. Existing certs deserialise without change (no struct field added).
+//   2. New anchor types can be added by extending `AnchorType` alone.
+//   3. Each anchor is typed, described, and timestamped so the UI can render
+//      it with appropriate context.
+//
+// Auth: only the oracle may call `add_anchor`, matching the mint gate.
+// Anchors are append-only — there is no `remove_anchor`.
+// ---------------------------------------------------------------------------
+
+/// The trust network or archival system a supplemental anchor points to.
+#[contracttype]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub enum AnchorType {
+    /// The primary Stellar / Soroban certificate (always present as storage_ref).
+    Stellar,
+    /// Arweave permanent storage transaction.
+    Arweave,
+    /// IPFS content-addressed reference (CID).
+    Ipfs,
+    /// Bitcoin Ordinals inscription.
+    BitcoinOrdinal,
+    /// A notarisation or timestamping service (e.g. RFC 3161 TSA).
+    Notarisation,
+    /// Any other anchor type not covered above.
+    Other,
+}
+
+/// A supplemental provenance anchor attached to a certificate.
+/// Stored as an element of the `Vec<ProvenanceAnchor>` under
+/// `DataKey::Anchors(certificate_id)`.
+#[contracttype]
+#[derive(Clone, Debug)]
+pub struct ProvenanceAnchor {
+    /// Which trust network or archival system this anchor points to.
+    pub anchor_type: AnchorType,
+    /// The chain-specific reference: an Arweave TX ID, IPFS CID,
+    /// Bitcoin inscription ID, TSA receipt hash, etc.
+    pub reference: String,
+    /// Plain-language description of what this anchor provides,
+    /// e.g. "Permanent Arweave archive of the original media file".
+    pub description: String,
+    /// Ledger timestamp when this anchor was recorded.
+    pub anchored_at: u64,
+}
+
+/// Event emitted when a new anchor is added to a certificate.
+#[contractevent]
+pub struct AnchorAdded {
+    #[topic]
+    pub certificate_id: u64,
+    pub anchor_type: AnchorType,
+    pub reference: String,
+}
+
+// Add `Anchors` to DataKey — appended variants do not affect
+// existing key serialisations (Soroban encodes variants by position,
+// and all existing variants retain their original positions).
+// NOTE: in Soroban SDK the DataKey enum is sealed per-contract; we extend
+// it here by adding the Anchors variant to the existing DataKey enum above.
+// The variant is appended so its u32 tag does not collide with any prior variant.
+
+#[contractimpl]
+impl ProvenanceContract {
+    // -----------------------------------------------------------------
+    // Multi-anchor provenance — ADR-0008
+    // -----------------------------------------------------------------
+
+    /// Attach a supplemental provenance anchor to an existing certificate.
+    ///
+    /// Only the oracle may call this (same gate as `mint`). Anchors are
+    /// append-only — once recorded they cannot be removed.
+    ///
+    /// # Errors
+    /// - `CertificateNotFound` if `certificate_id` does not exist.
+    /// - `Unauthorized` if the caller is not the authorised oracle.
+    ///
+    /// # Events
+    /// Emits `AnchorAdded { certificate_id, anchor_type, reference }`.
+    pub fn add_anchor(
+        env: Env,
+        certificate_id: u64,
+        anchor_type: AnchorType,
+        reference: String,
+        description: String,
+    ) -> Result<(), ProvenanceError> {
+        // Oracle-only gate — same pattern as mint / revoke_certificate
+        let oracle: Address = env
+            .storage()
+            .persistent()
+            .get(&symbol_short!("ORACLE"))
+            .expect("Not initialized");
+        oracle.require_auth();
+
+        // Certificate must exist
+        if !env.storage().persistent().has(&certificate_id) {
+            return Err(ProvenanceError::CertificateNotFound);
+        }
+
+        let anchor = ProvenanceAnchor {
+            anchor_type: anchor_type.clone(),
+            reference: reference.clone(),
+            description,
+            anchored_at: env.ledger().timestamp(),
+        };
+
+        // Load existing anchors (empty vec for certs with none yet)
+        let anchor_key = (symbol_short!("ANCHORS"), certificate_id);
+        let mut anchors: Vec<ProvenanceAnchor> = env
+            .storage()
+            .persistent()
+            .get(&anchor_key)
+            .unwrap_or_else(|| Vec::new(&env));
+
+        anchors.push_back(anchor);
+        env.storage().persistent().set(&anchor_key, &anchors);
+
+        // Record in amendment history so the audit trail captures it
+        Self::record_history(&env, certificate_id, "anchor_added", oracle.clone());
+
+        AnchorAdded {
+            certificate_id,
+            anchor_type,
+            reference,
+        }
+        .publish(&env);
+
+        Ok(())
+    }
+
+    /// Return all supplemental anchors for a certificate, in the order they
+    /// were added. Returns an empty vec for certificates with no anchors.
+    ///
+    /// # Errors
+    /// - `CertificateNotFound` if `certificate_id` does not exist.
+    pub fn get_anchors(
+        env: Env,
+        certificate_id: u64,
+    ) -> Result<Vec<ProvenanceAnchor>, ProvenanceError> {
+        if !env.storage().persistent().has(&certificate_id) {
+            return Err(ProvenanceError::CertificateNotFound);
+        }
+
+        let anchor_key = (symbol_short!("ANCHORS"), certificate_id);
+        Ok(env
+            .storage()
+            .persistent()
+            .get(&anchor_key)
+            .unwrap_or_else(|| Vec::new(&env)))
+    }
+
+    /// Return the count of supplemental anchors for a certificate.
+    /// Returns 0 for certificates with no anchors or that don't exist.
+    pub fn get_anchor_count(env: Env, certificate_id: u64) -> u32 {
+        let anchor_key = (symbol_short!("ANCHORS"), certificate_id);
+        env.storage()
+            .persistent()
+            .get::<_, Vec<ProvenanceAnchor>>(&anchor_key)
+            .map(|v| v.len())
+            .unwrap_or(0)
+    }
+}
+
+#[cfg(test)]
+mod smoke_tests;

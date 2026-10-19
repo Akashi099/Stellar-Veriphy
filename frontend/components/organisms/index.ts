@@ -18,13 +18,13 @@
  */
 
 // Re-export page-level components as organisms
-export { Header } from '../Header';
-export { Navigation } from '../Navigation';
-export { MobileNav } from '../MobileNav';
-export { Footer } from '../Footer';
-export { ErrorBoundary } from '../ErrorBoundary';
-export { TransactionTracker } from '../TransactionTracker';
-export { VerificationStatusTracker } from '../VerificationStatusTracker';
-export { ManifestGeneratorModal } from '../ManifestGeneratorModal';
-export { ManifestPreview } from '../ManifestPreview';
-export { WalletModal } from '../WalletModal';
+export { ErrorBoundary } from "../ErrorBoundary";
+export { Footer } from "../Footer";
+export { Header } from "../Header";
+export { ManifestGeneratorModal } from "../ManifestGeneratorModal";
+export { ManifestPreview } from "../ManifestPreview";
+export { MobileNav } from "../MobileNav";
+export { Navigation } from "../Navigation";
+export { TransactionTracker } from "../TransactionTracker";
+export { VerificationStatusTracker } from "../VerificationStatusTracker";
+export { WalletModal } from "../WalletModal";

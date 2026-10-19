@@ -8,7 +8,7 @@ import { cn } from "@/utils/cn";
 type TooltipPosition = "top" | "bottom" | "left" | "right";
 type TooltipTrigger = "hover" | "click" | "both";
 
-interface TooltipProps {
+export interface TooltipProps {
   content: ReactNode;
   children: ReactNode;
   position?: TooltipPosition;

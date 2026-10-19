@@ -149,10 +149,10 @@ export function CertificateHistoryTimeline({
                   />
                 )}
 
-                <div className="relative flex items-start gap-4">
+                <div className="relative flex items-start gap-2 sm:gap-4">
                   {/* Event icon */}
                   <span
-                    className={`relative flex h-10 w-10 items-center justify-center rounded-full ring-2 ring-white dark:ring-gray-900 ${style.bg}`}
+                    className={`relative flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full ring-2 ring-white dark:ring-gray-900 ${style.bg}`}
                     aria-hidden="true"
                   >
                     <span className="text-sm">{style.icon}</span>
@@ -160,16 +160,16 @@ export function CertificateHistoryTimeline({
 
                   {/* Event content */}
                   <div className="min-w-0 flex-1 pt-1">
-                    <div className="flex items-center justify-between gap-2">
-                      <p className="text-sm font-medium text-gray-900 dark:text-gray-100">
+                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1 sm:gap-2">
+                      <p className="text-sm font-medium text-gray-900 dark:text-gray-100 break-words">
                         {style.label}
                       </p>
-                      <time className="shrink-0 text-xs text-gray-400 dark:text-gray-500">
+                      <time className="text-xs text-gray-400 dark:text-gray-500 flex-shrink-0 tabular-nums">
                         {formatTime(event.timestamp)}
                       </time>
                     </div>
                     {event.modifier && (
-                      <p className="mt-0.5 text-xs text-gray-500 dark:text-gray-400">
+                      <p className="mt-0.5 text-xs text-gray-500 dark:text-gray-400 break-all">
                         by{" "}
                         <span className="font-mono text-gray-600 dark:text-gray-300">
                           {truncateAddress(event.modifier)}
@@ -177,7 +177,7 @@ export function CertificateHistoryTimeline({
                       </p>
                     )}
                     {event.details && (
-                      <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                      <p className="mt-1 text-xs text-gray-500 dark:text-gray-400 break-words">
                         {event.details}
                       </p>
                     )}

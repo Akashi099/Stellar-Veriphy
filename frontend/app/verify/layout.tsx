@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Breadcrumbs from "@/components/ui/Breadcrumbs";
 
 const TITLE = "Verify Content";
 const DESCRIPTION =
@@ -12,5 +13,12 @@ export const metadata: Metadata = {
 };
 
 export default function VerifyLayout({ children }: { children: React.ReactNode }) {
-  return children;
+  return (
+    <>
+      <div className="mx-auto max-w-5xl px-4 pt-2">
+        <Breadcrumbs items={[{ label: "Verify", href: "/verify" }, { label: "Verification" }]} />
+      </div>
+      {children}
+    </>
+  );
 }

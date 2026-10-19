@@ -1,0 +1,47 @@
+{
+  "period": "last-7-days",
+  "statistics": {
+    "totalContentItems": 1479,
+    "verifiedContent": 398,
+    "activeVerifiers": 55,
+    "blockchainTransactions": 5560,
+    "averageVerificationTime": 105
+  },
+  "trends": {
+    "contentGrowth": "-18.45",
+    "verificationRate": "98.26",
+    "disputeRate": "7.76"
+  },
+  "topVerifiers": [
+    {
+      "id": "l2z055w33",
+      "name": "Top Verifier 1",
+      "verifications": 763,
+      "accuracy": "95.37"
+    },
+    {
+      "id": "gehc56c4c",
+      "name": "Top Verifier 2",
+      "verifications": 796,
+      "accuracy": "94.94"
+    },
+    {
+      "id": "mw0l843xs",
+      "name": "Top Verifier 3",
+      "verifications": 1052,
+      "accuracy": "97.23"
+    },
+    {
+      "id": "wbvo18h8m",
+      "name": "Top Verifier 4",
+      "verifications": 923,
+      "accuracy": "86.94"
+    },
+    {
+      "id": "1gij9ggev",
+      "name": "Top Verifier 5",
+      "verifications": 513,
+      "accuracy": "87.10"
+    }
+  ]
+}

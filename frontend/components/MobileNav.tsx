@@ -1,12 +1,14 @@
 "use client";
 
+import { AnimatePresence, motion } from "framer-motion";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
-import { motion, AnimatePresence } from "framer-motion";
-import { ThemeToggle } from "@/components/ThemeToggle";
+
 import { NotificationBell } from "@/components/notifications";
+import { ThemeToggle } from "@/components/ThemeToggle";
 import { useWallet } from "@/context/WalletContext";
+import { renderTextWithLink } from "@/utils/renderTextWithLink";
 
 interface NavLink {
   href: string;
@@ -24,7 +26,7 @@ export function MobileNav({ links, quickActions = [] }: MobileNavProps) {
   const drawerRef = useRef<HTMLDivElement>(null);
   const buttonRef = useRef<HTMLButtonElement>(null);
   const pathname = usePathname();
-  const { connected, publicKey, connect, disconnect } = useWallet();
+  const { connected, publicKey, connect, disconnect, error, clearError } = useWallet();
   const [prefersReducedMotion, setPrefersReducedMotion] = useState(false);
 
   useEffect(() => {
@@ -95,11 +97,7 @@ export function MobileNav({ links, quickActions = [] }: MobileNavProps) {
     if (connected) {
       disconnect();
     } else {
-      try {
-        await connect("freighter");
-      } catch (error) {
-        console.error("Failed to connect wallet:", error);
-      }
+      await connect("freighter");
     }
   };
 
@@ -135,7 +133,7 @@ export function MobileNav({ links, quickActions = [] }: MobileNavProps) {
       <button
         ref={buttonRef}
         onClick={() => setIsOpen(true)}
-        className="md:hidden p-2 text-gray-300 hover:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 focus:ring-offset-black rounded touch-target"
+        className="md:hidden p-2 text-gray-400 hover:text-gray-600 dark:text-gray-300 dark:hover:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 dark:focus:ring-offset-gray-900 rounded touch-target transition-colors duration-150"
         aria-label="Open mobile menu"
         aria-expanded={isOpen}
         aria-controls="mobile-drawer"
@@ -187,19 +185,19 @@ export function MobileNav({ links, quickActions = [] }: MobileNavProps) {
             >
               <div className="flex flex-col h-full">
                 {/* Header */}
-                <div className="flex items-center justify-between p-4 border-b border-gray-200 dark:border-gray-800">
+                <div className="flex items-center justify-between p-4 border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50">
                   <Link
                     href="/"
-                    className="flex items-center gap-2 focus:outline-none focus:ring-2 focus:ring-blue-500 rounded"
+                    className="flex items-center gap-2 focus:outline-none focus:ring-2 focus:ring-blue-500 rounded px-2 py-1"
                     onClick={() => setIsOpen(false)}
                   >
-                    <span className="text-xl font-bold bg-gradient-to-r from-blue-400 to-purple-500 bg-clip-text text-transparent">
+                    <span className="text-lg font-bold bg-gradient-to-r from-blue-500 to-purple-600 bg-clip-text text-transparent">
                       ⭐ StellarVeriphy
                     </span>
                   </Link>
                   <button
                     onClick={() => setIsOpen(false)}
-                    className="p-2 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500 rounded touch-target"
+                    className="p-2 text-gray-600 hover:text-gray-900 dark:text-gray-300 dark:hover:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 rounded touch-target transition-colors duration-150"
                     aria-label="Close mobile menu"
                   >
                     <svg
@@ -221,24 +219,24 @@ export function MobileNav({ links, quickActions = [] }: MobileNavProps) {
 
                 {/* Quick Actions */}
                 {quickActions.length > 0 && (
-                  <div className="p-4 bg-blue-50 dark:bg-blue-900/20 border-b border-gray-200 dark:border-gray-800">
-                    <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-3">
+                  <div className="p-4 bg-blue-50 dark:bg-blue-900/20 border-b border-gray-200 dark:border-gray-700">
+                    <p className="text-xs font-semibold text-gray-600 dark:text-gray-300 uppercase tracking-wider mb-4 px-1">
                       Quick Access
                     </p>
-                    <div className="grid grid-cols-2 gap-2">
+                    <div className="grid grid-cols-2 gap-3">
                       {quickActions.map((action) => (
                         <Link
                           key={action.href}
                           href={action.href}
                           onClick={() => setIsOpen(false)}
-                          className="flex flex-col items-center justify-center p-3 bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 hover:border-blue-500 dark:hover:border-blue-500 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 touch-target"
+                          className="flex flex-col items-center justify-center p-4 bg-white dark:bg-gray-800 rounded-lg border-2 border-gray-200 dark:border-gray-700 hover:border-blue-500 dark:hover:border-blue-500 transition-all duration-150 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 dark:focus:ring-offset-gray-900 touch-target"
                         >
                           {action.icon && (
-                            <span className="text-2xl mb-1" aria-hidden="true">
+                            <span className="text-3xl mb-2" aria-hidden="true">
                               {action.icon}
                             </span>
                           )}
-                          <span className="text-sm font-medium text-gray-900 dark:text-gray-100">
+                          <span className="text-sm font-semibold text-gray-900 dark:text-gray-100 text-center line-clamp-2">
                             {action.label}
                           </span>
                         </Link>
@@ -248,7 +246,7 @@ export function MobileNav({ links, quickActions = [] }: MobileNavProps) {
                 )}
 
                 {/* Navigation Links */}
-                <nav className="flex-1 p-4 space-y-1" aria-label="Mobile navigation links">
+                <nav className="flex-1 p-4 space-y-2" aria-label="Mobile navigation links">
                   {links.map((link) => {
                     const isActive = pathname === link.href;
                     return (
@@ -256,43 +254,58 @@ export function MobileNav({ links, quickActions = [] }: MobileNavProps) {
                         key={link.href}
                         href={link.href}
                         onClick={() => setIsOpen(false)}
-                        className={`flex items-center gap-3 px-4 py-3 rounded-lg font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 touch-target ${
+                        className={`flex items-center gap-3 px-4 py-3 rounded-lg font-medium transition-all duration-150 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 dark:focus:ring-offset-gray-900 touch-target ${
                           isActive
-                            ? "bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400"
-                            : "text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800"
+                            ? "bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-300 border-l-4 border-blue-600"
+                            : "text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800/60"
                         }`}
                         aria-current={isActive ? "page" : undefined}
                       >
-                        {link.icon && <span aria-hidden="true">{link.icon}</span>}
-                        <span>{link.label}</span>
+                        {link.icon && <span className="text-lg" aria-hidden="true">{link.icon}</span>}
+                        <span className="text-base">{link.label}</span>
                       </Link>
                     );
                   })}
                 </nav>
 
                 {/* Footer Actions */}
-                <div className="p-4 border-t border-gray-200 dark:border-gray-800 space-y-3">
+                <div className="p-4 border-t border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/30 space-y-4">
                   <div className="flex items-center justify-between">
-                    <span className="text-sm text-gray-700 dark:text-gray-300">Theme</span>
+                    <span className="text-sm font-semibold text-gray-700 dark:text-gray-300">Theme</span>
                     <ThemeToggle />
                   </div>
-                  
+
                   <div className="flex items-center justify-between">
-                    <span className="text-sm text-gray-700 dark:text-gray-300">
-                      Notifications
-                    </span>
+                    <span className="text-sm font-semibold text-gray-700 dark:text-gray-300">Notifications</span>
                     <NotificationBell />
                   </div>
 
                   <button
                     onClick={handleWalletClick}
-                    className="w-full px-4 py-3 rounded-lg bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white font-medium transition-all focus:outline-none focus:ring-2 focus:ring-blue-500 touch-target"
+                    className="w-full px-4 py-3 rounded-lg bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 active:from-blue-700 active:to-purple-800 text-white font-semibold transition-all duration-150 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 dark:focus:ring-offset-gray-900 touch-target text-base"
                     aria-label={connected ? "Disconnect wallet" : "Connect wallet"}
                   >
                     {connected
                       ? `${publicKey?.slice(0, 8)}...${publicKey?.slice(-4)}`
                       : "Connect Wallet"}
                   </button>
+                  {error && (
+                    <div
+                      role="alert"
+                      className="flex items-start gap-2 rounded-lg border border-red-700 bg-red-900/90 px-3 py-2.5 text-xs text-red-200"
+                    >
+                      <p className="flex-1">
+                        {renderTextWithLink(error, "underline hover:text-red-100")}
+                      </p>
+                      <button
+                        onClick={clearError}
+                        aria-label="Dismiss error"
+                        className="shrink-0 text-red-400 hover:text-red-100 transition-colors leading-none"
+                      >
+                        ✕
+                      </button>
+                    </div>
+                  )}
                 </div>
               </div>
             </motion.div>

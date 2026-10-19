@@ -1,0 +1,33 @@
+{
+  "name": "failed-call",
+  "description": "An event emitted inside a call that later failed is rolled back on-chain. It is not state and must not be indexed.",
+  "contractId": "C_PROVENANCE",
+  "events": [
+    {
+      "id": "0000000500-0000000001",
+      "ledger": 500,
+      "ledgerClosedAt": "2026-10-05T10:00:00Z",
+      "contractId": "C_PROVENANCE",
+      "type": "contract",
+      "topic": ["minted"],
+      "value": 1,
+      "txHash": "tx-i",
+      "inSuccessfulContractCall": true
+    },
+    {
+      "id": "0000000500-0000000002",
+      "ledger": 500,
+      "ledgerClosedAt": "2026-10-05T10:00:00Z",
+      "contractId": "C_PROVENANCE",
+      "type": "contract",
+      "topic": ["minted"],
+      "value": 2,
+      "txHash": "tx-j",
+      "inSuccessfulContractCall": false
+    }
+  ],
+  "expected": {
+    "eventCount": 1,
+    "eventNameCounts": { "minted": 1 }
+  }
+}

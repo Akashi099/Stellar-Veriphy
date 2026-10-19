@@ -1,0 +1,812 @@
+[
+  {
+    "id": "7poct75tn",
+    "itemId": "hscyfrqdi",
+    "contentHash": "0x86ab52c62c0208844fdf324814a8",
+    "chain": [
+      {
+        "event": "created",
+        "timestamp": "2023-12-16T16:10:20.805Z",
+        "actor": "tk5bshfed",
+        "blockchainHash": "0xbdf47cfcdb6b98c34ffd17f710c8"
+      },
+      {
+        "event": "disputed",
+        "timestamp": "2025-07-05T02:32:03.800Z",
+        "actor": "0w0993dxn",
+        "blockchainHash": "0x409513d3422d8ce68ab115e263"
+      }
+    ],
+    "currentOwner": "tk5bshfed",
+    "history": [
+      {
+        "owner": "tk5bshfed",
+        "acquiredAt": "2023-12-25T13:15:13.625Z",
+        "source": "creation"
+      }
+    ]
+  },
+  {
+    "id": "8e1wqptkz",
+    "itemId": "b0g4vgcae",
+    "contentHash": "0x5a5c4e48f34678b5baebbf199e58",
+    "chain": [
+      {
+        "event": "created",
+        "timestamp": "2023-04-18T07:02:19.188Z",
+        "actor": "b5y34oelm",
+        "blockchainHash": "0xda8d3943801e98d24c468703479"
+      },
+      {
+        "event": "disputed",
+        "timestamp": "2026-02-11T23:00:30.157Z",
+        "actor": "pmff1w6ck",
+        "blockchainHash": "0x113beafddcd7e06746542f53e38"
+      }
+    ],
+    "currentOwner": "b5y34oelm",
+    "history": [
+      {
+        "owner": "b5y34oelm",
+        "acquiredAt": "2023-02-02T05:19:38.128Z",
+        "source": "creation"
+      }
+    ]
+  },
+  {
+    "id": "os5ic4xgb",
+    "itemId": "28qdh90fj",
+    "contentHash": "0xa216eee7789d6a033f1b8fb26a8",
+    "chain": [
+      {
+        "event": "created",
+        "timestamp": "2023-01-22T22:44:02.235Z",
+        "actor": "0qb07misn",
+        "blockchainHash": "0x2ccc8b27247d7c99f17d46e533"
+      },
+      {
+        "event": "modified",
+        "timestamp": "2024-04-04T07:34:10.526Z",
+        "actor": "mr7rmtrrx",
+        "blockchainHash": "0xd906d65e4bcf688d67c9eb664c9"
+      }
+    ],
+    "currentOwner": "0qb07misn",
+    "history": [
+      {
+        "owner": "0qb07misn",
+        "acquiredAt": "2023-03-27T01:28:54.508Z",
+        "source": "creation"
+      }
+    ]
+  },
+  {
+    "id": "487zh8tac",
+    "itemId": "ko2dtzvw7",
+    "contentHash": "0x31a0fe730f62b813897971ee8f6",
+    "chain": [
+      {
+        "event": "created",
+        "timestamp": "2023-04-17T20:44:10.031Z",
+        "actor": "tk5bshfed",
+        "blockchainHash": "0x92abc58c93ce186dbdf16bcbb368"
+      },
+      {
+        "event": "disputed",
+        "timestamp": "2023-06-28T21:29:48.819Z",
+        "actor": "iyy5xxnkx",
+        "blockchainHash": "0x3cadcb3014b528092aa966c0e7d8"
+      }
+    ],
+    "currentOwner": "tk5bshfed",
+    "history": [
+      {
+        "owner": "tk5bshfed",
+        "acquiredAt": "2023-09-09T17:17:50.868Z",
+        "source": "creation"
+      }
+    ]
+  },
+  {
+    "id": "ysu432fjc",
+    "itemId": "tdihahj1u",
+    "contentHash": "0x590e6c69d4e233b4a57be88b13",
+    "chain": [
+      {
+        "event": "created",
+        "timestamp": "2023-12-21T16:22:57.366Z",
+        "actor": "k401y5f0r",
+        "blockchainHash": "0x04b2a61610dec81a7015cc02997"
+      },
+      {
+        "event": "verified",
+        "timestamp": "2025-10-05T01:59:04.023Z",
+        "actor": "uot0sgtw3",
+        "blockchainHash": "0x947dd11e8afe688c90b385adfe7"
+      }
+    ],
+    "currentOwner": "k401y5f0r",
+    "history": [
+      {
+        "owner": "k401y5f0r",
+        "acquiredAt": "2023-08-05T07:55:57.120Z",
+        "source": "creation"
+      }
+    ]
+  },
+  {
+    "id": "ri1h214co",
+    "itemId": "pqkz6szrp",
+    "contentHash": "0x6d1aefbfbfddd15beb4faccc18",
+    "chain": [
+      {
+        "event": "created",
+        "timestamp": "2023-05-22T13:56:57.245Z",
+        "actor": "pa2uwgzgo",
+        "blockchainHash": "0x8929fc53e9cf989046d6f444bd08"
+      },
+      {
+        "event": "verified",
+        "timestamp": "2023-02-12T05:57:57.657Z",
+        "actor": "9wjvsa5rj",
+        "blockchainHash": "0xfdf0d1671047c8ea71b4a3de446"
+      }
+    ],
+    "currentOwner": "pa2uwgzgo",
+    "history": [
+      {
+        "owner": "pa2uwgzgo",
+        "acquiredAt": "2023-06-16T06:34:23.194Z",
+        "source": "creation"
+      }
+    ]
+  },
+  {
+    "id": "duww23ga3",
+    "itemId": "ko2dtzvw7",
+    "contentHash": "0x31a0fe730f62b813897971ee8f6",
+    "chain": [
+      {
+        "event": "created",
+        "timestamp": "2023-01-22T18:34:03.105Z",
+        "actor": "tk5bshfed",
+        "blockchainHash": "0x98c703ea1e9ffa19d066c3e6e88"
+      },
+      {
+        "event": "disputed",
+        "timestamp": "2025-06-05T04:11:35.506Z",
+        "actor": "szto3jss1",
+        "blockchainHash": "0x61518c0dab124d972e6ec1984b"
+      }
+    ],
+    "currentOwner": "tk5bshfed",
+    "history": [
+      {
+        "owner": "tk5bshfed",
+        "acquiredAt": "2023-10-13T01:49:14.535Z",
+        "source": "creation"
+      }
+    ]
+  },
+  {
+    "id": "hi584h66p",
+    "itemId": "p16u869g4",
+    "contentHash": "0xc68937fee8947cad42b0f46246",
+    "chain": [
+      {
+        "event": "created",
+        "timestamp": "2023-03-24T17:57:29.833Z",
+        "actor": "tyf9lm9u4",
+        "blockchainHash": "0x4e4194106251984a90da7db1eb1"
+      },
+      {
+        "event": "disputed",
+        "timestamp": "2024-12-10T17:27:13.984Z",
+        "actor": "obpsmoz4w",
+        "blockchainHash": "0x8ea12d4b724e419014c76b6ab08"
+      }
+    ],
+    "currentOwner": "tyf9lm9u4",
+    "history": [
+      {
+        "owner": "tyf9lm9u4",
+        "acquiredAt": "2023-01-07T16:56:27.167Z",
+        "source": "creation"
+      }
+    ]
+  },
+  {
+    "id": "k1msyo4hd",
+    "itemId": "uep8rv9ru",
+    "contentHash": "0x873221f7d681188cd9db5e1c14e",
+    "chain": [
+      {
+        "event": "created",
+        "timestamp": "2023-12-13T11:33:57.356Z",
+        "actor": "p4xqcxtag",
+        "blockchainHash": "0x5420aa5351f288f8987abf77279"
+      },
+      {
+        "event": "disputed",
+        "timestamp": "2024-12-24T16:29:47.751Z",
+        "actor": "aguhgj5zg",
+        "blockchainHash": "0x24edd1c825218fe707121db9b6"
+      }
+    ],
+    "currentOwner": "p4xqcxtag",
+    "history": [
+      {
+        "owner": "p4xqcxtag",
+        "acquiredAt": "2023-09-05T23:35:09.494Z",
+        "source": "creation"
+      }
+    ]
+  },
+  {
+    "id": "u46xi4ra1",
+    "itemId": "vzi59m2wp",
+    "contentHash": "0x8b8e8be652dca8b559df4a0b435",
+    "chain": [
+      {
+        "event": "created",
+        "timestamp": "2023-11-09T23:50:44.923Z",
+        "actor": "p4xqcxtag",
+        "blockchainHash": "0x9bb3912c39ea49bddf5b7d0e2b8"
+      },
+      {
+        "event": "verified",
+        "timestamp": "2024-10-18T16:41:40.895Z",
+        "actor": "1kjyokiaq",
+        "blockchainHash": "0xf781bf02237ed77d2c916f1a0b"
+      }
+    ],
+    "currentOwner": "p4xqcxtag",
+    "history": [
+      {
+        "owner": "p4xqcxtag",
+        "acquiredAt": "2023-07-23T22:33:19.174Z",
+        "source": "creation"
+      }
+    ]
+  },
+  {
+    "id": "2q0m7tx9z",
+    "itemId": "uep8rv9ru",
+    "contentHash": "0x873221f7d681188cd9db5e1c14e",
+    "chain": [
+      {
+        "event": "created",
+        "timestamp": "2023-09-04T05:22:31.855Z",
+        "actor": "p4xqcxtag",
+        "blockchainHash": "0x555c4fd56274982de72da8156368"
+      },
+      {
+        "event": "modified",
+        "timestamp": "2023-05-31T16:54:22.035Z",
+        "actor": "wh6cdeyk1",
+        "blockchainHash": "0x106bbbd48796d8c7d81662823ee8"
+      }
+    ],
+    "currentOwner": "p4xqcxtag",
+    "history": [
+      {
+        "owner": "p4xqcxtag",
+        "acquiredAt": "2023-04-27T05:23:59.604Z",
+        "source": "creation"
+      }
+    ]
+  },
+  {
+    "id": "n7l6cld9e",
+    "itemId": "uzvlru7eh",
+    "contentHash": "0x280168419c9fa2b57c7afe4d1a8",
+    "chain": [
+      {
+        "event": "created",
+        "timestamp": "2023-08-11T01:21:42.920Z",
+        "actor": "du759igkj",
+        "blockchainHash": "0xe741e7b3e4f2b74818410fc5a08"
+      },
+      {
+        "event": "modified",
+        "timestamp": "2024-03-26T08:22:45.702Z",
+        "actor": "4d9z64oku",
+        "blockchainHash": "0xc1fc5111a91aa8dad22e087e79c"
+      }
+    ],
+    "currentOwner": "du759igkj",
+    "history": [
+      {
+        "owner": "du759igkj",
+        "acquiredAt": "2023-06-20T15:16:37.984Z",
+        "source": "creation"
+      }
+    ]
+  },
+  {
+    "id": "p8g4hwu5d",
+    "itemId": "pqkz6szrp",
+    "contentHash": "0x6d1aefbfbfddd15beb4faccc18",
+    "chain": [
+      {
+        "event": "created",
+        "timestamp": "2023-04-30T22:29:02.533Z",
+        "actor": "pa2uwgzgo",
+        "blockchainHash": "0xd4a49a67903369e7e3d2bb08e8"
+      },
+      {
+        "event": "modified",
+        "timestamp": "2025-02-25T22:49:35.937Z",
+        "actor": "2ylkr0mfm",
+        "blockchainHash": "0x300d9f675e0c9693a952df7ced"
+      }
+    ],
+    "currentOwner": "pa2uwgzgo",
+    "history": [
+      {
+        "owner": "pa2uwgzgo",
+        "acquiredAt": "2023-03-15T13:50:01.784Z",
+        "source": "creation"
+      }
+    ]
+  },
+  {
+    "id": "oldopog0c",
+    "itemId": "hscyfrqdi",
+    "contentHash": "0x86ab52c62c0208844fdf324814a8",
+    "chain": [
+      {
+        "event": "created",
+        "timestamp": "2023-03-19T18:31:43.133Z",
+        "actor": "tk5bshfed",
+        "blockchainHash": "0xdab62e85b36d68be8720a57afa88"
+      },
+      {
+        "event": "verified",
+        "timestamp": "2024-06-01T04:39:33.531Z",
+        "actor": "u8kx6egnf",
+        "blockchainHash": "0xd3eb7ecfd4b8568752ad9322bf"
+      }
+    ],
+    "currentOwner": "tk5bshfed",
+    "history": [
+      {
+        "owner": "tk5bshfed",
+        "acquiredAt": "2023-05-17T21:28:45.023Z",
+        "source": "creation"
+      }
+    ]
+  },
+  {
+    "id": "ngbb8debx",
+    "itemId": "eip2al09c",
+    "contentHash": "0x2eb86d572afe5c50acc1340628",
+    "chain": [
+      {
+        "event": "created",
+        "timestamp": "2023-08-05T16:04:48.206Z",
+        "actor": "cxq92h50g",
+        "blockchainHash": "0xeb10afb44175c887c12bf64d0ab"
+      },
+      {
+        "event": "verified",
+        "timestamp": "2023-12-19T18:19:40.490Z",
+        "actor": "j4nb59coc",
+        "blockchainHash": "0x43bf13106559dd13c8e35091b48"
+      }
+    ],
+    "currentOwner": "cxq92h50g",
+    "history": [
+      {
+        "owner": "cxq92h50g",
+        "acquiredAt": "2023-11-26T01:28:20.770Z",
+        "source": "creation"
+      }
+    ]
+  },
+  {
+    "id": "p8ult2148",
+    "itemId": "phuhxyub5",
+    "contentHash": "0x29ab533a93bc4760e7ebc14ebc8",
+    "chain": [
+      {
+        "event": "created",
+        "timestamp": "2023-01-09T11:02:29.985Z",
+        "actor": "tk5bshfed",
+        "blockchainHash": "0xc1bfb8efac8838c5aade03f40c28"
+      },
+      {
+        "event": "verified",
+        "timestamp": "2024-02-02T13:00:15.137Z",
+        "actor": "d6j6x6cau",
+        "blockchainHash": "0x5a9790966d8ec7d5ffef4e89268"
+      }
+    ],
+    "currentOwner": "tk5bshfed",
+    "history": [
+      {
+        "owner": "tk5bshfed",
+        "acquiredAt": "2023-01-28T20:57:30.979Z",
+        "source": "creation"
+      }
+    ]
+  },
+  {
+    "id": "d3pnym75r",
+    "itemId": "fpvpc8j4i",
+    "contentHash": "0xf703f436bc83d8f159ad0b818ab",
+    "chain": [
+      {
+        "event": "created",
+        "timestamp": "2023-07-25T21:43:33.061Z",
+        "actor": "m82s8wuvt",
+        "blockchainHash": "0xf8660e6a431bd2dd7b68bb7c35"
+      },
+      {
+        "event": "disputed",
+        "timestamp": "2024-02-27T18:48:26.140Z",
+        "actor": "e3ihufv6c",
+        "blockchainHash": "0x504760c9145048dee845d521b198"
+      }
+    ],
+    "currentOwner": "m82s8wuvt",
+    "history": [
+      {
+        "owner": "m82s8wuvt",
+        "acquiredAt": "2023-02-14T20:47:26.000Z",
+        "source": "creation"
+      }
+    ]
+  },
+  {
+    "id": "chitg2jsp",
+    "itemId": "eip2al09c",
+    "contentHash": "0x2eb86d572afe5c50acc1340628",
+    "chain": [
+      {
+        "event": "created",
+        "timestamp": "2023-11-27T15:56:05.350Z",
+        "actor": "cxq92h50g",
+        "blockchainHash": "0xd9245acc0b3d28c209c7f98ee478"
+      },
+      {
+        "event": "modified",
+        "timestamp": "2025-11-10T04:05:55.012Z",
+        "actor": "7qeyk1h53",
+        "blockchainHash": "0xc99b0e711cc238e0bbc23fbca058"
+      }
+    ],
+    "currentOwner": "cxq92h50g",
+    "history": [
+      {
+        "owner": "cxq92h50g",
+        "acquiredAt": "2023-03-28T12:16:13.306Z",
+        "source": "creation"
+      }
+    ]
+  },
+  {
+    "id": "x14gyigyp",
+    "itemId": "hscyfrqdi",
+    "contentHash": "0x86ab52c62c0208844fdf324814a8",
+    "chain": [
+      {
+        "event": "created",
+        "timestamp": "2023-10-20T02:54:28.753Z",
+        "actor": "tk5bshfed",
+        "blockchainHash": "0x4c6536d4c850080622f90d4a037"
+      },
+      {
+        "event": "modified",
+        "timestamp": "2025-12-16T05:40:42.657Z",
+        "actor": "1jt1txdbz",
+        "blockchainHash": "0x1976549cedf9f8843cff2c995038"
+      }
+    ],
+    "currentOwner": "tk5bshfed",
+    "history": [
+      {
+        "owner": "tk5bshfed",
+        "acquiredAt": "2023-01-09T04:48:34.574Z",
+        "source": "creation"
+      }
+    ]
+  },
+  {
+    "id": "p3bn1p5o3",
+    "itemId": "ofrnsvh0z",
+    "contentHash": "0x6ad92c0aff865eb507c87cfac78",
+    "chain": [
+      {
+        "event": "created",
+        "timestamp": "2023-02-11T10:57:12.958Z",
+        "actor": "tyf9lm9u4",
+        "blockchainHash": "0x5b8f97e9e6d8c174564a3b2ace8"
+      },
+      {
+        "event": "disputed",
+        "timestamp": "2024-02-29T19:37:19.200Z",
+        "actor": "fyor0kicz",
+        "blockchainHash": "0x939389668287b8e6d70e0980971"
+      }
+    ],
+    "currentOwner": "tyf9lm9u4",
+    "history": [
+      {
+        "owner": "tyf9lm9u4",
+        "acquiredAt": "2023-11-07T02:19:56.564Z",
+        "source": "creation"
+      }
+    ]
+  },
+  {
+    "id": "k5x0yhmcd",
+    "itemId": "a84ynw45l",
+    "contentHash": "0xb3d3ade8888db86c5225a143d728",
+    "chain": [
+      {
+        "event": "created",
+        "timestamp": "2023-02-13T10:27:06.244Z",
+        "actor": "tk5bshfed",
+        "blockchainHash": "0x57c1cf8da68d18ca4d1b07f45ed"
+      },
+      {
+        "event": "modified",
+        "timestamp": "2025-08-10T03:02:34.815Z",
+        "actor": "q2kysujs1",
+        "blockchainHash": "0xee4a1dc2c0a538b6f183c3bb23a"
+      }
+    ],
+    "currentOwner": "tk5bshfed",
+    "history": [
+      {
+        "owner": "tk5bshfed",
+        "acquiredAt": "2023-11-05T04:08:38.362Z",
+        "source": "creation"
+      }
+    ]
+  },
+  {
+    "id": "wisrd2nwy",
+    "itemId": "28qdh90fj",
+    "contentHash": "0xa216eee7789d6a033f1b8fb26a8",
+    "chain": [
+      {
+        "event": "created",
+        "timestamp": "2023-09-27T13:25:06.346Z",
+        "actor": "0qb07misn",
+        "blockchainHash": "0x18f37885700e881c1d7773c3b0f8"
+      },
+      {
+        "event": "disputed",
+        "timestamp": "2025-08-26T14:03:01.762Z",
+        "actor": "tzenx2px8",
+        "blockchainHash": "0xa64dbd9413e424421d26eb6168"
+      }
+    ],
+    "currentOwner": "0qb07misn",
+    "history": [
+      {
+        "owner": "0qb07misn",
+        "acquiredAt": "2023-09-17T20:05:19.357Z",
+        "source": "creation"
+      }
+    ]
+  },
+  {
+    "id": "qudiho3j4",
+    "itemId": "rwck782om",
+    "contentHash": "0x7d06f67c804bb5b4949b2e7b6",
+    "chain": [
+      {
+        "event": "created",
+        "timestamp": "2023-10-07T08:19:25.738Z",
+        "actor": "cxq92h50g",
+        "blockchainHash": "0xcd8889610f9a782b4b824a5fcbb8"
+      },
+      {
+        "event": "transferred",
+        "timestamp": "2025-11-16T14:55:55.064Z",
+        "actor": "979iu9q7r",
+        "blockchainHash": "0x0355cf1625f7e7d5b947ec24098"
+      }
+    ],
+    "currentOwner": "cxq92h50g",
+    "history": [
+      {
+        "owner": "cxq92h50g",
+        "acquiredAt": "2023-10-23T22:34:18.452Z",
+        "source": "creation"
+      }
+    ]
+  },
+  {
+    "id": "f2m5jl9nl",
+    "itemId": "uzvlru7eh",
+    "contentHash": "0x280168419c9fa2b57c7afe4d1a8",
+    "chain": [
+      {
+        "event": "created",
+        "timestamp": "2023-08-13T18:55:06.489Z",
+        "actor": "du759igkj",
+        "blockchainHash": "0x1d05bfd70798281d11513b789bf"
+      },
+      {
+        "event": "transferred",
+        "timestamp": "2023-05-11T04:51:34.419Z",
+        "actor": "l9af31lo2",
+        "blockchainHash": "0x3ba9df68dea3737df8136ba38e8"
+      }
+    ],
+    "currentOwner": "du759igkj",
+    "history": [
+      {
+        "owner": "du759igkj",
+        "acquiredAt": "2023-11-09T08:46:47.728Z",
+        "source": "creation"
+      }
+    ]
+  },
+  {
+    "id": "g93echt7w",
+    "itemId": "b0g4vgcae",
+    "contentHash": "0x5a5c4e48f34678b5baebbf199e58",
+    "chain": [
+      {
+        "event": "created",
+        "timestamp": "2023-05-01T19:38:05.549Z",
+        "actor": "b5y34oelm",
+        "blockchainHash": "0x49803edd5c548b6413356fbf5c"
+      },
+      {
+        "event": "verified",
+        "timestamp": "2023-01-11T13:29:26.172Z",
+        "actor": "6wuxg6kru",
+        "blockchainHash": "0xb42bd30e0c6278fe204af6472718"
+      }
+    ],
+    "currentOwner": "b5y34oelm",
+    "history": [
+      {
+        "owner": "b5y34oelm",
+        "acquiredAt": "2023-08-15T15:33:55.945Z",
+        "source": "creation"
+      }
+    ]
+  },
+  {
+    "id": "vk9wiose0",
+    "itemId": "4yory04sy",
+    "contentHash": "0xc9aebccb1f8798e9a4695ec078e",
+    "chain": [
+      {
+        "event": "created",
+        "timestamp": "2023-03-03T15:14:00.054Z",
+        "actor": "p4xqcxtag",
+        "blockchainHash": "0xcfb41609fbed98bc025cb1196c9"
+      },
+      {
+        "event": "disputed",
+        "timestamp": "2026-07-22T11:32:09.451Z",
+        "actor": "9x4hbb11k",
+        "blockchainHash": "0xaa66d428e2d988e8cf6e08458918"
+      }
+    ],
+    "currentOwner": "p4xqcxtag",
+    "history": [
+      {
+        "owner": "p4xqcxtag",
+        "acquiredAt": "2023-11-30T19:56:22.672Z",
+        "source": "creation"
+      }
+    ]
+  },
+  {
+    "id": "dudbm2g2w",
+    "itemId": "dvmvmvb8n",
+    "contentHash": "0xb073933f7bbc267051b6f8c7c",
+    "chain": [
+      {
+        "event": "created",
+        "timestamp": "2023-05-25T03:38:58.778Z",
+        "actor": "0qb07misn",
+        "blockchainHash": "0x3ecaf27343d988c56f9af0d78e8"
+      },
+      {
+        "event": "modified",
+        "timestamp": "2023-02-20T04:10:10.447Z",
+        "actor": "e8b24vb4h",
+        "blockchainHash": "0x4047a059dd3388a69b2307ddba48"
+      }
+    ],
+    "currentOwner": "0qb07misn",
+    "history": [
+      {
+        "owner": "0qb07misn",
+        "acquiredAt": "2023-07-26T03:49:45.668Z",
+        "source": "creation"
+      }
+    ]
+  },
+  {
+    "id": "i299pyi60",
+    "itemId": "gekbecfci",
+    "contentHash": "0x6f693f67253c888d59f894d9e518",
+    "chain": [
+      {
+        "event": "created",
+        "timestamp": "2023-04-17T05:55:49.774Z",
+        "actor": "cxq92h50g",
+        "blockchainHash": "0x5ca4b32ca487e2fa80e731017b"
+      },
+      {
+        "event": "transferred",
+        "timestamp": "2024-11-04T14:22:08.251Z",
+        "actor": "0ywvo3dga",
+        "blockchainHash": "0xb911867e19be4a801c22feacbb8"
+      }
+    ],
+    "currentOwner": "cxq92h50g",
+    "history": [
+      {
+        "owner": "cxq92h50g",
+        "acquiredAt": "2023-04-23T13:54:15.280Z",
+        "source": "creation"
+      }
+    ]
+  },
+  {
+    "id": "fa10z3hn7",
+    "itemId": "phuhxyub5",
+    "contentHash": "0x29ab533a93bc4760e7ebc14ebc8",
+    "chain": [
+      {
+        "event": "created",
+        "timestamp": "2023-08-28T20:54:21.016Z",
+        "actor": "tk5bshfed",
+        "blockchainHash": "0xf9cfc27aaedbab3005dc5e566c8"
+      },
+      {
+        "event": "modified",
+        "timestamp": "2026-04-25T04:25:28.915Z",
+        "actor": "7axlipkw3",
+        "blockchainHash": "0xc86ef23868f63113d0bd578ff98"
+      }
+    ],
+    "currentOwner": "tk5bshfed",
+    "history": [
+      {
+        "owner": "tk5bshfed",
+        "acquiredAt": "2023-09-27T09:21:21.125Z",
+        "source": "creation"
+      }
+    ]
+  },
+  {
+    "id": "owad15706",
+    "itemId": "4yory04sy",
+    "contentHash": "0xc9aebccb1f8798e9a4695ec078e",
+    "chain": [
+      {
+        "event": "created",
+        "timestamp": "2023-06-20T23:54:21.240Z",
+        "actor": "p4xqcxtag",
+        "blockchainHash": "0xa83690dda7c0487dc633443d7598"
+      },
+      {
+        "event": "disputed",
+        "timestamp": "2026-02-16T05:48:46.141Z",
+        "actor": "md7xk9f4o",
+        "blockchainHash": "0x4a75ee1f92d644a1e913ecab1e"
+      }
+    ],
+    "currentOwner": "p4xqcxtag",
+    "history": [
+      {
+        "owner": "p4xqcxtag",
+        "acquiredAt": "2023-09-16T13:22:22.254Z",
+        "source": "creation"
+      }
+    ]
+  }
+]

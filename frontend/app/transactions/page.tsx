@@ -486,59 +486,87 @@ export default function TransactionsPage() {
 
         {/* Pagination */}
         {!loading && totalPages > 1 && (
-          <div className="mt-6 flex items-center justify-between">
-            <p className="text-sm text-gray-600 dark:text-gray-400">
+          <nav
+            aria-label="Transaction history pagination"
+            className="mt-6 flex items-center justify-between"
+          >
+            <p
+              className="text-sm text-gray-600 dark:text-gray-400"
+              aria-live="polite"
+              aria-atomic="true"
+            >
               Showing {(currentPage - 1) * itemsPerPage + 1} to{" "}
               {Math.min(currentPage * itemsPerPage, total)} of {total} transactions
+              <span className="sr-only">
+                {" "}
+                — page {currentPage} of {totalPages}
+              </span>
             </p>
 
-            <div className="flex items-center gap-2">
-              <button
-                onClick={() => handlePageChange(currentPage - 1)}
-                disabled={currentPage === 1}
-                className="p-2 border border-gray-300 dark:border-gray-700 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-              >
-                <ChevronLeft className="w-5 h-5 text-gray-600 dark:text-gray-400" />
-              </button>
+            <ul className="flex items-center gap-2">
+              <li>
+                <button
+                  onClick={() => handlePageChange(currentPage - 1)}
+                  disabled={currentPage === 1}
+                  aria-label="Go to previous page"
+                  className="p-2 border border-gray-300 dark:border-gray-700 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800 disabled:opacity-50 disabled:cursor-not-allowed transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
+                >
+                  <ChevronLeft
+                    className="w-5 h-5 text-gray-600 dark:text-gray-400"
+                    aria-hidden="true"
+                  />
+                </button>
+              </li>
 
-              <div className="flex items-center gap-1">
-                {[...Array(Math.min(totalPages, 5))].map((_, idx) => {
-                  let pageNum;
-                  if (totalPages <= 5) {
-                    pageNum = idx + 1;
-                  } else if (currentPage <= 3) {
-                    pageNum = idx + 1;
-                  } else if (currentPage >= totalPages - 2) {
-                    pageNum = totalPages - 4 + idx;
-                  } else {
-                    pageNum = currentPage - 2 + idx;
-                  }
+              {[...Array(Math.min(totalPages, 5))].map((_, idx) => {
+                let pageNum;
+                if (totalPages <= 5) {
+                  pageNum = idx + 1;
+                } else if (currentPage <= 3) {
+                  pageNum = idx + 1;
+                } else if (currentPage >= totalPages - 2) {
+                  pageNum = totalPages - 4 + idx;
+                } else {
+                  pageNum = currentPage - 2 + idx;
+                }
 
-                  return (
+                const isCurrent = currentPage === pageNum;
+
+                return (
+                  <li key={pageNum}>
                     <button
-                      key={pageNum}
                       onClick={() => handlePageChange(pageNum)}
-                      className={`px-3 py-2 rounded-lg transition-colors ${
-                        currentPage === pageNum
+                      aria-current={isCurrent ? "page" : undefined}
+                      aria-label={
+                        isCurrent ? `Page ${pageNum}, current page` : `Go to page ${pageNum}`
+                      }
+                      className={`px-3 py-2 rounded-lg transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 ${
+                        isCurrent
                           ? "bg-blue-500 text-white"
                           : "border border-gray-300 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800 text-gray-600 dark:text-gray-400"
                       }`}
                     >
                       {pageNum}
                     </button>
-                  );
-                })}
-              </div>
+                  </li>
+                );
+              })}
 
-              <button
-                onClick={() => handlePageChange(currentPage + 1)}
-                disabled={currentPage === totalPages}
-                className="p-2 border border-gray-300 dark:border-gray-700 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-              >
-                <ChevronRight className="w-5 h-5 text-gray-600 dark:text-gray-400" />
-              </button>
-            </div>
-          </div>
+              <li>
+                <button
+                  onClick={() => handlePageChange(currentPage + 1)}
+                  disabled={currentPage === totalPages}
+                  aria-label="Go to next page"
+                  className="p-2 border border-gray-300 dark:border-gray-700 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800 disabled:opacity-50 disabled:cursor-not-allowed transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
+                >
+                  <ChevronRight
+                    className="w-5 h-5 text-gray-600 dark:text-gray-400"
+                    aria-hidden="true"
+                  />
+                </button>
+              </li>
+            </ul>
+          </nav>
         )}
       </div>
 

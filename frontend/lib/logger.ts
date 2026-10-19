@@ -85,8 +85,8 @@ export interface LogEntry {
   timestamp: string;
   level: LogLevel;
   message: string;
-  context?: LogContext;
-  tags?: string[];
+  context?: LogContext | undefined;
+  tags?: string[] | undefined;
 }
 
 // ============================================================================
@@ -293,9 +293,7 @@ class StructuredLogger {
     } else {
       // Human-readable output (for development)
       const prefix = `[${entry.level.toUpperCase()}]`;
-      const contextStr = entry.context
-        ? ` ${JSON.stringify(entry.context)}`
-        : "";
+      const contextStr = entry.context ? ` ${JSON.stringify(entry.context)}` : "";
       console[consoleMethod](`${prefix} ${entry.message}${contextStr}`);
     }
   }

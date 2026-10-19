@@ -57,12 +57,9 @@ export interface CardProps extends React.HTMLAttributes<HTMLDivElement> {
 }
 
 const cardVariantClasses: Record<CardVariant, string> = {
-  default:
-    "bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 shadow-sm",
-  elevated:
-    "bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 shadow-md",
-  outlined:
-    "bg-transparent border border-gray-300 dark:border-gray-600 shadow-none",
+  default: "bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 shadow-sm",
+  elevated: "bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 shadow-md",
+  outlined: "bg-transparent border border-gray-300 dark:border-gray-600 shadow-none",
   ghost: "bg-gray-50 dark:bg-gray-800/50 border border-transparent shadow-none",
 };
 
@@ -118,7 +115,11 @@ export const CardHeader = React.memo(function CardHeader({
   );
 });
 
-export const CardBody = React.memo(function CardBody({ className, children, ...props }: React.HTMLAttributes<HTMLDivElement>) {
+export const CardBody = React.memo(function CardBody({
+  className,
+  children,
+  ...props
+}: React.HTMLAttributes<HTMLDivElement>) {
   return (
     <div className={cn("space-y-3", className)} {...props}>
       {children}
@@ -301,7 +302,11 @@ export const CertificateCard = React.memo(function CertificateCard({
         </div>
 
         {/* Details */}
-        <dl className="grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
+        <dl className="grid grid-cols-1 gap-x-4 gap-y-2 text-sm sm:grid-cols-2">
+          <div>
+            <dt className="text-xs text-gray-400 dark:text-gray-500">Verification</dt>
+            <dd className="text-gray-700 dark:text-gray-300 text-xs mt-0.5">{statusCfg.label} record</dd>
+          </div>
           <div>
             <dt className="text-xs text-gray-400 dark:text-gray-500">Creator</dt>
             <dd
@@ -317,8 +322,14 @@ export const CertificateCard = React.memo(function CertificateCard({
               {formatDate(timestamp)}
             </dd>
           </div>
+          <div className="sm:col-span-2">
+            <dt className="text-xs text-gray-400 dark:text-gray-500">Provenance</dt>
+            <dd className="text-gray-700 dark:text-gray-300 text-xs mt-0.5">
+              {storageRef ? "Anchored with a storage reference" : "On-chain record pending storage reference"}
+            </dd>
+          </div>
           {storageRef && (
-            <div className="col-span-2">
+            <div className="col-span-1 sm:col-span-2">
               <dt className="text-xs text-gray-400 dark:text-gray-500">Storage Ref</dt>
               <dd className="font-mono text-gray-700 dark:text-gray-300 truncate text-xs mt-0.5">
                 {truncate(storageRef, 36)}
@@ -357,10 +368,7 @@ export interface StatCardProps {
   onClick?: () => void;
 }
 
-const accentMap: Record<
-  NonNullable<StatCardProps["accentColor"]>,
-  { bg: string; text: string }
-> = {
+const accentMap: Record<NonNullable<StatCardProps["accentColor"]>, { bg: string; text: string }> = {
   blue: { bg: "bg-blue-50 dark:bg-blue-900/30", text: "text-blue-600 dark:text-blue-400" },
   emerald: {
     bg: "bg-emerald-50 dark:bg-emerald-900/30",
@@ -433,9 +441,7 @@ export const StatCard = React.memo(function StatCard({
                   <svg
                     className={cn(
                       "w-3 h-3",
-                      trendPositive
-                        ? "text-emerald-500 rotate-0"
-                        : "text-red-500 rotate-180"
+                      trendPositive ? "text-emerald-500 rotate-0" : "text-red-500 rotate-180"
                     )}
                     fill="currentColor"
                     viewBox="0 0 24 24"
@@ -446,7 +452,9 @@ export const StatCard = React.memo(function StatCard({
                   <span
                     className={cn(
                       "text-xs font-medium",
-                      trendPositive ? "text-emerald-600 dark:text-emerald-400" : "text-red-600 dark:text-red-400"
+                      trendPositive
+                        ? "text-emerald-600 dark:text-emerald-400"
+                        : "text-red-600 dark:text-red-400"
                     )}
                   >
                     {trendPositive ? "+" : ""}

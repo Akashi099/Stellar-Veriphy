@@ -26,3 +26,7 @@ Verification requests, provenance certificates, and registry entries are retaine
 ## Reviewing this policy
 
 Revisit retention windows whenever a new persistent data category is added to the app (a new `localStorage` key, a new CI artifact, a new backend data store) — this table should stay a complete inventory, not just the categories that existed when it was written.
+
+## Compliance audit trail
+
+Compliance-relevant actions (GDPR/CCPA data subject rights, content disputes, DMCA notices, policy changes) are logged in a separate compliance audit trail (`frontend/lib/compliance/complianceAuditTrail.ts`). These entries are retained for **7 years** (`COMPLIANCE_RETENTION_YEARS = 7`) to satisfy typical legal and regulatory record-keeping obligations. See [`compliance-audit-trail.md`](compliance-audit-trail.md) for full details.

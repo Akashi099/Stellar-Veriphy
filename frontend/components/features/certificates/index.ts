@@ -13,9 +13,9 @@
  * ```
  */
 
-export { CertificateHistoryTimeline } from '../../../certificates/CertificateHistoryTimeline';
-export { CertificateLookupForm } from '../../../certificates/CertificateLookupForm';
-export { CertificateResultCard } from '../../../certificates/CertificateResultCard';
-export { CertificateStatusBadge } from '../../../certificates/CertificateStatusBadge';
-export { CertificateVerificationPanel } from '../../../certificates/CertificateVerificationPanel';
-export { VerificationBadge } from '../../../certificates/VerificationBadge';
+export { CertificateHistoryTimeline } from "../../certificates/CertificateHistoryTimeline";
+export { CertificateLookupForm } from "../../certificates/CertificateLookupForm";
+export { CertificateResultCard } from "../../certificates/CertificateResultCard";
+export { CertificateStatusBadge } from "../../certificates/CertificateStatusBadge";
+export { CertificateVerificationPanel } from "../../certificates/CertificateVerificationPanel";
+export { VerificationBadge } from "../../certificates/VerificationBadge";

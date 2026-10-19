@@ -21,6 +21,8 @@ const routes: SitemapRoute[] = [
   { path: "/tools/signature-verifier", changeFrequency: "monthly", priority: 0.7 },
   { path: "/tools/api-keys", changeFrequency: "monthly", priority: 0.55 },
   { path: "/tools/audit-logs", changeFrequency: "monthly", priority: 0.55 },
+  { path: "/tools/compliance-audit", changeFrequency: "monthly", priority: 0.55 },
+  { path: "/registry/trust", changeFrequency: "daily", priority: 0.7 },
   { path: "/transactions", changeFrequency: "weekly", priority: 0.65 },
   { path: "/docs", changeFrequency: "monthly", priority: 0.65 },
   { path: "/privacy", changeFrequency: "yearly", priority: 0.4 },

@@ -5,6 +5,7 @@ Comprehensive guide for structured logging throughout the Stellar-Veriphy applic
 ## Overview
 
 The logging system provides:
+
 - **Four log levels**: debug, info, warn, error
 - **Structured logging**: JSON output with context/metadata
 - **Production-safe**: Minimal verbosity in production
@@ -16,12 +17,12 @@ The logging system provides:
 
 ### Log Levels
 
-| Level | Weight | Usage | Production |
-|-------|--------|-------|-----------|
-| `debug` | 0 | Verbose development info | Disabled |
-| `info` | 1 | Normal operation events | Disabled |
-| `warn` | 2 | Potential problems | **Enabled** |
-| `error` | 3 | Errors/failures | **Enabled** |
+| Level   | Weight | Usage                    | Production  |
+| ------- | ------ | ------------------------ | ----------- |
+| `debug` | 0      | Verbose development info | Disabled    |
+| `info`  | 1      | Normal operation events  | Disabled    |
+| `warn`  | 2      | Potential problems       | **Enabled** |
+| `error` | 3      | Errors/failures          | **Enabled** |
 
 Production defaults to `warn` level to reduce log volume.
 
@@ -46,28 +47,28 @@ Production defaults to `warn` level to reduce log volume.
 ### Basic Logging
 
 ```typescript
-import { logger } from '@/lib/logger';
+import { logger } from "@/lib/logger";
 
 // Simple messages
-logger.debug('Initializing component');
-logger.info('User logged in');
-logger.warn('Cache miss for certificate');
-logger.error('Failed to connect to blockchain');
+logger.debug("Initializing component");
+logger.info("User logged in");
+logger.warn("Cache miss for certificate");
+logger.error("Failed to connect to blockchain");
 ```
 
 ### Structured Logging with Context
 
 ```typescript
 // Include metadata for aggregation/analysis
-logger.info('Certificate verified', {
-  certificateId: 'cert-123',
-  verificationLevel: 'strict',
+logger.info("Certificate verified", {
+  certificateId: "cert-123",
+  verificationLevel: "strict",
   duration: 245,
   validSignature: true,
 });
 
-logger.warn('Rate limit approaching', {
-  userId: 'user-456',
+logger.warn("Rate limit approaching", {
+  userId: "user-456",
   remaining: 3,
   resetTime: 1705329045,
 });
@@ -76,16 +77,16 @@ logger.warn('Rate limit approaching', {
 ### Error Logging
 
 ```typescript
-import { logger, formatError } from '@/lib/logger';
+import { logger, formatError } from "@/lib/logger";
 
 try {
   await verifyCertificate(id);
 } catch (err) {
-  logger.error('Verification failed', {
+  logger.error("Verification failed", {
     certificateId: id,
-    error: formatError(err),  // Formats Error objects safely
+    error: formatError(err), // Formats Error objects safely
     retryCount: 3,
-    userId: 'user-456',
+    userId: "user-456",
   });
 }
 ```
@@ -93,17 +94,17 @@ try {
 ### Child Loggers with Context
 
 ```typescript
-import { createChildLogger } from '@/lib/logger';
+import { createChildLogger } from "@/lib/logger";
 
 // Create a logger for a specific component/module
 const certLogger = createChildLogger({
-  component: 'CertificateVerifier',
-  feature: 'certificates',
+  component: "CertificateVerifier",
+  feature: "certificates",
 });
 
 // All logs from certLogger automatically include these fields
-certLogger.info('Starting verification');  // Includes component, feature
-certLogger.error('Verification failed', { userId: 'user-123' });
+certLogger.info("Starting verification"); // Includes component, feature
+certLogger.error("Verification failed", { userId: "user-123" });
 ```
 
 ### Request Tracing
@@ -111,15 +112,15 @@ certLogger.error('Verification failed', { userId: 'user-123' });
 ```typescript
 // Set global context for a request (e.g., in API middleware)
 logger.setGlobalContext({
-  traceId: 'trace-' + Date.now(),
+  traceId: "trace-" + Date.now(),
   userId: currentUser.id,
   requestId: req.id,
 });
 
 // All subsequent logs include these fields
-logger.info('Processing request');
-logger.info('Calling blockchain');
-logger.info('Request complete');
+logger.info("Processing request");
+logger.info("Calling blockchain");
+logger.info("Request complete");
 
 // Clear or update when request ends
 logger.setGlobalContext({});
@@ -175,28 +176,28 @@ export function CertificatePanel({ certificateId }: Props) {
 
 ```typescript
 // services/certificateVerificationService.ts
-import { logger, createChildLogger } from '@/lib/logger';
+import { logger, createChildLogger } from "@/lib/logger";
 
 const verifyLogger = createChildLogger({
-  component: 'CertificateVerificationService',
-  feature: 'certificates',
+  component: "CertificateVerificationService",
+  feature: "certificates",
 });
 
 export async function verifyCertificateAuthenticity(id: string) {
-  verifyLogger.debug('Starting authenticity verification', { id });
+  verifyLogger.debug("Starting authenticity verification", { id });
 
   const startTime = Date.now();
 
   try {
     const cert = await getCertificateById(id);
-    verifyLogger.debug('Certificate retrieved', { id });
+    verifyLogger.debug("Certificate retrieved", { id });
 
     const hashValid = await validateHash(cert);
     const signatureValid = await validateSignature(cert);
 
     const duration = Date.now() - startTime;
 
-    verifyLogger.info('Authenticity verification complete', {
+    verifyLogger.info("Authenticity verification complete", {
       id,
       hashValid,
       signatureValid,
@@ -207,11 +208,11 @@ export async function verifyCertificateAuthenticity(id: string) {
       authentic: hashValid && signatureValid,
       hashMatch: hashValid,
       signatureValid: signatureValid,
-      details: ['Hash validated', 'Signature verified'],
+      details: ["Hash validated", "Signature verified"],
     };
   } catch (error) {
     const duration = Date.now() - startTime;
-    verifyLogger.error('Authenticity verification failed', {
+    verifyLogger.error("Authenticity verification failed", {
       id,
       error: formatError(error),
       duration,
@@ -225,21 +226,21 @@ export async function verifyCertificateAuthenticity(id: string) {
 
 ```typescript
 // hooks/useCertificateQueries.ts
-import { useQuery } from '@tanstack/react-query';
-import { logger } from '@/lib/logger';
+import { useQuery } from "@tanstack/react-query";
+import { logger } from "@/lib/logger";
 
 export function useCertificateById(id: string | null | undefined) {
   return useQuery({
-    queryKey: ['certificates', id],
+    queryKey: ["certificates", id],
     queryFn: async () => {
-      logger.debug('Fetching certificate', { id });
+      logger.debug("Fetching certificate", { id });
       const result = await getCertificateById(id!);
-      logger.debug('Certificate fetched', { id, success: true });
+      logger.debug("Certificate fetched", { id, success: true });
       return result;
     },
     enabled: Boolean(id),
     onError: (error) => {
-      logger.error('Certificate fetch failed', {
+      logger.error("Certificate fetch failed", {
         id,
         error: formatError(error),
       });
@@ -252,39 +253,39 @@ export function useCertificateById(id: string | null | undefined) {
 
 ```typescript
 // app/api/verification/route.ts
-import { logger } from '@/lib/logger';
+import { logger } from "@/lib/logger";
 
 export async function POST(request: Request) {
-  const traceId = request.headers.get('x-trace-id') || 'trace-' + Date.now();
-  
+  const traceId = request.headers.get("x-trace-id") || "trace-" + Date.now();
+
   logger.setGlobalContext({
     traceId,
-    endpoint: '/api/verification',
-    method: 'POST',
+    endpoint: "/api/verification",
+    method: "POST",
   });
 
-  logger.debug('Verification request received');
+  logger.debug("Verification request received");
 
   try {
     const body = await request.json();
-    logger.debug('Request parsed', { contentType: request.headers.get('content-type') });
+    logger.debug("Request parsed", { contentType: request.headers.get("content-type") });
 
     const validation = validateVerificationRequest(body);
     if (!validation.valid) {
-      logger.warn('Validation failed', {
+      logger.warn("Validation failed", {
         errors: validation.errors,
       });
-      return Response.json({ error: 'Invalid request' }, { status: 400 });
+      return Response.json({ error: "Invalid request" }, { status: 400 });
     }
 
-    logger.info('Processing verification', {
+    logger.info("Processing verification", {
       certificateId: body.certificateId,
       userId: body.userId,
     });
 
     const result = await verifyOnChain(body);
 
-    logger.info('Verification completed', {
+    logger.info("Verification completed", {
       certificateId: body.certificateId,
       success: true,
       duration: result.duration,
@@ -292,10 +293,10 @@ export async function POST(request: Request) {
 
     return Response.json(result);
   } catch (error) {
-    logger.error('Verification processing failed', {
+    logger.error("Verification processing failed", {
       error: formatError(error),
     });
-    return Response.json({ error: 'Internal error' }, { status: 500 });
+    return Response.json({ error: "Internal error" }, { status: 500 });
   } finally {
     logger.setGlobalContext({}); // Clear context
   }
@@ -310,10 +311,10 @@ In production, configure structured JSON logging:
 
 ```typescript
 // In your app initialization (e.g., app/layout.tsx)
-import { logger } from '@/lib/logger';
+import { logger } from "@/lib/logger";
 
-if (process.env.NODE_ENV === 'production') {
-  logger.setMinLevel('warn');  // Only warn/error
+if (process.env.NODE_ENV === "production") {
+  logger.setMinLevel("warn"); // Only warn/error
   // Structured output is automatic in production
 }
 ```
@@ -324,7 +325,7 @@ if (process.env.NODE_ENV === 'production') {
 // Add a handler to send logs to a service
 logger.addHandler((entry) => {
   // Send to Sentry for errors
-  if (entry.level === 'error') {
+  if (entry.level === "error") {
     Sentry.captureException(entry.context?.error, {
       extra: entry.context,
       tags: { component: entry.context?.component },
@@ -332,7 +333,7 @@ logger.addHandler((entry) => {
   }
 
   // Send to CloudLogging
-  if (['warn', 'error'].includes(entry.level)) {
+  if (["warn", "error"].includes(entry.level)) {
     cloudLogging.write({
       severity: entry.level.toUpperCase(),
       jsonPayload: entry,
@@ -340,7 +341,7 @@ logger.addHandler((entry) => {
   }
 
   // Send to analytics (info level)
-  if (entry.level === 'info') {
+  if (entry.level === "info") {
     analytics.logEvent(entry.message, {
       ...entry.context,
       timestamp: entry.timestamp,
@@ -353,27 +354,27 @@ logger.addHandler((entry) => {
 
 ```typescript
 // config/logging.ts
-import { logger } from '@/lib/logger';
+import { logger } from "@/lib/logger";
 
 export function initializeLogging() {
-  const isDev = process.env.NODE_ENV === 'development';
-  const isProd = process.env.NODE_ENV === 'production';
+  const isDev = process.env.NODE_ENV === "development";
+  const isProd = process.env.NODE_ENV === "production";
 
   // Set log level
-  logger.setMinLevel(isDev ? 'debug' : 'warn');
+  logger.setMinLevel(isDev ? "debug" : "warn");
 
   // Add handlers in production
   if (isProd) {
     // Error tracking
     logger.addHandler((entry) => {
-      if (entry.level === 'error') {
+      if (entry.level === "error") {
         sendToErrorService(entry);
       }
     });
 
     // Metrics/Analytics
     logger.addHandler((entry) => {
-      if (['info', 'warn', 'error'].includes(entry.level)) {
+      if (["info", "warn", "error"].includes(entry.level)) {
         recordMetric(entry);
       }
     });
@@ -390,13 +391,13 @@ initializeLogging();
 
 ```typescript
 // ❌ Bad: Message doesn't include important context
-logger.info('Verification started');
+logger.info("Verification started");
 
 // ✅ Good: Include all relevant data
-logger.info('Verification started', {
-  certificateId: 'cert-123',
-  userId: 'user-456',
-  verificationLevel: 'strict',
+logger.info("Verification started", {
+  certificateId: "cert-123",
+  userId: "user-456",
+  verificationLevel: "strict",
 });
 ```
 
@@ -404,40 +405,40 @@ logger.info('Verification started', {
 
 ```typescript
 // ❌ Inconsistent naming
-logger.info('Processing', { certId: 'cert-123' });
-logger.info('Done', { certificateId: 'cert-456' });
+logger.info("Processing", { certId: "cert-123" });
+logger.info("Done", { certificateId: "cert-456" });
 
 // ✅ Use consistent names across app
-logger.info('Processing', { certificateId: 'cert-123' });
-logger.info('Done', { certificateId: 'cert-456' });
+logger.info("Processing", { certificateId: "cert-123" });
+logger.info("Done", { certificateId: "cert-456" });
 ```
 
 ### 3. Log at Appropriate Levels
 
 ```typescript
 // ❌ Logging too verbosely
-logger.debug('User clicked button');
-logger.debug('Component rendered');
+logger.debug("User clicked button");
+logger.debug("Component rendered");
 
 // ✅ Use appropriate levels
-logger.debug('Processing verification request');  // Dev debugging
-logger.info('Verification started by user');      // Important operations
-logger.warn('Retry attempt 2 of 3');              // Potential issues
-logger.error('Verification failed after 3 retries'); // Errors
+logger.debug("Processing verification request"); // Dev debugging
+logger.info("Verification started by user"); // Important operations
+logger.warn("Retry attempt 2 of 3"); // Potential issues
+logger.error("Verification failed after 3 retries"); // Errors
 ```
 
 ### 4. Always Log Errors with Context
 
 ```typescript
 // ❌ Don't log errors without context
-logger.error('Failed');
+logger.error("Failed");
 
 // ✅ Include error details and operation context
-logger.error('Certificate verification failed', {
-  certificateId: 'cert-123',
+logger.error("Certificate verification failed", {
+  certificateId: "cert-123",
   error: formatError(err),
   retryCount: 3,
-  userId: 'user-456',
+  userId: "user-456",
   duration: 5000,
 });
 ```
@@ -446,17 +447,17 @@ logger.error('Certificate verification failed', {
 
 ```typescript
 // ❌ Don't log sensitive information
-logger.info('User login', {
+logger.info("User login", {
   email: user.email,
-  password: user.password,  // NEVER!
-  privateKey: wallet.key,   // NEVER!
+  password: user.password, // NEVER!
+  privateKey: wallet.key, // NEVER!
 });
 
 // ✅ Only log non-sensitive identifiers
-logger.info('User login', {
+logger.info("User login", {
   userId: user.id,
-  walletAddress: wallet.address,  // Public address only
-  provider: 'freighter',
+  walletAddress: wallet.address, // Public address only
+  provider: "freighter",
 });
 ```
 
@@ -469,15 +470,15 @@ try {
   const result = await expensiveOperation();
   const duration = Date.now() - startTime;
 
-  logger.info('Operation completed', {
-    operation: 'verify_certificate',
+  logger.info("Operation completed", {
+    operation: "verify_certificate",
     duration,
     success: true,
   });
 } catch (error) {
   const duration = Date.now() - startTime;
-  logger.error('Operation failed', {
-    operation: 'verify_certificate',
+  logger.error("Operation failed", {
+    operation: "verify_certificate",
     duration,
     error: formatError(error),
   });
@@ -489,11 +490,11 @@ try {
 ```typescript
 // Per-component context
 const homePageLogger = createChildLogger({
-  component: 'HomePage',
-  page: '/home',
+  component: "HomePage",
+  page: "/home",
 });
 
-homePageLogger.info('Page loaded');  // Includes component, page
+homePageLogger.info("Page loaded"); // Includes component, page
 ```
 
 ## Monitoring & Analysis
@@ -562,6 +563,7 @@ For production, aggregate logs using:
 ### Performance Impact
 
 The logging system is optimized for performance:
+
 - Disabled log levels are skipped (no-op)
 - Structured output only created when needed
 - Handlers run asynchronously where possible

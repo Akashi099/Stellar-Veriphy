@@ -1,7 +1,7 @@
 "use client";
 
-import { AlertCircle, CheckCircle,Download, GitCompare, Search, Share2, X } from "lucide-react";
-import { useCallback,useState } from "react";
+import { AlertCircle, CheckCircle, Download, GitCompare, Search, Share2, X } from "lucide-react";
+import { useCallback, useState } from "react";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -16,6 +16,7 @@ export interface Certificate {
   manifestHash: string;
   attestationHash: string;
   metadata?: Record<string, string | number | boolean>;
+  provenance?: Record<string, string | number | boolean>;
   status: string;
 }
 
@@ -59,7 +60,8 @@ export function CertificateComparisonTool({
             manifestHash: "0x" + "b".repeat(64),
             attestationHash: "0x" + "c".repeat(64),
             status: "verified",
-            metadata: { device: "iPhone 13", location: "New York" },
+            metadata: { device: "iPhone 13", location: "New York", license: "Editorial" },
+            provenance: { source: "creator-upload", chain: "testnet", policy: "standard" },
           },
           {
             id: `CERT-${Math.random().toString(36).substr(2, 9).toUpperCase()}`,
@@ -70,7 +72,8 @@ export function CertificateComparisonTool({
             manifestHash: "0x" + "e".repeat(64),
             attestationHash: "0x" + "f".repeat(64),
             status: "verified",
-            metadata: { device: "Canon EOS R5", location: "Los Angeles" },
+            metadata: { device: "Canon EOS R5", location: "Los Angeles", license: "Commercial" },
+            provenance: { source: "dispute-update", chain: "testnet", policy: "enhanced-review" },
           },
         ];
         setSearchResults(mockResults);
@@ -144,33 +147,40 @@ export function CertificateComparisonTool({
   const findDifferences = useCallback(() => {
     if (selectedCertificates.length < 2) return [];
 
-    type CertificateField = keyof Omit<Certificate, "metadata">;
-    const differences: Array<{ field: string; values: (string | number)[] }> = [];
-    const fields: CertificateField[] = ["creator", "status", "storageRef"];
+    const differences: Array<{ field: string; values: Array<string | number | boolean> }> = [];
+    const fields: Array<keyof Pick<Certificate, "creator" | "status" | "storageRef" | "manifestHash" | "attestationHash">> = [
+      "creator",
+      "status",
+      "storageRef",
+      "manifestHash",
+      "attestationHash",
+    ];
 
     for (const field of fields) {
       const values = selectedCertificates.map((c) => c[field]);
       const unique = new Set(values);
       if (unique.size > 1) {
-        differences.push({ field, values: Array.from(unique) });
+        differences.push({ field, values });
       }
     }
 
-    // Compare metadata
-    if (selectedCertificates.every((c) => c.metadata)) {
+    const compareNested = (label: "metadata" | "provenance") => {
       const allKeys = new Set<string>();
       selectedCertificates.forEach((c) => {
-        Object.keys(c.metadata || {}).forEach((k) => allKeys.add(k));
+        Object.keys(c[label] || {}).forEach((k) => allKeys.add(k));
       });
 
       allKeys.forEach((key) => {
-        const values = selectedCertificates.map((c) => c.metadata?.[key] || "N/A");
+        const values = selectedCertificates.map((c) => c[label]?.[key] || "N/A");
         const unique = new Set(values);
         if (unique.size > 1) {
-          differences.push({ field: `metadata.${key}`, values: Array.from(unique) });
+          differences.push({ field: `${label}.${key}`, values });
         }
       });
-    }
+    };
+
+    compareNested("metadata");
+    compareNested("provenance");
 
     return differences;
   }, [selectedCertificates]);
@@ -197,7 +207,7 @@ export function CertificateComparisonTool({
             Certificate Comparison
           </h2>
           <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
-            Compare up to 3 certificates side by side
+            Compare up to 3 asset versions across metadata and provenance fields
           </p>
         </div>
 
@@ -372,6 +382,20 @@ export function CertificateComparisonTool({
                         </div>
                       </div>
                     )}
+
+                    {cert.provenance && Object.keys(cert.provenance).length > 0 && (
+                      <div>
+                        <p className="text-xs text-gray-600 dark:text-gray-400 mb-2">Provenance</p>
+                        <div className="space-y-1">
+                          {Object.entries(cert.provenance).map(([key, value]) => (
+                            <div key={key} className="text-xs">
+                              <span className="text-gray-600 dark:text-gray-400">{key}:</span>{" "}
+                              <span className="text-gray-900 dark:text-white">{String(value)}</span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
                   </div>
                 </div>
               ))}
@@ -392,32 +416,38 @@ export function CertificateComparisonTool({
                   </p>
                 </div>
               ) : (
-                <div className="space-y-4">
-                  {differences.map((diff, idx) => (
-                    <div
-                      key={idx}
-                      className="p-4 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg"
-                    >
-                      <div className="flex items-start gap-2">
-                        <AlertCircle className="w-5 h-5 text-amber-600 dark:text-amber-400 flex-shrink-0 mt-0.5" />
-                        <div className="flex-1">
-                          <p className="font-medium text-gray-900 dark:text-white mb-2">
-                            {diff.field}
-                          </p>
-                          <div className="space-y-1">
-                            {diff.values.map((value, valueIdx) => (
-                              <div
-                                key={valueIdx}
-                                className="text-sm text-gray-700 dark:text-gray-300 font-mono bg-white dark:bg-gray-900 px-2 py-1 rounded"
-                              >
-                                Certificate {valueIdx + 1}: {String(value)}
-                              </div>
-                            ))}
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  ))}
+                <div className="overflow-x-auto">
+                  <table className="min-w-full text-left text-sm">
+                    <thead>
+                      <tr className="border-b border-gray-200 dark:border-gray-700">
+                        <th className="px-3 py-2 text-gray-600 dark:text-gray-400">Field</th>
+                        {selectedCertificates.map((cert) => (
+                          <th key={cert.id} className="px-3 py-2 font-mono text-xs text-gray-600 dark:text-gray-400">
+                            {cert.id}
+                          </th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {differences.map((diff) => (
+                        <tr key={diff.field} className="border-b border-gray-100 dark:border-gray-700/70">
+                          <td className="px-3 py-3 font-medium text-gray-900 dark:text-white">
+                            <span className="inline-flex items-center gap-2">
+                              <AlertCircle className="h-4 w-4 text-amber-600 dark:text-amber-400" />
+                              {diff.field}
+                            </span>
+                          </td>
+                          {diff.values.map((value, valueIdx) => (
+                            <td key={`${diff.field}-${valueIdx}`} className="px-3 py-3">
+                              <code className="block max-w-xs whitespace-pre-wrap break-words rounded bg-amber-50 px-2 py-1 text-xs text-gray-800 dark:bg-amber-900/20 dark:text-gray-200">
+                                {String(value)}
+                              </code>
+                            </td>
+                          ))}
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
                 </div>
               )}
             </div>

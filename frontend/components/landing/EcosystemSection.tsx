@@ -28,7 +28,7 @@ export function EcosystemSection() {
           {components.map((component) => (
             <div
               key={component.title}
-              className="bg-slate-700 p-6 rounded-lg border border-slate-600 hover:border-blue-500 transition"
+              className="bg-slate-700 p-6 rounded-lg border border-slate-600 hover:border-blue-500 transition-colors duration-200 ease-out motion-reduce:transition-none"
             >
               <h3 className="text-lg font-semibold text-white mb-2">{component.title}</h3>
               <p className="text-gray-400">{component.description}</p>

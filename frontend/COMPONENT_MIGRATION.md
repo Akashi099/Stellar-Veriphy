@@ -10,62 +10,60 @@ This guide helps migrate existing component imports to the new atomic design str
 
 ```typescript
 // OLD
-import Button from '@/components/ui/Button';
-import Badge from '@/components/ui/StatusBadge';
+import Button from "@/components/ui/Button";
+import Badge from "@/components/ui/StatusBadge";
 
 // NEW
-import { Button, Badge } from '@/components/atoms';
+import { Button, Badge } from "@/components/atoms";
 ```
 
 #### Molecules (Simple Combinations)
 
 ```typescript
 // OLD
-import Card from '@/components/ui/Card';
-import Modal from '@/components/ui/Modal';
+import Card from "@/components/ui/Card";
+import Modal from "@/components/ui/Modal";
 
 // NEW
-import { Card, Modal } from '@/components/molecules';
+import { Card, Modal } from "@/components/molecules";
 ```
 
 #### Organisms (Complex Sections)
 
 ```typescript
 // OLD
-import Header from '@/components/Header';
-import Footer from '@/components/Footer';
+import Header from "@/components/Header";
+import Footer from "@/components/Footer";
 
 // NEW
-import { Header, Footer } from '@/components/organisms';
+import { Header, Footer } from "@/components/organisms";
 ```
 
 #### Features (Feature Collections)
 
 ```typescript
 // OLD
-import CertificateLookupForm from '@/components/certificates/CertificateLookupForm';
-import CertificateResultCard from '@/components/certificates/CertificateResultCard';
+import CertificateLookupForm from "@/components/certificates/CertificateLookupForm";
+import CertificateResultCard from "@/components/certificates/CertificateResultCard";
 
 // NEW
-import {
-  CertificateLookupForm,
-  CertificateResultCard,
-} from '@/components/features/certificates';
+import { CertificateLookupForm, CertificateResultCard } from "@/components/features/certificates";
 ```
 
 #### Utils/Providers
 
 ```typescript
 // OLD
-import ThemeProvider from '@/components/ThemeProvider';
+import ThemeProvider from "@/components/ThemeProvider";
 
 // NEW
-import { ThemeProvider } from '@/components/utils';
+import { ThemeProvider } from "@/components/utils";
 ```
 
 ## Migration Strategy
 
 ### Phase 1: Update Index Files (DONE)
+
 - ✅ Create `atoms/index.ts`
 - ✅ Create `molecules/index.ts`
 - ✅ Create `organisms/index.ts`
@@ -84,18 +82,20 @@ When refactoring component imports, follow this pattern:
 #### Example: Updating a Component
 
 **Before:**
+
 ```typescript
 // components/certificates/CertificateLookupForm.tsx
-import Button from '@/components/ui/Button';
-import Card from '@/components/ui/Card';
-import { Spinner } from '@/components/ui/Spinner';
+import Button from "@/components/ui/Button";
+import Card from "@/components/ui/Card";
+import { Spinner } from "@/components/ui/Spinner";
 ```
 
 **After:**
+
 ```typescript
 // components/certificates/CertificateLookupForm.tsx
-import { Button, Spinner } from '@/components/atoms';
-import { Card } from '@/components/molecules';
+import { Button, Spinner } from "@/components/atoms";
+import { Card } from "@/components/molecules";
 ```
 
 ### Phase 3: Update Page/Feature Imports
@@ -103,18 +103,20 @@ import { Card } from '@/components/molecules';
 When importing components in app pages or features:
 
 **Before:**
+
 ```typescript
 // app/page.tsx
-import Header from '@/components/Header';
-import Footer from '@/components/Footer';
-import { CertificateLookupForm } from '@/components/certificates';
+import Header from "@/components/Header";
+import Footer from "@/components/Footer";
+import { CertificateLookupForm } from "@/components/certificates";
 ```
 
 **After:**
+
 ```typescript
 // app/page.tsx
-import { Header, Footer } from '@/components/organisms';
-import { CertificateLookupForm } from '@/components/features/certificates';
+import { Header, Footer } from "@/components/organisms";
+import { CertificateLookupForm } from "@/components/features/certificates";
 ```
 
 ### Phase 4: Update Hook/Hook Tests
@@ -122,15 +124,17 @@ import { CertificateLookupForm } from '@/components/features/certificates';
 When updating components with hooks:
 
 **Before:**
+
 ```typescript
 // hooks/__tests__/useComponentLogic.test.tsx
-import Button from '@/components/ui/Button';
+import Button from "@/components/ui/Button";
 ```
 
 **After:**
+
 ```typescript
 // hooks/__tests__/useComponentLogic.test.tsx
-import { Button } from '@/components/atoms';
+import { Button } from "@/components/atoms";
 ```
 
 ## Common Import Patterns
@@ -138,13 +142,7 @@ import { Button } from '@/components/atoms';
 ### Importing Multiple Atoms
 
 ```typescript
-import {
-  Button,
-  Badge,
-  Spinner,
-  Tooltip,
-  FormInput,
-} from '@/components/atoms';
+import { Button, Badge, Spinner, Tooltip, FormInput } from "@/components/atoms";
 ```
 
 ### Importing Specific Features
@@ -154,7 +152,7 @@ import {
   CertificateLookupForm,
   CertificateResultCard,
   CertificateHistoryTimeline,
-} from '@/components/features/certificates';
+} from "@/components/features/certificates";
 ```
 
 ### Importing All Features (Less Common)
@@ -177,12 +175,13 @@ import {
   ToastProvider,
   ErrorBoundary,
   KeyboardShortcutsProvider,
-} from '@/components/utils';
+} from "@/components/utils";
 ```
 
 ## Files to Update
 
 ### High Priority (Most Imports)
+
 - `app/layout.tsx` - Uses providers
 - `app/page.tsx` - Landing page
 - `app/batch-verification/page.tsx`
@@ -191,12 +190,14 @@ import {
 - `components/manifest/*`
 
 ### Medium Priority
+
 - `hooks/__tests__/*`
 - `components/ui/*` - Internal imports
 - `components/notifications/*`
 - `components/landing/*`
 
 ### Lower Priority
+
 - `__mocks__/*`
 - One-off utility components
 
@@ -207,14 +208,17 @@ To help migrate imports, you can use this search-and-replace pattern in your edi
 ### Find and Replace Examples
 
 #### Replace Button imports
+
 - **Find:** `import.*Button.*from.*'@/components/ui/Button'`
 - **Replace:** `import { Button } from '@/components/atoms'`
 
 #### Replace Card imports
+
 - **Find:** `import.*Card.*from.*'@/components/ui/Card'`
 - **Replace:** `import { Card } from '@/components/molecules'`
 
 #### Replace Certificate components
+
 - **Find:** `from '@/components/certificates/`
 - **Replace:** `from '@/components/features/certificates'`
 
@@ -224,8 +228,8 @@ When components export types, they remain accessible:
 
 ```typescript
 // Both work - same export
-import type { ButtonProps } from '@/components/atoms';
-import type { ButtonProps } from '@/components/ui/Button';
+import type { ButtonProps } from "@/components/atoms";
+import type { ButtonProps } from "@/components/ui/Button";
 ```
 
 Prefer using the index import for consistency.
@@ -260,6 +264,7 @@ After updating imports, verify:
 ## Questions?
 
 Refer to `COMPONENT_ARCHITECTURE.md` for detailed guidelines on:
+
 - Component organization principles
 - When to use atoms vs. molecules
 - Creating new components

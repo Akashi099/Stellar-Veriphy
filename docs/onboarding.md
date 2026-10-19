@@ -8,6 +8,7 @@ StellarVeriphy is a monorepo with two toolchains: **Node.js/pnpm** for the front
 
 ## Table of contents
 
+- [Creator onboarding checklist](#creator-onboarding-checklist)
 - [Environment setup](#environment-setup)
 - [Dependency installation](#dependency-installation)
 - [Local development workflow](#local-development-workflow)
@@ -15,6 +16,17 @@ StellarVeriphy is a monorepo with two toolchains: **Node.js/pnpm** for the front
 - [Code style guidelines](#code-style-guidelines)
 - [Contribution process](#contribution-process)
 - [Common issues and solutions](#common-issues-and-solutions)
+
+## Creator onboarding checklist
+
+Use this short checklist when helping a creator get started:
+
+1. **Connect a Stellar wallet** — the wallet signs verification records.
+2. **Upload an asset** — choose a photo, video, audio file, or document.
+3. **Add creator details** — review the public key and optional provenance metadata.
+4. **Verify and track it** — submit the asset and follow its status from the jobs list.
+
+Each step leads directly to the next action, so creators can complete setup without reading the full developer guide.
 
 ## Environment setup
 
@@ -147,3 +159,19 @@ Restart `pnpm dev:frontend` — Next's dev server doesn't always pick up changes
 
 **Where do I ask questions?**
 Open a [GitHub issue](https://github.com/Stellar-Veriphy/Stellar-Veriphy/issues) with the `question` label, or comment directly on the issue/PR you're working from.
+
+## Challenge-Response Email Verification Guidance
+
+StellarVeriphy incorporates a challenge-response verification flow (`frontend/components/auth/EmailVerificationChallenge.tsx` & `/verify-email`) to authenticate user emails for identity trust and notification workflows.
+
+### Security Principles
+- **One-Time Challenge Tokens**: Codes are 6-digit numeric sequences generated with cryptographic randomness.
+- **Short-Lived Expiration**: Tokens expire after 10 minutes. Expired tokens are immediately invalidated.
+- **Rate-Limiting & Anti-Brute-Force**: Maximum of 5 verification attempts permitted per challenge session. After 5 failed attempts, the challenge is invalidated and the user must re-request.
+- **Anti-Spam Cooldown**: A 60-second cooldown is enforced between challenge request dispatches to prevent mail-bombing and spamming.
+- **Input Sanitization**: Email addresses and token codes are normalized, trimmed, and formatted before transmission.
+
+### UX Best Practices
+- **Duplicate Submission Prevention**: Form submit controls and resend triggers are disabled while requests are inflight and during cooldown periods.
+- **Clear State Transitions**: Distinct UI feedback for challenge request, code input, verification in progress, success confirmation, and specific error states.
+- **Direct Focus Management**: Focus automatically shifts to the code input field upon entering the challenge phase.

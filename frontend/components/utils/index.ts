@@ -16,11 +16,11 @@
  * ```
  */
 
-export { ThemeProvider } from '../ThemeProvider';
-export { ToastProvider } from '../ToastProvider';
-export { ErrorBoundary } from '../ErrorBoundary';
-export { KeyboardShortcutsProvider } from '../KeyboardShortcutsProvider';
-export { WalletProvider } from '../WalletProvider';
-export { PWAInstallPrompt } from '../PWAInstallPrompt';
-export { PWAUpdatePrompt } from '../PWAUpdatePrompt';
-export { ConsentBanner } from '../ConsentBanner';
+export { ConsentBanner } from "../ConsentBanner";
+export { ErrorBoundary } from "../ErrorBoundary";
+export { KeyboardShortcutsProvider } from "../KeyboardShortcutsProvider";
+export { PWAInstallPrompt } from "../PWAInstallPrompt";
+export { PWAUpdatePrompt } from "../PWAUpdatePrompt";
+export { ThemeProvider } from "../ThemeProvider";
+export { ToastProvider } from "../ToastProvider";
+export { WalletProvider } from "../WalletProvider";

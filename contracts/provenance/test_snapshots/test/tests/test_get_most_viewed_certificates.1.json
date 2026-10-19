@@ -207,6 +207,14 @@
                     },
                     {
                       "key": {
+                        "symbol": "tags"
+                      },
+                      "val": {
+                        "vec": []
+                      }
+                    },
+                    {
+                      "key": {
                         "symbol": "timestamp"
                       },
                       "val": {
@@ -327,6 +335,14 @@
                     },
                     {
                       "key": {
+                        "symbol": "tags"
+                      },
+                      "val": {
+                        "vec": []
+                      }
+                    },
+                    {
+                      "key": {
                         "symbol": "timestamp"
                       },
                       "val": {
@@ -443,6 +459,14 @@
                       },
                       "val": {
                         "string": "sid"
+                      }
+                    },
+                    {
+                      "key": {
+                        "symbol": "tags"
+                      },
+                      "val": {
+                        "vec": []
                       }
                     },
                     {

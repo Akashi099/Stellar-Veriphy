@@ -15,3 +15,4 @@
 
 // Export templates as they are created
 // This file will grow as templates are extracted from pages
+export {};

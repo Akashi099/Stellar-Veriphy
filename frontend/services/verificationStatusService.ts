@@ -93,6 +93,24 @@ const PHASE_MESSAGE: Record<VerificationPhase, string> = {
   expired: "Request expired before it could be processed.",
 };
 
+/**
+ * Short, canonical label per phase — the single source of truth for status
+ * text shown in badges, timelines, and anywhere else a compact label (as
+ * opposed to the longer `PHASE_MESSAGE` description) is needed. Components
+ * should import this rather than defining their own copy, to avoid the
+ * labels drifting out of sync with each other.
+ */
+export const PHASE_LABEL: Record<VerificationPhase, string> = {
+  submitted: "Transaction submitted",
+  pending: "Request received",
+  processing: "Provider processing",
+  verified: "Verification complete",
+  rejected: "Rejected",
+  cancelled: "Cancelled",
+  failed: "Error",
+  expired: "Expired",
+};
+
 const TERMINAL_PHASES = new Set<VerificationPhase>([
   "verified",
   "rejected",

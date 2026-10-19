@@ -67,16 +67,18 @@ export const freighterAdapter: WalletAdapter = {
   installUrl: "https://chromewebstore.google.com/detail/freighter/bcacfldlkkdogcffnhejadgmjllaphlm",
 
   async isAvailable() {
+    if (typeof window === "undefined") return false;
     try {
       const { isConnected } = await import("@stellar/freighter-api");
       const res = await isConnected();
-      return res.isConnected;
+      return !!res?.isConnected;
     } catch {
       return false;
     }
   },
 
   async connect() {
+    if (typeof window === "undefined") throw new Error("Freighter wallet is only accessible in the browser");
     const { getAddress } = await import("@stellar/freighter-api");
     const { address, error } = await getAddress();
     if (error) throw new Error(error.message);
@@ -84,6 +86,7 @@ export const freighterAdapter: WalletAdapter = {
   },
 
   async getAddress() {
+    if (typeof window === "undefined") throw new Error("Freighter wallet is only accessible in the browser");
     const { getAddress } = await import("@stellar/freighter-api");
     const { address, error } = await getAddress();
     if (error) throw new Error(error.message);
@@ -91,6 +94,7 @@ export const freighterAdapter: WalletAdapter = {
   },
 
   async getNetwork() {
+    if (typeof window === "undefined") throw new Error("Freighter wallet is only accessible in the browser");
     const { getNetworkDetails } = await import("@stellar/freighter-api");
     const res = await getNetworkDetails();
     if (res.error) throw new Error(res.error.message);
@@ -103,6 +107,7 @@ export const freighterAdapter: WalletAdapter = {
   },
 
   async signTransaction(xdr, networkPassphrase, address) {
+    if (typeof window === "undefined") throw new Error("Freighter wallet is only accessible in the browser");
     const { signTransaction } = await import("@stellar/freighter-api");
     const { signedTxXdr, error } = await signTransaction(xdr, {
       networkPassphrase,
@@ -165,13 +170,13 @@ export const albedoAdapter: WalletAdapter = {
   },
 
   async connect() {
-    if (!window.albedo) throw new Error("Albedo is not installed");
+    if (typeof window === "undefined" || !window.albedo) throw new Error("Albedo is not installed");
     const { pubkey } = await window.albedo.publicKey();
     return pubkey;
   },
 
   async getAddress() {
-    if (!window.albedo) throw new Error("Albedo is not installed");
+    if (typeof window === "undefined" || !window.albedo) throw new Error("Albedo is not installed");
     const { pubkey } = await window.albedo.publicKey();
     return pubkey;
   },
@@ -192,7 +197,7 @@ export const albedoAdapter: WalletAdapter = {
   },
 
   async signTransaction(xdr, networkPassphrase) {
-    if (!window.albedo) throw new Error("Albedo is not installed");
+    if (typeof window === "undefined" || !window.albedo) throw new Error("Albedo is not installed");
     const isMainnet = networkPassphrase.includes("Public Global");
     const network = isMainnet ? "public" : "testnet";
     const { signed_envelope_xdr } = await window.albedo.tx({ xdr, network });
@@ -214,13 +219,13 @@ export const xBullAdapter: WalletAdapter = {
   },
 
   async connect() {
-    if (!window.xBullSDK) throw new Error("xBull wallet is not installed");
+    if (typeof window === "undefined" || !window.xBullSDK) throw new Error("xBull wallet is not installed");
     const { publicKey } = await window.xBullSDK.connect();
     return publicKey;
   },
 
   async getAddress() {
-    if (!window.xBullSDK) throw new Error("xBull wallet is not installed");
+    if (typeof window === "undefined" || !window.xBullSDK) throw new Error("xBull wallet is not installed");
     return window.xBullSDK.getPublicKey();
   },
 
@@ -241,7 +246,7 @@ export const xBullAdapter: WalletAdapter = {
   },
 
   async signTransaction(xdr, networkPassphrase, address) {
-    if (!window.xBullSDK) throw new Error("xBull wallet is not installed");
+    if (typeof window === "undefined" || !window.xBullSDK) throw new Error("xBull wallet is not installed");
     const { signedXDR } = await window.xBullSDK.sign({
       xdr,
       networkPassphrase,
@@ -265,19 +270,19 @@ export const rabetAdapter: WalletAdapter = {
   },
 
   async connect() {
-    if (!window.rabet) throw new Error("Rabet wallet is not installed");
+    if (typeof window === "undefined" || !window.rabet) throw new Error("Rabet wallet is not installed");
     const { publicKey } = await window.rabet.connect();
     return publicKey;
   },
 
   async getAddress() {
-    if (!window.rabet) throw new Error("Rabet wallet is not installed");
+    if (typeof window === "undefined" || !window.rabet) throw new Error("Rabet wallet is not installed");
     const { publicKey } = await window.rabet.connect();
     return publicKey;
   },
 
   async getNetwork() {
-    if (!window.rabet) throw new Error("Rabet wallet is not installed");
+    if (typeof window === "undefined" || !window.rabet) throw new Error("Rabet wallet is not installed");
     const { network } = await window.rabet.connect();
     const isMainnet = network === "mainnet";
     return {
@@ -293,7 +298,7 @@ export const rabetAdapter: WalletAdapter = {
   },
 
   async signTransaction(xdr, networkPassphrase) {
-    if (!window.rabet) throw new Error("Rabet wallet is not installed");
+    if (typeof window === "undefined" || !window.rabet) throw new Error("Rabet wallet is not installed");
     const isMainnet = networkPassphrase.includes("Public Global");
     const network = isMainnet ? "mainnet" : "testnet";
     const { xdr: signedXdr } = await window.rabet.sign(xdr, network);

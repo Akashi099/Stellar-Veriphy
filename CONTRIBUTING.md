@@ -338,6 +338,7 @@ Before opening your pull request, verify:
 - [ ] Linting checks pass
 - [ ] No `console.log` or temporary debug code left behind
 - [ ] Documentation updated where relevant
+- [ ] For frontend UI changes, review the [Accessibility Review Checklist](./docs/testing/accessibility-review-checklist.md) and note any follow-up items
 - [ ] Branch is rebased or merged with latest `main`
 
 ### 4. Submitting the PR

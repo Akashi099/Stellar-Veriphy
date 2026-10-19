@@ -49,9 +49,9 @@ export default function About() {
               // whileInView={{ opacity: 1, y: 0 }}
               // transition={{ duration: 0.6, delay: index * 0.2 }}
               // viewport={{ once: true }}
-              className="bg-white dark:bg-gray-800 rounded-lg p-8 shadow-md hover:shadow-lg transition-shadow"
+              className="bg-white dark:bg-gray-800 rounded-lg p-8 shadow-md hover:shadow-lg transition-shadow duration-200 ease-out motion-reduce:transition-none"
             >
-              <div className="text-5xl mb-4">{feature.icon}</div>
+              <div className="text-5xl mb-4" aria-hidden="true">{feature.icon}</div>
               <h3 className="text-xl font-semibold mb-3 text-gray-900 dark:text-white">
                 {feature.title}
               </h3>

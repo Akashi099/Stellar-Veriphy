@@ -2,15 +2,15 @@
 
 import { useEffect, useState } from "react";
 import {
-  BarChart as RechartsBarChart,
   Bar,
-  XAxis,
-  YAxis,
+  BarChart as RechartsBarChart,
   CartesianGrid,
-  Tooltip,
   Legend,
   ResponsiveContainer,
+  Tooltip,
   TooltipProps,
+  XAxis,
+  YAxis,
 } from "recharts";
 
 interface DataPoint {
@@ -80,10 +80,7 @@ export function BarChart({
           accessibilityLayer
         >
           {showGrid && (
-            <CartesianGrid
-              strokeDasharray="3 3"
-              className="stroke-gray-200 dark:stroke-gray-700"
-            />
+            <CartesianGrid strokeDasharray="3 3" className="stroke-gray-200 dark:stroke-gray-700" />
           )}
           <XAxis
             dataKey={xAxisKey}
@@ -105,7 +102,7 @@ export function BarChart({
               fill={bar.fill}
               name={bar.name || bar.dataKey}
               radius={[4, 4, 0, 0]}
-              stackId={stacked ? "stack" : undefined}
+              {...(stacked ? { stackId: "stack" } : {})}
               isAnimationActive={!prefersReducedMotion}
               animationDuration={prefersReducedMotion ? 0 : 750}
             />

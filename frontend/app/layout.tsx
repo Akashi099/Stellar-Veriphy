@@ -3,11 +3,13 @@ import "./globals.css";
 import { GeistMono } from "geist/font/mono";
 import { GeistSans } from "geist/font/sans";
 import type { Metadata } from "next";
+import SiteHeader from "@/components/SiteHeader";
 
 import { WizardProvider } from "@/app/context/WizardContext";
 import { ConsentBanner } from "@/components/ConsentBanner";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { KeyboardShortcutsProvider } from "@/components/KeyboardShortcutsProvider";
+import { MaintenanceBanner } from "@/components/MaintenanceBanner";
 import { NotificationProvider } from "@/components/notifications";
 import { OnboardingFlow } from "@/components/onboarding/OnboardingFlow";
 import { PWAInstallPrompt } from "@/components/PWAInstallPrompt";
@@ -16,11 +18,14 @@ import { ThemeProvider } from "@/components/ThemeProvider";
 import { ToastProvider } from "@/components/ToastProvider";
 import { HelpSearchOverlay } from "@/components/ui/HelpSearchOverlay";
 import { ScrollToTop } from "@/components/ui/ScrollToTop";
+import { RouteScrollRestoration } from "@/components/ui/RouteScrollRestoration";
 import { TutorialOverlay } from "@/components/ui/TutorialOverlay";
 // #442 — import centralised constants instead of duplicating them here
 import { SITE_DESCRIPTION, SITE_NAME, SITE_URL } from "@/config/app";
+import { AuthSessionProvider } from "@/context/AuthSessionContext";
 import { HelpProvider } from "@/context/HelpContext";
 import { WalletProvider } from "@/context/WalletContext";
+import { CacheInvalidationProvider } from "@/context/CacheInvalidationContext";
 // #440 — wrap application with React Query provider
 import { ReactQueryProvider } from "@/lib/queryClient";
 import { SkipToContentLink } from "@/utils/accessibility";
@@ -87,57 +92,41 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <body className={`${GeistSans.variable} ${GeistMono.variable} font-sans safe-inset`}>
         <SkipToContentLink />
         <ReactQueryProvider>
-          <ThemeProvider>
-        <ThemeProvider>
-          <WalletProvider>
-            <NotificationProvider>
-              <WizardProvider>
-                <HelpProvider>
-                  <KeyboardShortcutsProvider>
-                    <ToastProvider>
-                      {children}
-                      <ScrollToTop />
-                      <HelpSearchOverlay />
-                      <TutorialOverlay />
-                      <PWAInstallPrompt />
-                      <PWAUpdatePrompt />
-                      <ConsentBanner />
-                      <OnboardingFlow />
-                    </ToastProvider>
-                  </KeyboardShortcutsProvider>
-                </HelpProvider>
-              </WizardProvider>
-            </NotificationProvider>
-          </WalletProvider>
-          {/* #438 — top-level boundary: catches errors in any provider or page */}
-          <ErrorBoundary section="Application">
-            <WalletProvider>
-              <NotificationProvider>
-                <WizardProvider>
-                  <HelpProvider>
-                    <KeyboardShortcutsProvider>
-                      <ToastProvider>
-                        {children}
-                        {/* #438 — boundary around the page content */}
-                        <ErrorBoundary section="Page">
-                          {children}
-                        </ErrorBoundary>
-                        <ScrollToTop />
-                        <HelpSearchOverlay />
-                        <TutorialOverlay />
-                        <PWAInstallPrompt />
-                        <PWAUpdatePrompt />
-                        <ConsentBanner />
-                      </ToastProvider>
-                    </KeyboardShortcutsProvider>
-                  </HelpProvider>
-                </WizardProvider>
-              </NotificationProvider>
-            </WalletProvider>
-          </ThemeProvider>
+          <CacheInvalidationProvider>
+            <ThemeProvider>
+              <WalletProvider>
+                <AuthSessionProvider>
+                <NotificationProvider>
+                  <WizardProvider>
+                    <HelpProvider>
+                      <KeyboardShortcutsProvider>
+                        <ToastProvider>
+                          {/* #787 — site-wide notice while maintenance mode is on */}
+                          <MaintenanceBanner />
+                          <SiteHeader />
+                          {/* #438 — top-level boundary: catches errors in any provider or page */}
+                          <ErrorBoundary section="Application">
+                            {/* #438 — boundary around the page content */}
+                            <ErrorBoundary section="Page">{children}</ErrorBoundary>
+                          </ErrorBoundary>
+                          <ScrollToTop />
+                          <RouteScrollRestoration />
+                          <HelpSearchOverlay />
+                          <TutorialOverlay />
+                          <PWAInstallPrompt />
+                          <PWAUpdatePrompt />
+                          <ConsentBanner />
+                          <OnboardingFlow />
+                        </ToastProvider>
+                      </KeyboardShortcutsProvider>
+                    </HelpProvider>
+                  </WizardProvider>
+                </NotificationProvider>
+                </AuthSessionProvider>
+              </WalletProvider>
+            </ThemeProvider>
+          </CacheInvalidationProvider>
         </ReactQueryProvider>
-          </ErrorBoundary>
-        </ThemeProvider>
       </body>
     </html>
   );

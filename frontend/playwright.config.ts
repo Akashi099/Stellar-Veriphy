@@ -115,16 +115,18 @@ export default defineConfig({
   snapshotDir: "./e2e/snapshots",
   expect: { timeout: 10_000 },
 
-  webServer: useBrowserStack
-    ? undefined
+  ...(useBrowserStack
+    ? {}
     : {
-        command: process.env.PLAYWRIGHT_WEB_SERVER_COMMAND ?? "pnpm dev",
-        cwd: __dirname,
-        env: {
-          NEXT_PUBLIC_MOCK_WALLET: process.env.NEXT_PUBLIC_MOCK_WALLET ?? "true",
+        webServer: {
+          command: process.env.PLAYWRIGHT_WEB_SERVER_COMMAND ?? "pnpm dev",
+          cwd: __dirname,
+          env: {
+            NEXT_PUBLIC_MOCK_WALLET: process.env.NEXT_PUBLIC_MOCK_WALLET ?? "true",
+          },
+          reuseExistingServer: !process.env.CI,
+          timeout: 120_000,
+          url: baseURL,
         },
-        reuseExistingServer: !process.env.CI,
-        timeout: 120_000,
-        url: baseURL,
-      },
+      }),
 });

@@ -21,7 +21,9 @@ export function ManifestModal({ manifest, isOpen, onClose }: ManifestModalProps)
 
   const downloadManifest = () => {
     const content =
-      format === "json" ? JSON.stringify(manifest, null, 2) : jsonToXml(manifest, "manifest");
+      format === "json"
+        ? JSON.stringify(manifest, null, 2)
+        : jsonToXml(manifest as unknown as Parameters<typeof jsonToXml>[0], "manifest");
 
     const filename = `manifest.${format}`;
     const blob = new Blob([content], {
@@ -60,7 +62,7 @@ export function ManifestModal({ manifest, isOpen, onClose }: ManifestModalProps)
             content={
               format === "json"
                 ? JSON.stringify(manifest, null, 2)
-                : jsonToXml(manifest, "manifest")
+                : jsonToXml(manifest as unknown as Parameters<typeof jsonToXml>[0], "manifest")
             }
             format={format}
           />

@@ -22,13 +22,8 @@ services:
       - ./contracts:/app/contracts:ro
     restart: unless-stopped
     healthcheck:
-      test:
-        [
-          "CMD",
-          "node",
-          "-e",
-          "require('http').get('http://localhost:3000/api/health', (r) => {process.exit(r.statusCode === 200 ? 0 : 1)})",
-        ]
+      # Readiness probe; prints failing checks into `docker inspect` health log
+      test: ["CMD", "node", "/app/docker/healthcheck.mjs"]
       interval: 30s
       timeout: 10s
       retries: 3

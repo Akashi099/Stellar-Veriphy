@@ -293,10 +293,12 @@ export function BatchVerificationPanel({ onVerify }: BatchVerificationPanelProps
 
               {/* File Info */}
               <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-2">
-                  <p className="font-medium text-gray-900 dark:text-white truncate">
-                    {file.file.name}
-                  </p>
+                <div className="flex flex-col gap-1 min-w-0">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <p className="font-medium text-gray-900 dark:text-white break-words">
+                      {file.file.name}
+                    </p>
+                  </div>
                   <span className="text-xs text-gray-500 dark:text-gray-400">
                     {(file.file.size / 1024).toFixed(1)} KB
                   </span>

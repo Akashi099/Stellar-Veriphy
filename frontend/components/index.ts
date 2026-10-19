@@ -31,20 +31,36 @@
  */
 
 // Atomic Design Hierarchy
-export * from './atoms';
-export * from './molecules';
-export * from './organisms';
-export * from './templates';
-export * as features from './features';
-export * as utils from './utils';
+export * from "./atoms";
+export * as features from "./features";
+export * from "./molecules";
+export * from "./organisms";
+export * from "./templates";
+export * as utils from "./utils";
+
+// Confidence scoring
+export { default as ConfidencePanel } from "./ConfidencePanel";
+export { default as ConfidenceScore, ConfidenceScoreHelp } from "./ConfidenceScore";
+export { default as ConfidenceExplanation } from "./ConfidenceExplanation";
+
+// Dispute governance workflow
+export { default as DisputeSubmissionForm } from "./DisputeSubmissionForm";
+export { default as DisputeAuditTrail } from "./DisputeAuditTrail";
+
+// Multi-anchor provenance
+export { default as ProvenanceAnchors } from "./ProvenanceAnchors";
 
 // Legacy landing page components (can be reorganized into atoms/molecules)
-export { About } from './About';
-export { CallToAction } from './CallToAction';
-export { Ecosystem } from './Ecosystem';
-export { HeroSection } from './HeroSection';
-export { HowItWorks } from './HowItWorks';
+export { default as About } from "./About";
+export { default as CallToAction } from "./CallToAction";
+export { default as Ecosystem } from "./Ecosystem";
+export { HeroSection } from "./HeroSection";
+export { default as HowItWorks } from "./HowItWorks";
 
 // Legacy utilities (to be migrated into utils)
-export { ContentHashCalculator } from './ContentHashCalculator';
-export { APIKeyManagement } from './APIKeyManagement';
+export { APIHealthIndicator } from "./APIHealthIndicator";
+export { APIKeyManagement } from "./APIKeyManagement";
+export { ContentHashCalculator } from "./ContentHashCalculator";
+export { MediaSnapshotPreview } from "./MediaSnapshotPreview";
+export { AssetStatusFilterChips, matchesAssetStatusFilter, type AssetStatusFilter } from "./AssetStatusFilterChips";
+export { ShareVerificationModal } from "./ShareVerificationModal";

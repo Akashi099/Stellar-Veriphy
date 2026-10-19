@@ -102,6 +102,12 @@ COPY --from=contract-builder --chown=appuser:appuser /build/contracts/oracle/tar
 COPY --from=contract-builder --chown=appuser:appuser /build/contracts/provenance/target/wasm32-unknown-unknown/release/*.wasm ./contracts/provenance/
 COPY --from=contract-builder --chown=appuser:appuser /build/contracts/registry/target/wasm32-unknown-unknown/release/*.wasm ./contracts/registry/
 
+# Startup diagnostics and readiness probe (see DOCKER.md#startup-diagnostics)
+COPY --chown=appuser:appuser docker/entrypoint.sh docker/healthcheck.mjs /app/docker/
+RUN chmod +x /app/docker/entrypoint.sh \
+    && mkdir -p /app/frontend/.data \
+    && chown appuser:appuser /app/frontend/.data
+
 # Switch to non-root user
 USER appuser
 
@@ -112,11 +118,13 @@ EXPOSE 3000
 ENV NODE_ENV=production
 ENV PORT=3000
 ENV HOSTNAME="0.0.0.0"
+ENV VERIPHY_DATA_DIR=/app/frontend/.data
 
-# Health check
+# Health check: readiness probe that reports which check failed
 HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
-    CMD node -e "require('http').get('http://localhost:3000/api/health', (r) => {process.exit(r.statusCode === 200 ? 0 : 1)})"
+    CMD ["node", "/app/docker/healthcheck.mjs"]
 
-# Start the application
+# Start the application (entrypoint validates config and logs diagnostics first)
 WORKDIR /app/frontend
+ENTRYPOINT ["/app/docker/entrypoint.sh"]
 CMD ["pnpm", "start"]

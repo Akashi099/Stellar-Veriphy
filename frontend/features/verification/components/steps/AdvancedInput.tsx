@@ -4,7 +4,7 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 
 import { useWizard } from "@/context/WizardContext";
-import { isValidSHA256 } from "@/utils/validation";
+import { isValidSHA256, validateSHA256 } from "@/utils/validation";
 
 export function AdvancedInput() {
   const {
@@ -13,8 +13,9 @@ export function AdvancedInput() {
     advancedContentHash,
     advancedManifestHash,
   } = useWizard();
-  const [contentHashInput, setContentHashInput] = useState("");
-  const [manifestHashInput, setManifestHashInput] = useState("");
+  // Seed from context so navigating back restores previously entered values.
+  const [contentHashInput, setContentHashInput] = useState(advancedContentHash);
+  const [manifestHashInput, setManifestHashInput] = useState(advancedManifestHash);
   const [contentHashError, setContentHashError] = useState("");
   const [manifestHashError, setManifestHashError] = useState("");
   const router = useRouter();
@@ -22,21 +23,15 @@ export function AdvancedInput() {
   const handleContentHashChange = (value: string) => {
     setContentHashInput(value);
     setAdvancedContentHash(value);
-    if (value && !isValidSHA256(value)) {
-      setContentHashError("Invalid SHA-256 hash format");
-    } else {
-      setContentHashError("");
-    }
+    const error = validateSHA256(value);
+    setContentHashError(error || "");
   };
 
   const handleManifestHashChange = (value: string) => {
     setManifestHashInput(value);
     setAdvancedManifestHash(value);
-    if (value && !isValidSHA256(value)) {
-      setManifestHashError("Invalid SHA-256 hash format");
-    } else {
-      setManifestHashError("");
-    }
+    const error = validateSHA256(value);
+    setManifestHashError(error || "");
   };
 
   const isValid = isValidSHA256(contentHashInput) && isValidSHA256(manifestHashInput);
@@ -81,9 +76,16 @@ export function AdvancedInput() {
         </div>
 
         <button
+          type="button"
+          onClick={() => router.back()}
+          className="text-sm font-medium text-gray-600 hover:text-gray-900 transition"
+        >
+          ← Back
+        </button>
+        <button
           onClick={handleContinue}
           disabled={!isValid}
-          className={`w-full py-2 rounded-lg transition ${
+          className={`w-full px-4 py-2 rounded-lg transition ${
             isValid
               ? "bg-blue-500 text-white hover:bg-blue-600"
               : "bg-gray-300 text-gray-500 cursor-not-allowed"

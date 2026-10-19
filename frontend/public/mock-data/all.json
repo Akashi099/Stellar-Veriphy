@@ -1,0 +1,2753 @@
+{
+  "users": [
+    {
+      "id": "2c21bcojs",
+      "name": "Test User 1",
+      "email": "user1@example.com",
+      "wallet": "GXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX00",
+      "role": "user",
+      "status": "active",
+      "createdAt": "2024-02-18T15:54:39.031Z",
+      "verifications": 30,
+      "reputation": 38
+    },
+    {
+      "id": "tyf9lm9u4",
+      "name": "Test User 2",
+      "email": "user2@example.com",
+      "wallet": "GXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX01",
+      "role": "verifier",
+      "status": "active",
+      "createdAt": "2024-12-13T19:54:25.077Z",
+      "verifications": 47,
+      "reputation": 19
+    },
+    {
+      "id": "cw6qmzb3c",
+      "name": "Test User 3",
+      "email": "user3@example.com",
+      "wallet": "GXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX02",
+      "role": "user",
+      "status": "active",
+      "createdAt": "2024-10-19T13:42:21.401Z",
+      "verifications": 26,
+      "reputation": 38
+    },
+    {
+      "id": "yyw4zbk3i",
+      "name": "Test User 4",
+      "email": "user4@example.com",
+      "wallet": "GXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX03",
+      "role": "verifier",
+      "status": "active",
+      "createdAt": "2025-04-01T10:03:17.188Z",
+      "verifications": 14,
+      "reputation": 93
+    },
+    {
+      "id": "pa2uwgzgo",
+      "name": "Test User 5",
+      "email": "user5@example.com",
+      "wallet": "GXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX04",
+      "role": "admin",
+      "status": "active",
+      "createdAt": "2024-01-09T21:54:22.733Z",
+      "verifications": 20,
+      "reputation": 28
+    },
+    {
+      "id": "kwxrbynpj",
+      "name": "Test User 6",
+      "email": "user6@example.com",
+      "wallet": "GXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX05",
+      "role": "admin",
+      "status": "active",
+      "createdAt": "2025-08-18T15:46:30.666Z",
+      "verifications": 2,
+      "reputation": 59
+    },
+    {
+      "id": "dqvokjbq2",
+      "name": "Test User 7",
+      "email": "user7@example.com",
+      "wallet": "GXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX06",
+      "role": "admin",
+      "status": "active",
+      "createdAt": "2024-08-30T12:45:57.527Z",
+      "verifications": 1,
+      "reputation": 68
+    },
+    {
+      "id": "tk5bshfed",
+      "name": "Test User 8",
+      "email": "user8@example.com",
+      "wallet": "GXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX07",
+      "role": "verifier",
+      "status": "active",
+      "createdAt": "2024-01-30T17:31:41.007Z",
+      "verifications": 16,
+      "reputation": 92
+    },
+    {
+      "id": "b5y34oelm",
+      "name": "Test User 9",
+      "email": "user9@example.com",
+      "wallet": "GXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX08",
+      "role": "admin",
+      "status": "active",
+      "createdAt": "2026-03-10T03:35:21.699Z",
+      "verifications": 28,
+      "reputation": 71
+    },
+    {
+      "id": "cxq92h50g",
+      "name": "Test User 10",
+      "email": "user10@example.com",
+      "wallet": "GXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX09",
+      "role": "user",
+      "status": "active",
+      "createdAt": "2025-04-06T05:49:18.215Z",
+      "verifications": 27,
+      "reputation": 76
+    },
+    {
+      "id": "du759igkj",
+      "name": "Test User 11",
+      "email": "user11@example.com",
+      "wallet": "GXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX10",
+      "role": "admin",
+      "status": "active",
+      "createdAt": "2026-02-28T08:19:08.218Z",
+      "verifications": 47,
+      "reputation": 22
+    },
+    {
+      "id": "k401y5f0r",
+      "name": "Test User 12",
+      "email": "user12@example.com",
+      "wallet": "GXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX11",
+      "role": "admin",
+      "status": "active",
+      "createdAt": "2026-02-17T04:30:52.383Z",
+      "verifications": 6,
+      "reputation": 83
+    },
+    {
+      "id": "0qb07misn",
+      "name": "Test User 13",
+      "email": "user13@example.com",
+      "wallet": "GXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX12",
+      "role": "verifier",
+      "status": "active",
+      "createdAt": "2023-12-28T01:46:37.399Z",
+      "verifications": 37,
+      "reputation": 27
+    },
+    {
+      "id": "m82s8wuvt",
+      "name": "Test User 14",
+      "email": "user14@example.com",
+      "wallet": "GXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX13",
+      "role": "verifier",
+      "status": "active",
+      "createdAt": "2023-12-14T08:07:51.317Z",
+      "verifications": 40,
+      "reputation": 54
+    },
+    {
+      "id": "p4xqcxtag",
+      "name": "Test User 15",
+      "email": "user15@example.com",
+      "wallet": "GXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX14",
+      "role": "user",
+      "status": "active",
+      "createdAt": "2024-10-18T05:22:59.757Z",
+      "verifications": 25,
+      "reputation": 44
+    }
+  ],
+  "items": [
+    {
+      "id": "a84ynw45l",
+      "title": "Content Item 1",
+      "description": "This is a test content item created for development purposes. 1",
+      "type": "image",
+      "creator": "tk5bshfed",
+      "creatorName": "Test User 8",
+      "contentHash": "0xb3d3ade8888db86c5225a143d728",
+      "ipfsHash": "QmXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX00",
+      "status": "rejected",
+      "verifications": 0,
+      "disputations": 2,
+      "createdAt": "2026-02-07T12:14:15.791Z",
+      "updatedAt": "2025-07-22T15:15:41.069Z",
+      "tags": [
+        "test",
+        "mock",
+        "category-0"
+      ],
+      "metadata": {
+        "size": 3076765,
+        "duration": 276,
+        "dimensions": {
+          "width": 1920,
+          "height": 1080
+        }
+      }
+    },
+    {
+      "id": "gekbecfci",
+      "title": "Content Item 2",
+      "description": "This is a test content item created for development purposes. 2",
+      "type": "document",
+      "creator": "cxq92h50g",
+      "creatorName": "Test User 10",
+      "contentHash": "0x6f693f67253c888d59f894d9e518",
+      "ipfsHash": "QmXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX01",
+      "status": "verified",
+      "verifications": 10,
+      "disputations": 1,
+      "createdAt": "2025-01-05T02:02:48.249Z",
+      "updatedAt": "2023-08-12T12:04:34.471Z",
+      "tags": [
+        "test",
+        "mock",
+        "category-1"
+      ],
+      "metadata": {
+        "size": 2698525,
+        "duration": 594,
+        "dimensions": {
+          "width": 1920,
+          "height": 1080
+        }
+      }
+    },
+    {
+      "id": "8cdsgzes9",
+      "title": "Content Item 3",
+      "description": "This is a test content item created for development purposes. 3",
+      "type": "image",
+      "creator": "m82s8wuvt",
+      "creatorName": "Test User 14",
+      "contentHash": "0x35ac8c77516288dc7591b91134d8",
+      "ipfsHash": "QmXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX02",
+      "status": "verified",
+      "verifications": 12,
+      "disputations": 3,
+      "createdAt": "2023-02-26T06:11:22.732Z",
+      "updatedAt": "2026-03-18T02:15:13.288Z",
+      "tags": [
+        "test",
+        "mock",
+        "category-2"
+      ],
+      "metadata": {
+        "size": 7371324,
+        "duration": 571,
+        "dimensions": {
+          "width": 1920,
+          "height": 1080
+        }
+      }
+    },
+    {
+      "id": "dvmvmvb8n",
+      "title": "Content Item 4",
+      "description": "This is a test content item created for development purposes. 4",
+      "type": "video",
+      "creator": "0qb07misn",
+      "creatorName": "Test User 13",
+      "contentHash": "0xb073933f7bbc267051b6f8c7c",
+      "ipfsHash": "QmXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX03",
+      "status": "rejected",
+      "verifications": 12,
+      "disputations": 0,
+      "createdAt": "2024-01-27T01:29:29.291Z",
+      "updatedAt": "2023-05-05T17:02:24.622Z",
+      "tags": [
+        "test",
+        "mock",
+        "category-3"
+      ],
+      "metadata": {
+        "size": 6804845,
+        "duration": 1385,
+        "dimensions": {
+          "width": 1920,
+          "height": 1080
+        }
+      }
+    },
+    {
+      "id": "g2yki4v0i",
+      "title": "Content Item 5",
+      "description": "This is a test content item created for development purposes. 5",
+      "type": "image",
+      "creator": "2c21bcojs",
+      "creatorName": "Test User 1",
+      "contentHash": "0x12cef49b317b483e951202a2a3a8",
+      "ipfsHash": "QmXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX04",
+      "status": "verified",
+      "verifications": 9,
+      "disputations": 2,
+      "createdAt": "2026-08-27T14:04:43.608Z",
+      "updatedAt": "2025-11-25T18:44:59.543Z",
+      "tags": [
+        "test",
+        "mock",
+        "category-4"
+      ],
+      "metadata": {
+        "size": 6767593,
+        "duration": 816,
+        "dimensions": {
+          "width": 1920,
+          "height": 1080
+        }
+      }
+    },
+    {
+      "id": "uep8rv9ru",
+      "title": "Content Item 6",
+      "description": "This is a test content item created for development purposes. 6",
+      "type": "document",
+      "creator": "p4xqcxtag",
+      "creatorName": "Test User 15",
+      "contentHash": "0x873221f7d681188cd9db5e1c14e",
+      "ipfsHash": "QmXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX05",
+      "status": "rejected",
+      "verifications": 10,
+      "disputations": 4,
+      "createdAt": "2025-10-09T03:50:29.325Z",
+      "updatedAt": "2024-07-06T06:59:29.486Z",
+      "tags": [
+        "test",
+        "mock",
+        "category-0"
+      ],
+      "metadata": {
+        "size": 8342272,
+        "duration": 445,
+        "dimensions": {
+          "width": 1920,
+          "height": 1080
+        }
+      }
+    },
+    {
+      "id": "pqkz6szrp",
+      "title": "Content Item 7",
+      "description": "This is a test content item created for development purposes. 7",
+      "type": "image",
+      "creator": "pa2uwgzgo",
+      "creatorName": "Test User 5",
+      "contentHash": "0x6d1aefbfbfddd15beb4faccc18",
+      "ipfsHash": "QmXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX06",
+      "status": "disputed",
+      "verifications": 15,
+      "disputations": 3,
+      "createdAt": "2023-05-06T10:38:10.712Z",
+      "updatedAt": "2023-11-09T07:17:23.497Z",
+      "tags": [
+        "test",
+        "mock",
+        "category-1"
+      ],
+      "metadata": {
+        "size": 8205890,
+        "duration": 91,
+        "dimensions": {
+          "width": 1920,
+          "height": 1080
+        }
+      }
+    },
+    {
+      "id": "hscyfrqdi",
+      "title": "Content Item 8",
+      "description": "This is a test content item created for development purposes. 8",
+      "type": "document",
+      "creator": "tk5bshfed",
+      "creatorName": "Test User 8",
+      "contentHash": "0x86ab52c62c0208844fdf324814a8",
+      "ipfsHash": "QmXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX07",
+      "status": "disputed",
+      "verifications": 2,
+      "disputations": 0,
+      "createdAt": "2024-02-07T05:27:50.068Z",
+      "updatedAt": "2025-10-06T05:26:36.908Z",
+      "tags": [
+        "test",
+        "mock",
+        "category-2"
+      ],
+      "metadata": {
+        "size": 8373523,
+        "duration": 417,
+        "dimensions": {
+          "width": 1920,
+          "height": 1080
+        }
+      }
+    },
+    {
+      "id": "1q36u3v64",
+      "title": "Content Item 9",
+      "description": "This is a test content item created for development purposes. 9",
+      "type": "video",
+      "creator": "dqvokjbq2",
+      "creatorName": "Test User 7",
+      "contentHash": "0xd006f725c0f1ccdeac2a692c91",
+      "ipfsHash": "QmXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX08",
+      "status": "verified",
+      "verifications": 10,
+      "disputations": 3,
+      "createdAt": "2023-11-01T15:51:12.742Z",
+      "updatedAt": "2026-03-27T11:29:44.744Z",
+      "tags": [
+        "test",
+        "mock",
+        "category-3"
+      ],
+      "metadata": {
+        "size": 4414048,
+        "duration": 747,
+        "dimensions": {
+          "width": 1920,
+          "height": 1080
+        }
+      }
+    },
+    {
+      "id": "uzvlru7eh",
+      "title": "Content Item 10",
+      "description": "This is a test content item created for development purposes. 10",
+      "type": "audio",
+      "creator": "du759igkj",
+      "creatorName": "Test User 11",
+      "contentHash": "0x280168419c9fa2b57c7afe4d1a8",
+      "ipfsHash": "QmXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX09",
+      "status": "pending",
+      "verifications": 14,
+      "disputations": 3,
+      "createdAt": "2023-05-23T18:14:34.066Z",
+      "updatedAt": "2024-10-15T19:49:34.924Z",
+      "tags": [
+        "test",
+        "mock",
+        "category-4"
+      ],
+      "metadata": {
+        "size": 5349405,
+        "duration": 308,
+        "dimensions": {
+          "width": 1920,
+          "height": 1080
+        }
+      }
+    },
+    {
+      "id": "qggi6qnms",
+      "title": "Content Item 11",
+      "description": "This is a test content item created for development purposes. 11",
+      "type": "video",
+      "creator": "dqvokjbq2",
+      "creatorName": "Test User 7",
+      "contentHash": "0x8f985082a22668ffefbe053acea8",
+      "ipfsHash": "QmXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX10",
+      "status": "rejected",
+      "verifications": 7,
+      "disputations": 1,
+      "createdAt": "2023-07-27T15:29:17.168Z",
+      "updatedAt": "2023-05-05T06:41:55.354Z",
+      "tags": [
+        "test",
+        "mock",
+        "category-0"
+      ],
+      "metadata": {
+        "size": 8641066,
+        "duration": 1434,
+        "dimensions": {
+          "width": 1920,
+          "height": 1080
+        }
+      }
+    },
+    {
+      "id": "9yjkixr71",
+      "title": "Content Item 12",
+      "description": "This is a test content item created for development purposes. 12",
+      "type": "image",
+      "creator": "2c21bcojs",
+      "creatorName": "Test User 1",
+      "contentHash": "0x7d88627562de4877ccf4175e95a",
+      "ipfsHash": "QmXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX11",
+      "status": "rejected",
+      "verifications": 5,
+      "disputations": 1,
+      "createdAt": "2023-04-27T21:06:08.011Z",
+      "updatedAt": "2024-06-23T18:39:27.661Z",
+      "tags": [
+        "test",
+        "mock",
+        "category-1"
+      ],
+      "metadata": {
+        "size": 1715425,
+        "duration": 3133,
+        "dimensions": {
+          "width": 1920,
+          "height": 1080
+        }
+      }
+    },
+    {
+      "id": "ppnfv76gu",
+      "title": "Content Item 13",
+      "description": "This is a test content item created for development purposes. 13",
+      "type": "video",
+      "creator": "tk5bshfed",
+      "creatorName": "Test User 8",
+      "contentHash": "0xcb74306fd4063f337dee40bbe4",
+      "ipfsHash": "QmXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX12",
+      "status": "verified",
+      "verifications": 14,
+      "disputations": 4,
+      "createdAt": "2025-12-29T23:30:31.954Z",
+      "updatedAt": "2024-04-18T08:09:57.487Z",
+      "tags": [
+        "test",
+        "mock",
+        "category-2"
+      ],
+      "metadata": {
+        "size": 4303120,
+        "duration": 1478,
+        "dimensions": {
+          "width": 1920,
+          "height": 1080
+        }
+      }
+    },
+    {
+      "id": "fpvpc8j4i",
+      "title": "Content Item 14",
+      "description": "This is a test content item created for development purposes. 14",
+      "type": "document",
+      "creator": "m82s8wuvt",
+      "creatorName": "Test User 14",
+      "contentHash": "0xf703f436bc83d8f159ad0b818ab",
+      "ipfsHash": "QmXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX13",
+      "status": "pending",
+      "verifications": 19,
+      "disputations": 3,
+      "createdAt": "2025-02-24T17:07:06.625Z",
+      "updatedAt": "2026-04-16T07:39:34.028Z",
+      "tags": [
+        "test",
+        "mock",
+        "category-3"
+      ],
+      "metadata": {
+        "size": 2772560,
+        "duration": 1963,
+        "dimensions": {
+          "width": 1920,
+          "height": 1080
+        }
+      }
+    },
+    {
+      "id": "yn0wz5qly",
+      "title": "Content Item 15",
+      "description": "This is a test content item created for development purposes. 15",
+      "type": "document",
+      "creator": "du759igkj",
+      "creatorName": "Test User 11",
+      "contentHash": "0x68a9f213eef9472ae5d1a1436b8",
+      "ipfsHash": "QmXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX14",
+      "status": "disputed",
+      "verifications": 3,
+      "disputations": 3,
+      "createdAt": "2024-03-24T12:01:34.214Z",
+      "updatedAt": "2026-08-19T01:22:24.153Z",
+      "tags": [
+        "test",
+        "mock",
+        "category-4"
+      ],
+      "metadata": {
+        "size": 4755515,
+        "duration": 1161,
+        "dimensions": {
+          "width": 1920,
+          "height": 1080
+        }
+      }
+    },
+    {
+      "id": "rwck782om",
+      "title": "Content Item 16",
+      "description": "This is a test content item created for development purposes. 16",
+      "type": "document",
+      "creator": "cxq92h50g",
+      "creatorName": "Test User 10",
+      "contentHash": "0x7d06f67c804bb5b4949b2e7b6",
+      "ipfsHash": "QmXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX15",
+      "status": "rejected",
+      "verifications": 4,
+      "disputations": 2,
+      "createdAt": "2025-05-25T16:10:29.873Z",
+      "updatedAt": "2025-05-03T15:43:18.631Z",
+      "tags": [
+        "test",
+        "mock",
+        "category-0"
+      ],
+      "metadata": {
+        "size": 8721612,
+        "duration": 283,
+        "dimensions": {
+          "width": 1920,
+          "height": 1080
+        }
+      }
+    },
+    {
+      "id": "4yory04sy",
+      "title": "Content Item 17",
+      "description": "This is a test content item created for development purposes. 17",
+      "type": "document",
+      "creator": "p4xqcxtag",
+      "creatorName": "Test User 15",
+      "contentHash": "0xc9aebccb1f8798e9a4695ec078e",
+      "ipfsHash": "QmXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX16",
+      "status": "disputed",
+      "verifications": 18,
+      "disputations": 2,
+      "createdAt": "2024-04-28T15:59:16.192Z",
+      "updatedAt": "2026-02-10T05:48:06.409Z",
+      "tags": [
+        "test",
+        "mock",
+        "category-1"
+      ],
+      "metadata": {
+        "size": 1143261,
+        "duration": 1965,
+        "dimensions": {
+          "width": 1920,
+          "height": 1080
+        }
+      }
+    },
+    {
+      "id": "eip2al09c",
+      "title": "Content Item 18",
+      "description": "This is a test content item created for development purposes. 18",
+      "type": "audio",
+      "creator": "cxq92h50g",
+      "creatorName": "Test User 10",
+      "contentHash": "0x2eb86d572afe5c50acc1340628",
+      "ipfsHash": "QmXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX17",
+      "status": "disputed",
+      "verifications": 16,
+      "disputations": 4,
+      "createdAt": "2023-11-10T01:43:48.018Z",
+      "updatedAt": "2024-11-09T12:59:42.467Z",
+      "tags": [
+        "test",
+        "mock",
+        "category-2"
+      ],
+      "metadata": {
+        "size": 3870813,
+        "duration": 2294,
+        "dimensions": {
+          "width": 1920,
+          "height": 1080
+        }
+      }
+    },
+    {
+      "id": "ofrnsvh0z",
+      "title": "Content Item 19",
+      "description": "This is a test content item created for development purposes. 19",
+      "type": "audio",
+      "creator": "tyf9lm9u4",
+      "creatorName": "Test User 2",
+      "contentHash": "0x6ad92c0aff865eb507c87cfac78",
+      "ipfsHash": "QmXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX18",
+      "status": "rejected",
+      "verifications": 1,
+      "disputations": 3,
+      "createdAt": "2025-06-24T02:53:59.864Z",
+      "updatedAt": "2025-09-26T07:05:19.850Z",
+      "tags": [
+        "test",
+        "mock",
+        "category-3"
+      ],
+      "metadata": {
+        "size": 1920049,
+        "duration": 1506,
+        "dimensions": {
+          "width": 1920,
+          "height": 1080
+        }
+      }
+    },
+    {
+      "id": "tdihahj1u",
+      "title": "Content Item 20",
+      "description": "This is a test content item created for development purposes. 20",
+      "type": "document",
+      "creator": "k401y5f0r",
+      "creatorName": "Test User 12",
+      "contentHash": "0x590e6c69d4e233b4a57be88b13",
+      "ipfsHash": "QmXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX19",
+      "status": "disputed",
+      "verifications": 11,
+      "disputations": 2,
+      "createdAt": "2024-07-19T13:57:05.684Z",
+      "updatedAt": "2025-11-09T20:04:05.338Z",
+      "tags": [
+        "test",
+        "mock",
+        "category-4"
+      ],
+      "metadata": {
+        "size": 6191073,
+        "duration": 111,
+        "dimensions": {
+          "width": 1920,
+          "height": 1080
+        }
+      }
+    },
+    {
+      "id": "p16u869g4",
+      "title": "Content Item 21",
+      "description": "This is a test content item created for development purposes. 21",
+      "type": "document",
+      "creator": "tyf9lm9u4",
+      "creatorName": "Test User 2",
+      "contentHash": "0xc68937fee8947cad42b0f46246",
+      "ipfsHash": "QmXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX20",
+      "status": "pending",
+      "verifications": 13,
+      "disputations": 4,
+      "createdAt": "2023-01-22T21:03:19.300Z",
+      "updatedAt": "2026-05-08T06:46:48.691Z",
+      "tags": [
+        "test",
+        "mock",
+        "category-0"
+      ],
+      "metadata": {
+        "size": 289697,
+        "duration": 2571,
+        "dimensions": {
+          "width": 1920,
+          "height": 1080
+        }
+      }
+    },
+    {
+      "id": "dynt8qsox",
+      "title": "Content Item 22",
+      "description": "This is a test content item created for development purposes. 22",
+      "type": "image",
+      "creator": "cxq92h50g",
+      "creatorName": "Test User 10",
+      "contentHash": "0x910629ef0a3f9b53d7243e538d",
+      "ipfsHash": "QmXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX21",
+      "status": "rejected",
+      "verifications": 5,
+      "disputations": 1,
+      "createdAt": "2026-03-29T12:48:18.677Z",
+      "updatedAt": "2026-03-01T22:54:55.370Z",
+      "tags": [
+        "test",
+        "mock",
+        "category-1"
+      ],
+      "metadata": {
+        "size": 875042,
+        "duration": 565,
+        "dimensions": {
+          "width": 1920,
+          "height": 1080
+        }
+      }
+    },
+    {
+      "id": "su8pm880w",
+      "title": "Content Item 23",
+      "description": "This is a test content item created for development purposes. 23",
+      "type": "document",
+      "creator": "tyf9lm9u4",
+      "creatorName": "Test User 2",
+      "contentHash": "0x86c9d7e1d8bbfbf3947058111f",
+      "ipfsHash": "QmXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX22",
+      "status": "rejected",
+      "verifications": 18,
+      "disputations": 3,
+      "createdAt": "2026-05-02T02:04:45.325Z",
+      "updatedAt": "2023-11-29T08:14:12.421Z",
+      "tags": [
+        "test",
+        "mock",
+        "category-2"
+      ],
+      "metadata": {
+        "size": 4476408,
+        "duration": 2553,
+        "dimensions": {
+          "width": 1920,
+          "height": 1080
+        }
+      }
+    },
+    {
+      "id": "phuhxyub5",
+      "title": "Content Item 24",
+      "description": "This is a test content item created for development purposes. 24",
+      "type": "image",
+      "creator": "tk5bshfed",
+      "creatorName": "Test User 8",
+      "contentHash": "0x29ab533a93bc4760e7ebc14ebc8",
+      "ipfsHash": "QmXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX23",
+      "status": "verified",
+      "verifications": 11,
+      "disputations": 2,
+      "createdAt": "2024-05-23T10:48:23.019Z",
+      "updatedAt": "2023-02-08T03:43:37.767Z",
+      "tags": [
+        "test",
+        "mock",
+        "category-3"
+      ],
+      "metadata": {
+        "size": 2233536,
+        "duration": 832,
+        "dimensions": {
+          "width": 1920,
+          "height": 1080
+        }
+      }
+    },
+    {
+      "id": "cxpylymyj",
+      "title": "Content Item 25",
+      "description": "This is a test content item created for development purposes. 25",
+      "type": "video",
+      "creator": "tyf9lm9u4",
+      "creatorName": "Test User 2",
+      "contentHash": "0x4f0d6ef692fcc8f17261a38b3e6",
+      "ipfsHash": "QmXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX24",
+      "status": "disputed",
+      "verifications": 8,
+      "disputations": 4,
+      "createdAt": "2024-07-12T18:29:28.846Z",
+      "updatedAt": "2023-10-10T14:50:58.983Z",
+      "tags": [
+        "test",
+        "mock",
+        "category-4"
+      ],
+      "metadata": {
+        "size": 9541989,
+        "duration": 74,
+        "dimensions": {
+          "width": 1920,
+          "height": 1080
+        }
+      }
+    },
+    {
+      "id": "b0g4vgcae",
+      "title": "Content Item 26",
+      "description": "This is a test content item created for development purposes. 26",
+      "type": "image",
+      "creator": "b5y34oelm",
+      "creatorName": "Test User 9",
+      "contentHash": "0x5a5c4e48f34678b5baebbf199e58",
+      "ipfsHash": "QmXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX25",
+      "status": "verified",
+      "verifications": 0,
+      "disputations": 3,
+      "createdAt": "2026-06-03T15:33:28.996Z",
+      "updatedAt": "2024-01-21T02:20:03.150Z",
+      "tags": [
+        "test",
+        "mock",
+        "category-0"
+      ],
+      "metadata": {
+        "size": 6232458,
+        "duration": 1867,
+        "dimensions": {
+          "width": 1920,
+          "height": 1080
+        }
+      }
+    },
+    {
+      "id": "28qdh90fj",
+      "title": "Content Item 27",
+      "description": "This is a test content item created for development purposes. 27",
+      "type": "audio",
+      "creator": "0qb07misn",
+      "creatorName": "Test User 13",
+      "contentHash": "0xa216eee7789d6a033f1b8fb26a8",
+      "ipfsHash": "QmXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX26",
+      "status": "verified",
+      "verifications": 9,
+      "disputations": 3,
+      "createdAt": "2026-07-20T16:30:40.544Z",
+      "updatedAt": "2023-09-08T10:24:24.139Z",
+      "tags": [
+        "test",
+        "mock",
+        "category-1"
+      ],
+      "metadata": {
+        "size": 9519940,
+        "duration": 2902,
+        "dimensions": {
+          "width": 1920,
+          "height": 1080
+        }
+      }
+    },
+    {
+      "id": "dcdgnpise",
+      "title": "Content Item 28",
+      "description": "This is a test content item created for development purposes. 28",
+      "type": "document",
+      "creator": "p4xqcxtag",
+      "creatorName": "Test User 15",
+      "contentHash": "0x42ea0762a814a2ed64382c38e78",
+      "ipfsHash": "QmXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX27",
+      "status": "pending",
+      "verifications": 9,
+      "disputations": 1,
+      "createdAt": "2025-07-16T06:02:45.291Z",
+      "updatedAt": "2023-04-08T12:40:04.604Z",
+      "tags": [
+        "test",
+        "mock",
+        "category-2"
+      ],
+      "metadata": {
+        "size": 6236797,
+        "duration": 1709,
+        "dimensions": {
+          "width": 1920,
+          "height": 1080
+        }
+      }
+    },
+    {
+      "id": "vzi59m2wp",
+      "title": "Content Item 29",
+      "description": "This is a test content item created for development purposes. 29",
+      "type": "document",
+      "creator": "p4xqcxtag",
+      "creatorName": "Test User 15",
+      "contentHash": "0x8b8e8be652dca8b559df4a0b435",
+      "ipfsHash": "QmXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX28",
+      "status": "rejected",
+      "verifications": 3,
+      "disputations": 4,
+      "createdAt": "2026-02-25T01:35:44.123Z",
+      "updatedAt": "2026-05-01T05:43:58.368Z",
+      "tags": [
+        "test",
+        "mock",
+        "category-3"
+      ],
+      "metadata": {
+        "size": 1629774,
+        "duration": 331,
+        "dimensions": {
+          "width": 1920,
+          "height": 1080
+        }
+      }
+    },
+    {
+      "id": "ko2dtzvw7",
+      "title": "Content Item 30",
+      "description": "This is a test content item created for development purposes. 30",
+      "type": "document",
+      "creator": "tk5bshfed",
+      "creatorName": "Test User 8",
+      "contentHash": "0x31a0fe730f62b813897971ee8f6",
+      "ipfsHash": "QmXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX29",
+      "status": "rejected",
+      "verifications": 2,
+      "disputations": 4,
+      "createdAt": "2024-08-27T03:57:15.915Z",
+      "updatedAt": "2025-01-04T19:30:17.011Z",
+      "tags": [
+        "test",
+        "mock",
+        "category-4"
+      ],
+      "metadata": {
+        "size": 9419120,
+        "duration": 2774,
+        "dimensions": {
+          "width": 1920,
+          "height": 1080
+        }
+      }
+    }
+  ],
+  "verifications": [
+    {
+      "id": "p0zkk9qoo",
+      "itemId": "b0g4vgcae",
+      "verifier": "du759igkj",
+      "verifierName": "Test User 11",
+      "status": "approved",
+      "confidence": "79.13",
+      "evidence": {
+        "sources": [
+          "https://example.com/source-0",
+          "https://archive.org/item-0"
+        ],
+        "analysis": "Comprehensive verification analysis for item 0",
+        "metadata": {
+          "method": "automated",
+          "timestamp": "2026-08-30T01:29:25.658Z"
+        }
+      },
+      "blockchainTx": "0xe6173c35753cd7543ccb38100c8",
+      "createdAt": "2026-07-19T09:54:45.430Z",
+      "expiresAt": "2026-11-28T01:29:25.658Z"
+    },
+    {
+      "id": "j3gpze0ak",
+      "itemId": "cxpylymyj",
+      "verifier": "yyw4zbk3i",
+      "verifierName": "Test User 4",
+      "status": "approved",
+      "confidence": "59.47",
+      "evidence": {
+        "sources": [
+          "https://example.com/source-1",
+          "https://archive.org/item-1"
+        ],
+        "analysis": "Comprehensive verification analysis for item 1",
+        "metadata": {
+          "method": "automated",
+          "timestamp": "2026-08-30T01:29:25.658Z"
+        }
+      },
+      "blockchainTx": "0x2d246c8e1caa79925e00e66e2a",
+      "createdAt": "2023-02-21T08:38:19.825Z",
+      "expiresAt": "2026-11-28T01:29:25.658Z"
+    },
+    {
+      "id": "jllhmhwqa",
+      "itemId": "yn0wz5qly",
+      "verifier": "0qb07misn",
+      "verifierName": "Test User 13",
+      "status": "pending",
+      "confidence": "74.81",
+      "evidence": {
+        "sources": [
+          "https://example.com/source-2",
+          "https://archive.org/item-2"
+        ],
+        "analysis": "Comprehensive verification analysis for item 2",
+        "metadata": {
+          "method": "automated",
+          "timestamp": "2026-08-30T01:29:25.658Z"
+        }
+      },
+      "blockchainTx": "0x5875246e3ee0e969edee2da0d5",
+      "createdAt": "2023-09-25T17:16:57.152Z",
+      "expiresAt": "2026-11-28T01:29:25.658Z"
+    },
+    {
+      "id": "kehhhqyee",
+      "itemId": "phuhxyub5",
+      "verifier": "tyf9lm9u4",
+      "verifierName": "Test User 2",
+      "status": "pending",
+      "confidence": "16.34",
+      "evidence": {
+        "sources": [
+          "https://example.com/source-3",
+          "https://archive.org/item-3"
+        ],
+        "analysis": "Comprehensive verification analysis for item 3",
+        "metadata": {
+          "method": "automated",
+          "timestamp": "2026-08-30T01:29:25.658Z"
+        }
+      },
+      "blockchainTx": "0x9f8400b6a796284b0207faa57dd",
+      "createdAt": "2024-06-12T15:54:34.021Z",
+      "expiresAt": "2026-11-28T01:29:25.658Z"
+    },
+    {
+      "id": "ap0awy8rq",
+      "itemId": "8cdsgzes9",
+      "verifier": "m82s8wuvt",
+      "verifierName": "Test User 14",
+      "status": "approved",
+      "confidence": "49.29",
+      "evidence": {
+        "sources": [
+          "https://example.com/source-4",
+          "https://archive.org/item-4"
+        ],
+        "analysis": "Comprehensive verification analysis for item 4",
+        "metadata": {
+          "method": "automated",
+          "timestamp": "2026-08-30T01:29:25.658Z"
+        }
+      },
+      "blockchainTx": "0x6f51ec58b38e2cb0ddfb4e042a8",
+      "createdAt": "2025-01-26T03:17:21.227Z",
+      "expiresAt": "2026-11-28T01:29:25.658Z"
+    },
+    {
+      "id": "0juf2jz3p",
+      "itemId": "28qdh90fj",
+      "verifier": "du759igkj",
+      "verifierName": "Test User 11",
+      "status": "pending",
+      "confidence": "76.65",
+      "evidence": {
+        "sources": [
+          "https://example.com/source-5",
+          "https://archive.org/item-5"
+        ],
+        "analysis": "Comprehensive verification analysis for item 5",
+        "metadata": {
+          "method": "automated",
+          "timestamp": "2026-08-30T01:29:25.658Z"
+        }
+      },
+      "blockchainTx": "0x996101d25d0f08cd006d20afd13",
+      "createdAt": "2024-03-06T05:28:19.837Z",
+      "expiresAt": "2026-11-28T01:29:25.658Z"
+    },
+    {
+      "id": "w96py73nl",
+      "itemId": "yn0wz5qly",
+      "verifier": "b5y34oelm",
+      "verifierName": "Test User 9",
+      "status": "rejected",
+      "confidence": "11.01",
+      "evidence": {
+        "sources": [
+          "https://example.com/source-6",
+          "https://archive.org/item-6"
+        ],
+        "analysis": "Comprehensive verification analysis for item 6",
+        "metadata": {
+          "method": "automated",
+          "timestamp": "2026-08-30T01:29:25.658Z"
+        }
+      },
+      "blockchainTx": "0x8e54a21c7379d83c847d5dfa7d28",
+      "createdAt": "2025-02-13T15:24:08.860Z",
+      "expiresAt": "2026-11-28T01:29:25.658Z"
+    },
+    {
+      "id": "gglifnbso",
+      "itemId": "cxpylymyj",
+      "verifier": "du759igkj",
+      "verifierName": "Test User 11",
+      "status": "approved",
+      "confidence": "59.26",
+      "evidence": {
+        "sources": [
+          "https://example.com/source-7",
+          "https://archive.org/item-7"
+        ],
+        "analysis": "Comprehensive verification analysis for item 7",
+        "metadata": {
+          "method": "automated",
+          "timestamp": "2026-08-30T01:29:25.658Z"
+        }
+      },
+      "blockchainTx": "0x3ac6c5198ddd6e7394a94939978",
+      "createdAt": "2025-07-26T12:14:04.357Z",
+      "expiresAt": "2026-11-28T01:29:25.658Z"
+    },
+    {
+      "id": "lz9e3g1p8",
+      "itemId": "qggi6qnms",
+      "verifier": "du759igkj",
+      "verifierName": "Test User 11",
+      "status": "approved",
+      "confidence": "11.95",
+      "evidence": {
+        "sources": [
+          "https://example.com/source-8",
+          "https://archive.org/item-8"
+        ],
+        "analysis": "Comprehensive verification analysis for item 8",
+        "metadata": {
+          "method": "automated",
+          "timestamp": "2026-08-30T01:29:25.658Z"
+        }
+      },
+      "blockchainTx": "0x87de315c65d65cf4792ac197838",
+      "createdAt": "2026-01-08T12:59:45.256Z",
+      "expiresAt": "2026-11-28T01:29:25.658Z"
+    },
+    {
+      "id": "qtbjwkrku",
+      "itemId": "uzvlru7eh",
+      "verifier": "k401y5f0r",
+      "verifierName": "Test User 12",
+      "status": "approved",
+      "confidence": "76.49",
+      "evidence": {
+        "sources": [
+          "https://example.com/source-9",
+          "https://archive.org/item-9"
+        ],
+        "analysis": "Comprehensive verification analysis for item 9",
+        "metadata": {
+          "method": "automated",
+          "timestamp": "2026-08-30T01:29:25.658Z"
+        }
+      },
+      "blockchainTx": "0x31768a154ac17b0473378d07ac8",
+      "createdAt": "2025-03-23T00:46:32.201Z",
+      "expiresAt": "2026-11-28T01:29:25.658Z"
+    },
+    {
+      "id": "djnc0crry",
+      "itemId": "4yory04sy",
+      "verifier": "m82s8wuvt",
+      "verifierName": "Test User 14",
+      "status": "approved",
+      "confidence": "22.31",
+      "evidence": {
+        "sources": [
+          "https://example.com/source-10",
+          "https://archive.org/item-10"
+        ],
+        "analysis": "Comprehensive verification analysis for item 10",
+        "metadata": {
+          "method": "automated",
+          "timestamp": "2026-08-30T01:29:25.658Z"
+        }
+      },
+      "blockchainTx": "0xb6eba3b849577582753afa7fba8",
+      "createdAt": "2025-05-07T07:16:05.101Z",
+      "expiresAt": "2026-11-28T01:29:25.658Z"
+    },
+    {
+      "id": "6k3b7q9xt",
+      "itemId": "dynt8qsox",
+      "verifier": "yyw4zbk3i",
+      "verifierName": "Test User 4",
+      "status": "approved",
+      "confidence": "97.81",
+      "evidence": {
+        "sources": [
+          "https://example.com/source-11",
+          "https://archive.org/item-11"
+        ],
+        "analysis": "Comprehensive verification analysis for item 11",
+        "metadata": {
+          "method": "automated",
+          "timestamp": "2026-08-30T01:29:25.658Z"
+        }
+      },
+      "blockchainTx": "0x2dcea9b4df81b8c5aaa624001bf8",
+      "createdAt": "2025-04-28T06:25:24.276Z",
+      "expiresAt": "2026-11-28T01:29:25.658Z"
+    },
+    {
+      "id": "p3jqenxkb",
+      "itemId": "gekbecfci",
+      "verifier": "m82s8wuvt",
+      "verifierName": "Test User 14",
+      "status": "rejected",
+      "confidence": "84.10",
+      "evidence": {
+        "sources": [
+          "https://example.com/source-12",
+          "https://archive.org/item-12"
+        ],
+        "analysis": "Comprehensive verification analysis for item 12",
+        "metadata": {
+          "method": "automated",
+          "timestamp": "2026-08-30T01:29:25.658Z"
+        }
+      },
+      "blockchainTx": "0x80d7e062392e1c829d53f6a8968",
+      "createdAt": "2024-01-02T10:10:15.244Z",
+      "expiresAt": "2026-11-28T01:29:25.658Z"
+    },
+    {
+      "id": "fw1gqtf8p",
+      "itemId": "ppnfv76gu",
+      "verifier": "m82s8wuvt",
+      "verifierName": "Test User 14",
+      "status": "pending",
+      "confidence": "2.21",
+      "evidence": {
+        "sources": [
+          "https://example.com/source-13",
+          "https://archive.org/item-13"
+        ],
+        "analysis": "Comprehensive verification analysis for item 13",
+        "metadata": {
+          "method": "automated",
+          "timestamp": "2026-08-30T01:29:25.658Z"
+        }
+      },
+      "blockchainTx": "0x84b4babf8913ba4ba3e4b494618",
+      "createdAt": "2025-02-24T20:07:16.420Z",
+      "expiresAt": "2026-11-28T01:29:25.658Z"
+    },
+    {
+      "id": "arbcmcf8l",
+      "itemId": "a84ynw45l",
+      "verifier": "tyf9lm9u4",
+      "verifierName": "Test User 2",
+      "status": "rejected",
+      "confidence": "41.81",
+      "evidence": {
+        "sources": [
+          "https://example.com/source-14",
+          "https://archive.org/item-14"
+        ],
+        "analysis": "Comprehensive verification analysis for item 14",
+        "metadata": {
+          "method": "automated",
+          "timestamp": "2026-08-30T01:29:25.658Z"
+        }
+      },
+      "blockchainTx": "0x16800dc595c6467e0bc34d0f48",
+      "createdAt": "2025-07-10T15:20:11.393Z",
+      "expiresAt": "2026-11-28T01:29:25.658Z"
+    },
+    {
+      "id": "mjb8qaday",
+      "itemId": "pqkz6szrp",
+      "verifier": "b5y34oelm",
+      "verifierName": "Test User 9",
+      "status": "pending",
+      "confidence": "64.99",
+      "evidence": {
+        "sources": [
+          "https://example.com/source-15",
+          "https://archive.org/item-15"
+        ],
+        "analysis": "Comprehensive verification analysis for item 15",
+        "metadata": {
+          "method": "automated",
+          "timestamp": "2026-08-30T01:29:25.658Z"
+        }
+      },
+      "blockchainTx": "0x3d01ec95eb8cc6ffd69e93a5ed8",
+      "createdAt": "2024-07-02T22:16:47.793Z",
+      "expiresAt": "2026-11-28T01:29:25.658Z"
+    },
+    {
+      "id": "ojv5d1ymx",
+      "itemId": "ofrnsvh0z",
+      "verifier": "k401y5f0r",
+      "verifierName": "Test User 12",
+      "status": "approved",
+      "confidence": "56.17",
+      "evidence": {
+        "sources": [
+          "https://example.com/source-16",
+          "https://archive.org/item-16"
+        ],
+        "analysis": "Comprehensive verification analysis for item 16",
+        "metadata": {
+          "method": "automated",
+          "timestamp": "2026-08-30T01:29:25.658Z"
+        }
+      },
+      "blockchainTx": "0x613887a62bc570484e9d4e49a5",
+      "createdAt": "2026-03-09T05:57:19.016Z",
+      "expiresAt": "2026-11-28T01:29:25.658Z"
+    },
+    {
+      "id": "0ibbi9a5j",
+      "itemId": "vzi59m2wp",
+      "verifier": "kwxrbynpj",
+      "verifierName": "Test User 6",
+      "status": "pending",
+      "confidence": "70.00",
+      "evidence": {
+        "sources": [
+          "https://example.com/source-17",
+          "https://archive.org/item-17"
+        ],
+        "analysis": "Comprehensive verification analysis for item 17",
+        "metadata": {
+          "method": "automated",
+          "timestamp": "2026-08-30T01:29:25.658Z"
+        }
+      },
+      "blockchainTx": "0x7400656727d4382789580cc37a",
+      "createdAt": "2026-03-14T00:53:29.435Z",
+      "expiresAt": "2026-11-28T01:29:25.658Z"
+    },
+    {
+      "id": "nvcm1wr1g",
+      "itemId": "b0g4vgcae",
+      "verifier": "0qb07misn",
+      "verifierName": "Test User 13",
+      "status": "approved",
+      "confidence": "85.77",
+      "evidence": {
+        "sources": [
+          "https://example.com/source-18",
+          "https://archive.org/item-18"
+        ],
+        "analysis": "Comprehensive verification analysis for item 18",
+        "metadata": {
+          "method": "automated",
+          "timestamp": "2026-08-30T01:29:25.658Z"
+        }
+      },
+      "blockchainTx": "0x80952cff1ce2839764cc4e00e68",
+      "createdAt": "2025-06-06T22:08:06.895Z",
+      "expiresAt": "2026-11-28T01:29:25.658Z"
+    },
+    {
+      "id": "n8756b05p",
+      "itemId": "9yjkixr71",
+      "verifier": "b5y34oelm",
+      "verifierName": "Test User 9",
+      "status": "approved",
+      "confidence": "18.62",
+      "evidence": {
+        "sources": [
+          "https://example.com/source-19",
+          "https://archive.org/item-19"
+        ],
+        "analysis": "Comprehensive verification analysis for item 19",
+        "metadata": {
+          "method": "automated",
+          "timestamp": "2026-08-30T01:29:25.658Z"
+        }
+      },
+      "blockchainTx": "0x636268da0b1ef981cb1a9a920b",
+      "createdAt": "2024-04-22T00:43:13.198Z",
+      "expiresAt": "2026-11-28T01:29:25.658Z"
+    },
+    {
+      "id": "v1miuyc1r",
+      "itemId": "dynt8qsox",
+      "verifier": "b5y34oelm",
+      "verifierName": "Test User 9",
+      "status": "approved",
+      "confidence": "71.71",
+      "evidence": {
+        "sources": [
+          "https://example.com/source-20",
+          "https://archive.org/item-20"
+        ],
+        "analysis": "Comprehensive verification analysis for item 20",
+        "metadata": {
+          "method": "automated",
+          "timestamp": "2026-08-30T01:29:25.658Z"
+        }
+      },
+      "blockchainTx": "0x25fd6506bda4fb010d844f8691",
+      "createdAt": "2025-07-25T14:10:35.093Z",
+      "expiresAt": "2026-11-28T01:29:25.658Z"
+    },
+    {
+      "id": "m1wktu2jl",
+      "itemId": "yn0wz5qly",
+      "verifier": "yyw4zbk3i",
+      "verifierName": "Test User 4",
+      "status": "approved",
+      "confidence": "25.07",
+      "evidence": {
+        "sources": [
+          "https://example.com/source-21",
+          "https://archive.org/item-21"
+        ],
+        "analysis": "Comprehensive verification analysis for item 21",
+        "metadata": {
+          "method": "automated",
+          "timestamp": "2026-08-30T01:29:25.658Z"
+        }
+      },
+      "blockchainTx": "0x5da3344e9056b626d52ffc4e758",
+      "createdAt": "2023-04-10T04:27:51.598Z",
+      "expiresAt": "2026-11-28T01:29:25.658Z"
+    },
+    {
+      "id": "f4uozwzim",
+      "itemId": "hscyfrqdi",
+      "verifier": "m82s8wuvt",
+      "verifierName": "Test User 14",
+      "status": "pending",
+      "confidence": "55.96",
+      "evidence": {
+        "sources": [
+          "https://example.com/source-22",
+          "https://archive.org/item-22"
+        ],
+        "analysis": "Comprehensive verification analysis for item 22",
+        "metadata": {
+          "method": "automated",
+          "timestamp": "2026-08-30T01:29:25.658Z"
+        }
+      },
+      "blockchainTx": "0xdd30b971096428c305d722ee128",
+      "createdAt": "2024-01-16T22:55:36.157Z",
+      "expiresAt": "2026-11-28T01:29:25.658Z"
+    },
+    {
+      "id": "c1yvn0bre",
+      "itemId": "su8pm880w",
+      "verifier": "m82s8wuvt",
+      "verifierName": "Test User 14",
+      "status": "approved",
+      "confidence": "70.32",
+      "evidence": {
+        "sources": [
+          "https://example.com/source-23",
+          "https://archive.org/item-23"
+        ],
+        "analysis": "Comprehensive verification analysis for item 23",
+        "metadata": {
+          "method": "automated",
+          "timestamp": "2026-08-30T01:29:25.658Z"
+        }
+      },
+      "blockchainTx": "0x42f04f6b5054b1fc348e15079",
+      "createdAt": "2025-04-09T19:31:23.321Z",
+      "expiresAt": "2026-11-28T01:29:25.658Z"
+    },
+    {
+      "id": "4votelesa",
+      "itemId": "b0g4vgcae",
+      "verifier": "tyf9lm9u4",
+      "verifierName": "Test User 2",
+      "status": "pending",
+      "confidence": "1.98",
+      "evidence": {
+        "sources": [
+          "https://example.com/source-24",
+          "https://archive.org/item-24"
+        ],
+        "analysis": "Comprehensive verification analysis for item 24",
+        "metadata": {
+          "method": "automated",
+          "timestamp": "2026-08-30T01:29:25.658Z"
+        }
+      },
+      "blockchainTx": "0xf6d10868f7753c576066d6f343",
+      "createdAt": "2023-03-22T16:12:48.280Z",
+      "expiresAt": "2026-11-28T01:29:25.658Z"
+    },
+    {
+      "id": "755hdf82p",
+      "itemId": "eip2al09c",
+      "verifier": "k401y5f0r",
+      "verifierName": "Test User 12",
+      "status": "approved",
+      "confidence": "23.96",
+      "evidence": {
+        "sources": [
+          "https://example.com/source-25",
+          "https://archive.org/item-25"
+        ],
+        "analysis": "Comprehensive verification analysis for item 25",
+        "metadata": {
+          "method": "automated",
+          "timestamp": "2026-08-30T01:29:25.658Z"
+        }
+      },
+      "blockchainTx": "0x5b189979313ab878973c304b4a78",
+      "createdAt": "2024-12-21T00:09:12.037Z",
+      "expiresAt": "2026-11-28T01:29:25.658Z"
+    },
+    {
+      "id": "sp3h6o9t1",
+      "itemId": "pqkz6szrp",
+      "verifier": "b5y34oelm",
+      "verifierName": "Test User 9",
+      "status": "pending",
+      "confidence": "40.26",
+      "evidence": {
+        "sources": [
+          "https://example.com/source-26",
+          "https://archive.org/item-26"
+        ],
+        "analysis": "Comprehensive verification analysis for item 26",
+        "metadata": {
+          "method": "automated",
+          "timestamp": "2026-08-30T01:29:25.658Z"
+        }
+      },
+      "blockchainTx": "0xf0b1b6dce9ce0845c1a9a4c36c6",
+      "createdAt": "2024-08-27T04:26:25.999Z",
+      "expiresAt": "2026-11-28T01:29:25.658Z"
+    },
+    {
+      "id": "of66we7nw",
+      "itemId": "cxpylymyj",
+      "verifier": "b5y34oelm",
+      "verifierName": "Test User 9",
+      "status": "rejected",
+      "confidence": "98.35",
+      "evidence": {
+        "sources": [
+          "https://example.com/source-27",
+          "https://archive.org/item-27"
+        ],
+        "analysis": "Comprehensive verification analysis for item 27",
+        "metadata": {
+          "method": "automated",
+          "timestamp": "2026-08-30T01:29:25.658Z"
+        }
+      },
+      "blockchainTx": "0x5638d05ee22d582739db15900c18",
+      "createdAt": "2023-10-09T22:00:59.585Z",
+      "expiresAt": "2026-11-28T01:29:25.658Z"
+    },
+    {
+      "id": "qupwbp7t4",
+      "itemId": "b0g4vgcae",
+      "verifier": "kwxrbynpj",
+      "verifierName": "Test User 6",
+      "status": "rejected",
+      "confidence": "62.66",
+      "evidence": {
+        "sources": [
+          "https://example.com/source-28",
+          "https://archive.org/item-28"
+        ],
+        "analysis": "Comprehensive verification analysis for item 28",
+        "metadata": {
+          "method": "automated",
+          "timestamp": "2026-08-30T01:29:25.658Z"
+        }
+      },
+      "blockchainTx": "0x5c473f45e7618552b69520cbd28",
+      "createdAt": "2024-10-18T16:44:39.124Z",
+      "expiresAt": "2026-11-28T01:29:25.658Z"
+    },
+    {
+      "id": "62tgxvw0w",
+      "itemId": "su8pm880w",
+      "verifier": "0qb07misn",
+      "verifierName": "Test User 13",
+      "status": "approved",
+      "confidence": "51.24",
+      "evidence": {
+        "sources": [
+          "https://example.com/source-29",
+          "https://archive.org/item-29"
+        ],
+        "analysis": "Comprehensive verification analysis for item 29",
+        "metadata": {
+          "method": "automated",
+          "timestamp": "2026-08-30T01:29:25.658Z"
+        }
+      },
+      "blockchainTx": "0x871f8e158ae5406804c056102c8",
+      "createdAt": "2023-06-06T14:18:46.322Z",
+      "expiresAt": "2026-11-28T01:29:25.658Z"
+    },
+    {
+      "id": "xesdfhroj",
+      "itemId": "rwck782om",
+      "verifier": "tyf9lm9u4",
+      "verifierName": "Test User 2",
+      "status": "pending",
+      "confidence": "76.15",
+      "evidence": {
+        "sources": [
+          "https://example.com/source-30",
+          "https://archive.org/item-30"
+        ],
+        "analysis": "Comprehensive verification analysis for item 30",
+        "metadata": {
+          "method": "automated",
+          "timestamp": "2026-08-30T01:29:25.658Z"
+        }
+      },
+      "blockchainTx": "0x3d99109fccb23643b2b36a7b658",
+      "createdAt": "2024-07-23T21:22:49.482Z",
+      "expiresAt": "2026-11-28T01:29:25.658Z"
+    },
+    {
+      "id": "8noivivyr",
+      "itemId": "cxpylymyj",
+      "verifier": "tk5bshfed",
+      "verifierName": "Test User 8",
+      "status": "pending",
+      "confidence": "5.51",
+      "evidence": {
+        "sources": [
+          "https://example.com/source-31",
+          "https://archive.org/item-31"
+        ],
+        "analysis": "Comprehensive verification analysis for item 31",
+        "metadata": {
+          "method": "automated",
+          "timestamp": "2026-08-30T01:29:25.658Z"
+        }
+      },
+      "blockchainTx": "0x3437c91a587855d1bccce62f788",
+      "createdAt": "2024-03-18T13:06:03.831Z",
+      "expiresAt": "2026-11-28T01:29:25.658Z"
+    },
+    {
+      "id": "nxf7yigq1",
+      "itemId": "dynt8qsox",
+      "verifier": "0qb07misn",
+      "verifierName": "Test User 13",
+      "status": "pending",
+      "confidence": "28.97",
+      "evidence": {
+        "sources": [
+          "https://example.com/source-32",
+          "https://archive.org/item-32"
+        ],
+        "analysis": "Comprehensive verification analysis for item 32",
+        "metadata": {
+          "method": "automated",
+          "timestamp": "2026-08-30T01:29:25.658Z"
+        }
+      },
+      "blockchainTx": "0xf89082eac677c13e60342be8908",
+      "createdAt": "2025-03-11T01:16:53.738Z",
+      "expiresAt": "2026-11-28T01:29:25.658Z"
+    },
+    {
+      "id": "iye0i070k",
+      "itemId": "a84ynw45l",
+      "verifier": "du759igkj",
+      "verifierName": "Test User 11",
+      "status": "rejected",
+      "confidence": "33.56",
+      "evidence": {
+        "sources": [
+          "https://example.com/source-33",
+          "https://archive.org/item-33"
+        ],
+        "analysis": "Comprehensive verification analysis for item 33",
+        "metadata": {
+          "method": "automated",
+          "timestamp": "2026-08-30T01:29:25.658Z"
+        }
+      },
+      "blockchainTx": "0xeecf77e0981da97cdb0084517",
+      "createdAt": "2023-04-09T20:04:33.265Z",
+      "expiresAt": "2026-11-28T01:29:25.658Z"
+    },
+    {
+      "id": "1tjrdqvdf",
+      "itemId": "9yjkixr71",
+      "verifier": "k401y5f0r",
+      "verifierName": "Test User 12",
+      "status": "approved",
+      "confidence": "57.91",
+      "evidence": {
+        "sources": [
+          "https://example.com/source-34",
+          "https://archive.org/item-34"
+        ],
+        "analysis": "Comprehensive verification analysis for item 34",
+        "metadata": {
+          "method": "automated",
+          "timestamp": "2026-08-30T01:29:25.658Z"
+        }
+      },
+      "blockchainTx": "0x41691df8e4e161f1c819495a368",
+      "createdAt": "2023-12-08T22:46:01.796Z",
+      "expiresAt": "2026-11-28T01:29:25.658Z"
+    },
+    {
+      "id": "gpmxmger6",
+      "itemId": "rwck782om",
+      "verifier": "tyf9lm9u4",
+      "verifierName": "Test User 2",
+      "status": "pending",
+      "confidence": "14.86",
+      "evidence": {
+        "sources": [
+          "https://example.com/source-35",
+          "https://archive.org/item-35"
+        ],
+        "analysis": "Comprehensive verification analysis for item 35",
+        "metadata": {
+          "method": "automated",
+          "timestamp": "2026-08-30T01:29:25.658Z"
+        }
+      },
+      "blockchainTx": "0xb25cd2d8366577a5e41dc1d0ca",
+      "createdAt": "2024-03-16T13:27:27.197Z",
+      "expiresAt": "2026-11-28T01:29:25.658Z"
+    },
+    {
+      "id": "ndjrta1dw",
+      "itemId": "eip2al09c",
+      "verifier": "kwxrbynpj",
+      "verifierName": "Test User 6",
+      "status": "approved",
+      "confidence": "14.60",
+      "evidence": {
+        "sources": [
+          "https://example.com/source-36",
+          "https://archive.org/item-36"
+        ],
+        "analysis": "Comprehensive verification analysis for item 36",
+        "metadata": {
+          "method": "automated",
+          "timestamp": "2026-08-30T01:29:25.658Z"
+        }
+      },
+      "blockchainTx": "0xfa8d75c577c5684a045f2bd0ccb",
+      "createdAt": "2024-10-07T04:52:17.814Z",
+      "expiresAt": "2026-11-28T01:29:25.658Z"
+    },
+    {
+      "id": "f1taxbwdm",
+      "itemId": "vzi59m2wp",
+      "verifier": "yyw4zbk3i",
+      "verifierName": "Test User 4",
+      "status": "pending",
+      "confidence": "12.89",
+      "evidence": {
+        "sources": [
+          "https://example.com/source-37",
+          "https://archive.org/item-37"
+        ],
+        "analysis": "Comprehensive verification analysis for item 37",
+        "metadata": {
+          "method": "automated",
+          "timestamp": "2026-08-30T01:29:25.658Z"
+        }
+      },
+      "blockchainTx": "0x3f65dbeb83c63d64c4993a875f",
+      "createdAt": "2025-10-29T05:40:43.659Z",
+      "expiresAt": "2026-11-28T01:29:25.658Z"
+    },
+    {
+      "id": "q4qx6rp6q",
+      "itemId": "hscyfrqdi",
+      "verifier": "b5y34oelm",
+      "verifierName": "Test User 9",
+      "status": "rejected",
+      "confidence": "59.27",
+      "evidence": {
+        "sources": [
+          "https://example.com/source-38",
+          "https://archive.org/item-38"
+        ],
+        "analysis": "Comprehensive verification analysis for item 38",
+        "metadata": {
+          "method": "automated",
+          "timestamp": "2026-08-30T01:29:25.658Z"
+        }
+      },
+      "blockchainTx": "0x45ae9b76b3130152cda68d8688",
+      "createdAt": "2024-05-18T07:07:10.457Z",
+      "expiresAt": "2026-11-28T01:29:25.658Z"
+    },
+    {
+      "id": "6pmsyomxr",
+      "itemId": "g2yki4v0i",
+      "verifier": "k401y5f0r",
+      "verifierName": "Test User 12",
+      "status": "pending",
+      "confidence": "78.83",
+      "evidence": {
+        "sources": [
+          "https://example.com/source-39",
+          "https://archive.org/item-39"
+        ],
+        "analysis": "Comprehensive verification analysis for item 39",
+        "metadata": {
+          "method": "automated",
+          "timestamp": "2026-08-30T01:29:25.658Z"
+        }
+      },
+      "blockchainTx": "0x3595a833d1fbf8b5a7c693fa9d08",
+      "createdAt": "2025-02-18T08:30:24.400Z",
+      "expiresAt": "2026-11-28T01:29:25.658Z"
+    }
+  ],
+  "provenance": [
+    {
+      "id": "7poct75tn",
+      "itemId": "hscyfrqdi",
+      "contentHash": "0x86ab52c62c0208844fdf324814a8",
+      "chain": [
+        {
+          "event": "created",
+          "timestamp": "2023-12-16T16:10:20.805Z",
+          "actor": "tk5bshfed",
+          "blockchainHash": "0xbdf47cfcdb6b98c34ffd17f710c8"
+        },
+        {
+          "event": "disputed",
+          "timestamp": "2025-07-05T02:32:03.800Z",
+          "actor": "0w0993dxn",
+          "blockchainHash": "0x409513d3422d8ce68ab115e263"
+        }
+      ],
+      "currentOwner": "tk5bshfed",
+      "history": [
+        {
+          "owner": "tk5bshfed",
+          "acquiredAt": "2023-12-25T13:15:13.625Z",
+          "source": "creation"
+        }
+      ]
+    },
+    {
+      "id": "8e1wqptkz",
+      "itemId": "b0g4vgcae",
+      "contentHash": "0x5a5c4e48f34678b5baebbf199e58",
+      "chain": [
+        {
+          "event": "created",
+          "timestamp": "2023-04-18T07:02:19.188Z",
+          "actor": "b5y34oelm",
+          "blockchainHash": "0xda8d3943801e98d24c468703479"
+        },
+        {
+          "event": "disputed",
+          "timestamp": "2026-02-11T23:00:30.157Z",
+          "actor": "pmff1w6ck",
+          "blockchainHash": "0x113beafddcd7e06746542f53e38"
+        }
+      ],
+      "currentOwner": "b5y34oelm",
+      "history": [
+        {
+          "owner": "b5y34oelm",
+          "acquiredAt": "2023-02-02T05:19:38.128Z",
+          "source": "creation"
+        }
+      ]
+    },
+    {
+      "id": "os5ic4xgb",
+      "itemId": "28qdh90fj",
+      "contentHash": "0xa216eee7789d6a033f1b8fb26a8",
+      "chain": [
+        {
+          "event": "created",
+          "timestamp": "2023-01-22T22:44:02.235Z",
+          "actor": "0qb07misn",
+          "blockchainHash": "0x2ccc8b27247d7c99f17d46e533"
+        },
+        {
+          "event": "modified",
+          "timestamp": "2024-04-04T07:34:10.526Z",
+          "actor": "mr7rmtrrx",
+          "blockchainHash": "0xd906d65e4bcf688d67c9eb664c9"
+        }
+      ],
+      "currentOwner": "0qb07misn",
+      "history": [
+        {
+          "owner": "0qb07misn",
+          "acquiredAt": "2023-03-27T01:28:54.508Z",
+          "source": "creation"
+        }
+      ]
+    },
+    {
+      "id": "487zh8tac",
+      "itemId": "ko2dtzvw7",
+      "contentHash": "0x31a0fe730f62b813897971ee8f6",
+      "chain": [
+        {
+          "event": "created",
+          "timestamp": "2023-04-17T20:44:10.031Z",
+          "actor": "tk5bshfed",
+          "blockchainHash": "0x92abc58c93ce186dbdf16bcbb368"
+        },
+        {
+          "event": "disputed",
+          "timestamp": "2023-06-28T21:29:48.819Z",
+          "actor": "iyy5xxnkx",
+          "blockchainHash": "0x3cadcb3014b528092aa966c0e7d8"
+        }
+      ],
+      "currentOwner": "tk5bshfed",
+      "history": [
+        {
+          "owner": "tk5bshfed",
+          "acquiredAt": "2023-09-09T17:17:50.868Z",
+          "source": "creation"
+        }
+      ]
+    },
+    {
+      "id": "ysu432fjc",
+      "itemId": "tdihahj1u",
+      "contentHash": "0x590e6c69d4e233b4a57be88b13",
+      "chain": [
+        {
+          "event": "created",
+          "timestamp": "2023-12-21T16:22:57.366Z",
+          "actor": "k401y5f0r",
+          "blockchainHash": "0x04b2a61610dec81a7015cc02997"
+        },
+        {
+          "event": "verified",
+          "timestamp": "2025-10-05T01:59:04.023Z",
+          "actor": "uot0sgtw3",
+          "blockchainHash": "0x947dd11e8afe688c90b385adfe7"
+        }
+      ],
+      "currentOwner": "k401y5f0r",
+      "history": [
+        {
+          "owner": "k401y5f0r",
+          "acquiredAt": "2023-08-05T07:55:57.120Z",
+          "source": "creation"
+        }
+      ]
+    },
+    {
+      "id": "ri1h214co",
+      "itemId": "pqkz6szrp",
+      "contentHash": "0x6d1aefbfbfddd15beb4faccc18",
+      "chain": [
+        {
+          "event": "created",
+          "timestamp": "2023-05-22T13:56:57.245Z",
+          "actor": "pa2uwgzgo",
+          "blockchainHash": "0x8929fc53e9cf989046d6f444bd08"
+        },
+        {
+          "event": "verified",
+          "timestamp": "2023-02-12T05:57:57.657Z",
+          "actor": "9wjvsa5rj",
+          "blockchainHash": "0xfdf0d1671047c8ea71b4a3de446"
+        }
+      ],
+      "currentOwner": "pa2uwgzgo",
+      "history": [
+        {
+          "owner": "pa2uwgzgo",
+          "acquiredAt": "2023-06-16T06:34:23.194Z",
+          "source": "creation"
+        }
+      ]
+    },
+    {
+      "id": "duww23ga3",
+      "itemId": "ko2dtzvw7",
+      "contentHash": "0x31a0fe730f62b813897971ee8f6",
+      "chain": [
+        {
+          "event": "created",
+          "timestamp": "2023-01-22T18:34:03.105Z",
+          "actor": "tk5bshfed",
+          "blockchainHash": "0x98c703ea1e9ffa19d066c3e6e88"
+        },
+        {
+          "event": "disputed",
+          "timestamp": "2025-06-05T04:11:35.506Z",
+          "actor": "szto3jss1",
+          "blockchainHash": "0x61518c0dab124d972e6ec1984b"
+        }
+      ],
+      "currentOwner": "tk5bshfed",
+      "history": [
+        {
+          "owner": "tk5bshfed",
+          "acquiredAt": "2023-10-13T01:49:14.535Z",
+          "source": "creation"
+        }
+      ]
+    },
+    {
+      "id": "hi584h66p",
+      "itemId": "p16u869g4",
+      "contentHash": "0xc68937fee8947cad42b0f46246",
+      "chain": [
+        {
+          "event": "created",
+          "timestamp": "2023-03-24T17:57:29.833Z",
+          "actor": "tyf9lm9u4",
+          "blockchainHash": "0x4e4194106251984a90da7db1eb1"
+        },
+        {
+          "event": "disputed",
+          "timestamp": "2024-12-10T17:27:13.984Z",
+          "actor": "obpsmoz4w",
+          "blockchainHash": "0x8ea12d4b724e419014c76b6ab08"
+        }
+      ],
+      "currentOwner": "tyf9lm9u4",
+      "history": [
+        {
+          "owner": "tyf9lm9u4",
+          "acquiredAt": "2023-01-07T16:56:27.167Z",
+          "source": "creation"
+        }
+      ]
+    },
+    {
+      "id": "k1msyo4hd",
+      "itemId": "uep8rv9ru",
+      "contentHash": "0x873221f7d681188cd9db5e1c14e",
+      "chain": [
+        {
+          "event": "created",
+          "timestamp": "2023-12-13T11:33:57.356Z",
+          "actor": "p4xqcxtag",
+          "blockchainHash": "0x5420aa5351f288f8987abf77279"
+        },
+        {
+          "event": "disputed",
+          "timestamp": "2024-12-24T16:29:47.751Z",
+          "actor": "aguhgj5zg",
+          "blockchainHash": "0x24edd1c825218fe707121db9b6"
+        }
+      ],
+      "currentOwner": "p4xqcxtag",
+      "history": [
+        {
+          "owner": "p4xqcxtag",
+          "acquiredAt": "2023-09-05T23:35:09.494Z",
+          "source": "creation"
+        }
+      ]
+    },
+    {
+      "id": "u46xi4ra1",
+      "itemId": "vzi59m2wp",
+      "contentHash": "0x8b8e8be652dca8b559df4a0b435",
+      "chain": [
+        {
+          "event": "created",
+          "timestamp": "2023-11-09T23:50:44.923Z",
+          "actor": "p4xqcxtag",
+          "blockchainHash": "0x9bb3912c39ea49bddf5b7d0e2b8"
+        },
+        {
+          "event": "verified",
+          "timestamp": "2024-10-18T16:41:40.895Z",
+          "actor": "1kjyokiaq",
+          "blockchainHash": "0xf781bf02237ed77d2c916f1a0b"
+        }
+      ],
+      "currentOwner": "p4xqcxtag",
+      "history": [
+        {
+          "owner": "p4xqcxtag",
+          "acquiredAt": "2023-07-23T22:33:19.174Z",
+          "source": "creation"
+        }
+      ]
+    },
+    {
+      "id": "2q0m7tx9z",
+      "itemId": "uep8rv9ru",
+      "contentHash": "0x873221f7d681188cd9db5e1c14e",
+      "chain": [
+        {
+          "event": "created",
+          "timestamp": "2023-09-04T05:22:31.855Z",
+          "actor": "p4xqcxtag",
+          "blockchainHash": "0x555c4fd56274982de72da8156368"
+        },
+        {
+          "event": "modified",
+          "timestamp": "2023-05-31T16:54:22.035Z",
+          "actor": "wh6cdeyk1",
+          "blockchainHash": "0x106bbbd48796d8c7d81662823ee8"
+        }
+      ],
+      "currentOwner": "p4xqcxtag",
+      "history": [
+        {
+          "owner": "p4xqcxtag",
+          "acquiredAt": "2023-04-27T05:23:59.604Z",
+          "source": "creation"
+        }
+      ]
+    },
+    {
+      "id": "n7l6cld9e",
+      "itemId": "uzvlru7eh",
+      "contentHash": "0x280168419c9fa2b57c7afe4d1a8",
+      "chain": [
+        {
+          "event": "created",
+          "timestamp": "2023-08-11T01:21:42.920Z",
+          "actor": "du759igkj",
+          "blockchainHash": "0xe741e7b3e4f2b74818410fc5a08"
+        },
+        {
+          "event": "modified",
+          "timestamp": "2024-03-26T08:22:45.702Z",
+          "actor": "4d9z64oku",
+          "blockchainHash": "0xc1fc5111a91aa8dad22e087e79c"
+        }
+      ],
+      "currentOwner": "du759igkj",
+      "history": [
+        {
+          "owner": "du759igkj",
+          "acquiredAt": "2023-06-20T15:16:37.984Z",
+          "source": "creation"
+        }
+      ]
+    },
+    {
+      "id": "p8g4hwu5d",
+      "itemId": "pqkz6szrp",
+      "contentHash": "0x6d1aefbfbfddd15beb4faccc18",
+      "chain": [
+        {
+          "event": "created",
+          "timestamp": "2023-04-30T22:29:02.533Z",
+          "actor": "pa2uwgzgo",
+          "blockchainHash": "0xd4a49a67903369e7e3d2bb08e8"
+        },
+        {
+          "event": "modified",
+          "timestamp": "2025-02-25T22:49:35.937Z",
+          "actor": "2ylkr0mfm",
+          "blockchainHash": "0x300d9f675e0c9693a952df7ced"
+        }
+      ],
+      "currentOwner": "pa2uwgzgo",
+      "history": [
+        {
+          "owner": "pa2uwgzgo",
+          "acquiredAt": "2023-03-15T13:50:01.784Z",
+          "source": "creation"
+        }
+      ]
+    },
+    {
+      "id": "oldopog0c",
+      "itemId": "hscyfrqdi",
+      "contentHash": "0x86ab52c62c0208844fdf324814a8",
+      "chain": [
+        {
+          "event": "created",
+          "timestamp": "2023-03-19T18:31:43.133Z",
+          "actor": "tk5bshfed",
+          "blockchainHash": "0xdab62e85b36d68be8720a57afa88"
+        },
+        {
+          "event": "verified",
+          "timestamp": "2024-06-01T04:39:33.531Z",
+          "actor": "u8kx6egnf",
+          "blockchainHash": "0xd3eb7ecfd4b8568752ad9322bf"
+        }
+      ],
+      "currentOwner": "tk5bshfed",
+      "history": [
+        {
+          "owner": "tk5bshfed",
+          "acquiredAt": "2023-05-17T21:28:45.023Z",
+          "source": "creation"
+        }
+      ]
+    },
+    {
+      "id": "ngbb8debx",
+      "itemId": "eip2al09c",
+      "contentHash": "0x2eb86d572afe5c50acc1340628",
+      "chain": [
+        {
+          "event": "created",
+          "timestamp": "2023-08-05T16:04:48.206Z",
+          "actor": "cxq92h50g",
+          "blockchainHash": "0xeb10afb44175c887c12bf64d0ab"
+        },
+        {
+          "event": "verified",
+          "timestamp": "2023-12-19T18:19:40.490Z",
+          "actor": "j4nb59coc",
+          "blockchainHash": "0x43bf13106559dd13c8e35091b48"
+        }
+      ],
+      "currentOwner": "cxq92h50g",
+      "history": [
+        {
+          "owner": "cxq92h50g",
+          "acquiredAt": "2023-11-26T01:28:20.770Z",
+          "source": "creation"
+        }
+      ]
+    },
+    {
+      "id": "p8ult2148",
+      "itemId": "phuhxyub5",
+      "contentHash": "0x29ab533a93bc4760e7ebc14ebc8",
+      "chain": [
+        {
+          "event": "created",
+          "timestamp": "2023-01-09T11:02:29.985Z",
+          "actor": "tk5bshfed",
+          "blockchainHash": "0xc1bfb8efac8838c5aade03f40c28"
+        },
+        {
+          "event": "verified",
+          "timestamp": "2024-02-02T13:00:15.137Z",
+          "actor": "d6j6x6cau",
+          "blockchainHash": "0x5a9790966d8ec7d5ffef4e89268"
+        }
+      ],
+      "currentOwner": "tk5bshfed",
+      "history": [
+        {
+          "owner": "tk5bshfed",
+          "acquiredAt": "2023-01-28T20:57:30.979Z",
+          "source": "creation"
+        }
+      ]
+    },
+    {
+      "id": "d3pnym75r",
+      "itemId": "fpvpc8j4i",
+      "contentHash": "0xf703f436bc83d8f159ad0b818ab",
+      "chain": [
+        {
+          "event": "created",
+          "timestamp": "2023-07-25T21:43:33.061Z",
+          "actor": "m82s8wuvt",
+          "blockchainHash": "0xf8660e6a431bd2dd7b68bb7c35"
+        },
+        {
+          "event": "disputed",
+          "timestamp": "2024-02-27T18:48:26.140Z",
+          "actor": "e3ihufv6c",
+          "blockchainHash": "0x504760c9145048dee845d521b198"
+        }
+      ],
+      "currentOwner": "m82s8wuvt",
+      "history": [
+        {
+          "owner": "m82s8wuvt",
+          "acquiredAt": "2023-02-14T20:47:26.000Z",
+          "source": "creation"
+        }
+      ]
+    },
+    {
+      "id": "chitg2jsp",
+      "itemId": "eip2al09c",
+      "contentHash": "0x2eb86d572afe5c50acc1340628",
+      "chain": [
+        {
+          "event": "created",
+          "timestamp": "2023-11-27T15:56:05.350Z",
+          "actor": "cxq92h50g",
+          "blockchainHash": "0xd9245acc0b3d28c209c7f98ee478"
+        },
+        {
+          "event": "modified",
+          "timestamp": "2025-11-10T04:05:55.012Z",
+          "actor": "7qeyk1h53",
+          "blockchainHash": "0xc99b0e711cc238e0bbc23fbca058"
+        }
+      ],
+      "currentOwner": "cxq92h50g",
+      "history": [
+        {
+          "owner": "cxq92h50g",
+          "acquiredAt": "2023-03-28T12:16:13.306Z",
+          "source": "creation"
+        }
+      ]
+    },
+    {
+      "id": "x14gyigyp",
+      "itemId": "hscyfrqdi",
+      "contentHash": "0x86ab52c62c0208844fdf324814a8",
+      "chain": [
+        {
+          "event": "created",
+          "timestamp": "2023-10-20T02:54:28.753Z",
+          "actor": "tk5bshfed",
+          "blockchainHash": "0x4c6536d4c850080622f90d4a037"
+        },
+        {
+          "event": "modified",
+          "timestamp": "2025-12-16T05:40:42.657Z",
+          "actor": "1jt1txdbz",
+          "blockchainHash": "0x1976549cedf9f8843cff2c995038"
+        }
+      ],
+      "currentOwner": "tk5bshfed",
+      "history": [
+        {
+          "owner": "tk5bshfed",
+          "acquiredAt": "2023-01-09T04:48:34.574Z",
+          "source": "creation"
+        }
+      ]
+    },
+    {
+      "id": "p3bn1p5o3",
+      "itemId": "ofrnsvh0z",
+      "contentHash": "0x6ad92c0aff865eb507c87cfac78",
+      "chain": [
+        {
+          "event": "created",
+          "timestamp": "2023-02-11T10:57:12.958Z",
+          "actor": "tyf9lm9u4",
+          "blockchainHash": "0x5b8f97e9e6d8c174564a3b2ace8"
+        },
+        {
+          "event": "disputed",
+          "timestamp": "2024-02-29T19:37:19.200Z",
+          "actor": "fyor0kicz",
+          "blockchainHash": "0x939389668287b8e6d70e0980971"
+        }
+      ],
+      "currentOwner": "tyf9lm9u4",
+      "history": [
+        {
+          "owner": "tyf9lm9u4",
+          "acquiredAt": "2023-11-07T02:19:56.564Z",
+          "source": "creation"
+        }
+      ]
+    },
+    {
+      "id": "k5x0yhmcd",
+      "itemId": "a84ynw45l",
+      "contentHash": "0xb3d3ade8888db86c5225a143d728",
+      "chain": [
+        {
+          "event": "created",
+          "timestamp": "2023-02-13T10:27:06.244Z",
+          "actor": "tk5bshfed",
+          "blockchainHash": "0x57c1cf8da68d18ca4d1b07f45ed"
+        },
+        {
+          "event": "modified",
+          "timestamp": "2025-08-10T03:02:34.815Z",
+          "actor": "q2kysujs1",
+          "blockchainHash": "0xee4a1dc2c0a538b6f183c3bb23a"
+        }
+      ],
+      "currentOwner": "tk5bshfed",
+      "history": [
+        {
+          "owner": "tk5bshfed",
+          "acquiredAt": "2023-11-05T04:08:38.362Z",
+          "source": "creation"
+        }
+      ]
+    },
+    {
+      "id": "wisrd2nwy",
+      "itemId": "28qdh90fj",
+      "contentHash": "0xa216eee7789d6a033f1b8fb26a8",
+      "chain": [
+        {
+          "event": "created",
+          "timestamp": "2023-09-27T13:25:06.346Z",
+          "actor": "0qb07misn",
+          "blockchainHash": "0x18f37885700e881c1d7773c3b0f8"
+        },
+        {
+          "event": "disputed",
+          "timestamp": "2025-08-26T14:03:01.762Z",
+          "actor": "tzenx2px8",
+          "blockchainHash": "0xa64dbd9413e424421d26eb6168"
+        }
+      ],
+      "currentOwner": "0qb07misn",
+      "history": [
+        {
+          "owner": "0qb07misn",
+          "acquiredAt": "2023-09-17T20:05:19.357Z",
+          "source": "creation"
+        }
+      ]
+    },
+    {
+      "id": "qudiho3j4",
+      "itemId": "rwck782om",
+      "contentHash": "0x7d06f67c804bb5b4949b2e7b6",
+      "chain": [
+        {
+          "event": "created",
+          "timestamp": "2023-10-07T08:19:25.738Z",
+          "actor": "cxq92h50g",
+          "blockchainHash": "0xcd8889610f9a782b4b824a5fcbb8"
+        },
+        {
+          "event": "transferred",
+          "timestamp": "2025-11-16T14:55:55.064Z",
+          "actor": "979iu9q7r",
+          "blockchainHash": "0x0355cf1625f7e7d5b947ec24098"
+        }
+      ],
+      "currentOwner": "cxq92h50g",
+      "history": [
+        {
+          "owner": "cxq92h50g",
+          "acquiredAt": "2023-10-23T22:34:18.452Z",
+          "source": "creation"
+        }
+      ]
+    },
+    {
+      "id": "f2m5jl9nl",
+      "itemId": "uzvlru7eh",
+      "contentHash": "0x280168419c9fa2b57c7afe4d1a8",
+      "chain": [
+        {
+          "event": "created",
+          "timestamp": "2023-08-13T18:55:06.489Z",
+          "actor": "du759igkj",
+          "blockchainHash": "0x1d05bfd70798281d11513b789bf"
+        },
+        {
+          "event": "transferred",
+          "timestamp": "2023-05-11T04:51:34.419Z",
+          "actor": "l9af31lo2",
+          "blockchainHash": "0x3ba9df68dea3737df8136ba38e8"
+        }
+      ],
+      "currentOwner": "du759igkj",
+      "history": [
+        {
+          "owner": "du759igkj",
+          "acquiredAt": "2023-11-09T08:46:47.728Z",
+          "source": "creation"
+        }
+      ]
+    },
+    {
+      "id": "g93echt7w",
+      "itemId": "b0g4vgcae",
+      "contentHash": "0x5a5c4e48f34678b5baebbf199e58",
+      "chain": [
+        {
+          "event": "created",
+          "timestamp": "2023-05-01T19:38:05.549Z",
+          "actor": "b5y34oelm",
+          "blockchainHash": "0x49803edd5c548b6413356fbf5c"
+        },
+        {
+          "event": "verified",
+          "timestamp": "2023-01-11T13:29:26.172Z",
+          "actor": "6wuxg6kru",
+          "blockchainHash": "0xb42bd30e0c6278fe204af6472718"
+        }
+      ],
+      "currentOwner": "b5y34oelm",
+      "history": [
+        {
+          "owner": "b5y34oelm",
+          "acquiredAt": "2023-08-15T15:33:55.945Z",
+          "source": "creation"
+        }
+      ]
+    },
+    {
+      "id": "vk9wiose0",
+      "itemId": "4yory04sy",
+      "contentHash": "0xc9aebccb1f8798e9a4695ec078e",
+      "chain": [
+        {
+          "event": "created",
+          "timestamp": "2023-03-03T15:14:00.054Z",
+          "actor": "p4xqcxtag",
+          "blockchainHash": "0xcfb41609fbed98bc025cb1196c9"
+        },
+        {
+          "event": "disputed",
+          "timestamp": "2026-07-22T11:32:09.451Z",
+          "actor": "9x4hbb11k",
+          "blockchainHash": "0xaa66d428e2d988e8cf6e08458918"
+        }
+      ],
+      "currentOwner": "p4xqcxtag",
+      "history": [
+        {
+          "owner": "p4xqcxtag",
+          "acquiredAt": "2023-11-30T19:56:22.672Z",
+          "source": "creation"
+        }
+      ]
+    },
+    {
+      "id": "dudbm2g2w",
+      "itemId": "dvmvmvb8n",
+      "contentHash": "0xb073933f7bbc267051b6f8c7c",
+      "chain": [
+        {
+          "event": "created",
+          "timestamp": "2023-05-25T03:38:58.778Z",
+          "actor": "0qb07misn",
+          "blockchainHash": "0x3ecaf27343d988c56f9af0d78e8"
+        },
+        {
+          "event": "modified",
+          "timestamp": "2023-02-20T04:10:10.447Z",
+          "actor": "e8b24vb4h",
+          "blockchainHash": "0x4047a059dd3388a69b2307ddba48"
+        }
+      ],
+      "currentOwner": "0qb07misn",
+      "history": [
+        {
+          "owner": "0qb07misn",
+          "acquiredAt": "2023-07-26T03:49:45.668Z",
+          "source": "creation"
+        }
+      ]
+    },
+    {
+      "id": "i299pyi60",
+      "itemId": "gekbecfci",
+      "contentHash": "0x6f693f67253c888d59f894d9e518",
+      "chain": [
+        {
+          "event": "created",
+          "timestamp": "2023-04-17T05:55:49.774Z",
+          "actor": "cxq92h50g",
+          "blockchainHash": "0x5ca4b32ca487e2fa80e731017b"
+        },
+        {
+          "event": "transferred",
+          "timestamp": "2024-11-04T14:22:08.251Z",
+          "actor": "0ywvo3dga",
+          "blockchainHash": "0xb911867e19be4a801c22feacbb8"
+        }
+      ],
+      "currentOwner": "cxq92h50g",
+      "history": [
+        {
+          "owner": "cxq92h50g",
+          "acquiredAt": "2023-04-23T13:54:15.280Z",
+          "source": "creation"
+        }
+      ]
+    },
+    {
+      "id": "fa10z3hn7",
+      "itemId": "phuhxyub5",
+      "contentHash": "0x29ab533a93bc4760e7ebc14ebc8",
+      "chain": [
+        {
+          "event": "created",
+          "timestamp": "2023-08-28T20:54:21.016Z",
+          "actor": "tk5bshfed",
+          "blockchainHash": "0xf9cfc27aaedbab3005dc5e566c8"
+        },
+        {
+          "event": "modified",
+          "timestamp": "2026-04-25T04:25:28.915Z",
+          "actor": "7axlipkw3",
+          "blockchainHash": "0xc86ef23868f63113d0bd578ff98"
+        }
+      ],
+      "currentOwner": "tk5bshfed",
+      "history": [
+        {
+          "owner": "tk5bshfed",
+          "acquiredAt": "2023-09-27T09:21:21.125Z",
+          "source": "creation"
+        }
+      ]
+    },
+    {
+      "id": "owad15706",
+      "itemId": "4yory04sy",
+      "contentHash": "0xc9aebccb1f8798e9a4695ec078e",
+      "chain": [
+        {
+          "event": "created",
+          "timestamp": "2023-06-20T23:54:21.240Z",
+          "actor": "p4xqcxtag",
+          "blockchainHash": "0xa83690dda7c0487dc633443d7598"
+        },
+        {
+          "event": "disputed",
+          "timestamp": "2026-02-16T05:48:46.141Z",
+          "actor": "md7xk9f4o",
+          "blockchainHash": "0x4a75ee1f92d644a1e913ecab1e"
+        }
+      ],
+      "currentOwner": "p4xqcxtag",
+      "history": [
+        {
+          "owner": "p4xqcxtag",
+          "acquiredAt": "2023-09-16T13:22:22.254Z",
+          "source": "creation"
+        }
+      ]
+    }
+  ],
+  "analytics": {
+    "period": "last-7-days",
+    "statistics": {
+      "totalContentItems": 1479,
+      "verifiedContent": 398,
+      "activeVerifiers": 55,
+      "blockchainTransactions": 5560,
+      "averageVerificationTime": 105
+    },
+    "trends": {
+      "contentGrowth": "-18.45",
+      "verificationRate": "98.26",
+      "disputeRate": "7.76"
+    },
+    "topVerifiers": [
+      {
+        "id": "l2z055w33",
+        "name": "Top Verifier 1",
+        "verifications": 763,
+        "accuracy": "95.37"
+      },
+      {
+        "id": "gehc56c4c",
+        "name": "Top Verifier 2",
+        "verifications": 796,
+        "accuracy": "94.94"
+      },
+      {
+        "id": "mw0l843xs",
+        "name": "Top Verifier 3",
+        "verifications": 1052,
+        "accuracy": "97.23"
+      },
+      {
+        "id": "wbvo18h8m",
+        "name": "Top Verifier 4",
+        "verifications": 923,
+        "accuracy": "86.94"
+      },
+      {
+        "id": "1gij9ggev",
+        "name": "Top Verifier 5",
+        "verifications": 513,
+        "accuracy": "87.10"
+      }
+    ]
+  },
+  "generated": "2026-08-30T01:29:25.659Z"
+}

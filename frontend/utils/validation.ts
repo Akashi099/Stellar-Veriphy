@@ -87,6 +87,29 @@ export function isValidStellarAddress(address: string): boolean {
   return /^G[A-Z2-7]{55}$/.test(address);
 }
 
+/**
+ * Returns a descriptive error message when `address` is not a valid Stellar address,
+ * or `null` when it is valid.
+ *
+ * @param address - The candidate Stellar address string.
+ * @returns An error string describing the problem, or `null` if valid.
+ */
+export function validateStellarAddress(address: string): string | null {
+  if (!address || address.trim() === "") {
+    return "Stellar address is required.";
+  }
+  if (address.length !== 56) {
+    return `Stellar address must be exactly 56 characters (got ${address.length}).`;
+  }
+  if (address[0] !== "G") {
+    return "Stellar address must start with 'G'.";
+  }
+  if (!/^G[A-Z2-7]{55}$/.test(address)) {
+    return "Stellar address must contain only uppercase letters and numbers 2-7.";
+  }
+  return null;
+}
+
 // ---------------------------------------------------------------------------
 // Ethereum
 // ---------------------------------------------------------------------------
@@ -196,8 +219,6 @@ export function downloadJSON(data: object, filename: string) {
  * @param data     - Any JSON-serialisable object.
  * @param filename - The suggested download file name (e.g. `"manifest.xml"`).
  */
-export function downloadXML(data: object, filename: string) {
-  const xml = objectToXml(data as Record<string, unknown>);
 export function downloadXML(data: SerializableObject, filename: string) {
   const xml = objectToXml(data);
   const blob = new Blob([xml], { type: "application/xml" });
@@ -220,7 +241,6 @@ export function downloadXML(data: SerializableObject, filename: string) {
  * @param rootName - Root element tag name (default: `"root"`).
  * @returns Full XML document string.
  */
-function objectToXml(obj: Record<string, unknown>, rootName = "root"): string {
 function objectToXml(obj: SerializableObject, rootName = "root"): string {
   let xml = '<?xml version="1.0" encoding="UTF-8"?>\n';
   xml += `<${rootName}>\n`;
@@ -244,7 +264,6 @@ function objectToXml(obj: SerializableObject, rootName = "root"): string {
  * @param indent - Current indentation depth (multiples of two spaces).
  * @returns XML fragment string (no declaration or root wrapper).
  */
-function objectToXmlContent(obj: Record<string, unknown>, indent: number): string {
 function objectToXmlContent(obj: SerializableObject, indent: number): string {
   const spaces = "  ".repeat(indent);
   let xml = "";
@@ -255,15 +274,17 @@ function objectToXmlContent(obj: SerializableObject, indent: number): string {
       xml += `${spaces}<${tagName} />\n`;
     } else if (typeof value === "object" && !Array.isArray(value)) {
       xml += `${spaces}<${tagName}>\n`;
-      xml += objectToXmlContent(value as Record<string, unknown>, indent + 1);
       xml += objectToXmlContent(value as SerializableObject, indent + 1);
       xml += `${spaces}</${tagName}>\n`;
     } else if (Array.isArray(value)) {
       (value as SerializableValue[]).forEach((item) => {
         xml += `${spaces}<item>\n`;
-        if (typeof item === "object" && item !== null) {
-          xml += objectToXmlContent(item as Record<string, unknown>, indent + 1);
-        if (item !== null && item !== undefined && typeof item === "object" && !Array.isArray(item)) {
+        if (
+          item !== null &&
+          item !== undefined &&
+          typeof item === "object" &&
+          !Array.isArray(item)
+        ) {
           xml += objectToXmlContent(item as SerializableObject, indent + 1);
         } else {
           xml += `${"  ".repeat(indent + 1)}${String(item)}\n`;
@@ -293,4 +314,69 @@ function objectToXmlContent(obj: SerializableObject, indent: number): string {
  */
 export function copyToClipboard(text: string): Promise<void> {
   return navigator.clipboard.writeText(text);
+}
+
+// ---------------------------------------------------------------------------
+// Standardized error messages for forms
+// ---------------------------------------------------------------------------
+
+/**
+ * Returns a descriptive error message for invalid amount values,
+ * or `null` when it is valid.
+ *
+ * @param amount - A number or its string representation.
+ * @returns An error string describing the problem, or `null` if valid.
+ */
+export function validateAmount(amount: string | number): string | null {
+  const str = String(amount).trim();
+  if (!str) {
+    return "Amount is required.";
+  }
+  const value = typeof amount === "number" ? amount : parseFloat(amount);
+  if (isNaN(value)) {
+    return "Amount must be a valid number.";
+  }
+  if (!isFinite(value)) {
+    return "Amount must be a finite number.";
+  }
+  if (value <= 0) {
+    return "Amount must be greater than 0.";
+  }
+  if (!/^\d+(\.\d+)?$/.test(str)) {
+    return "Amount must contain only digits and an optional decimal point.";
+  }
+  return null;
+}
+
+/**
+ * Returns a descriptive error message for invalid manifest file types,
+ * or `null` if the file type is valid.
+ *
+ * @param filename - The name of the file to validate.
+ * @returns An error string describing the problem, or `null` if valid.
+ */
+export function validateManifestFileType(filename: string): string | null {
+  if (!filename) {
+    return "File name is required.";
+  }
+  const isJsonOrXml = filename.toLowerCase().endsWith(".json") || filename.toLowerCase().endsWith(".xml");
+  if (!isJsonOrXml) {
+    return "Manifest must be a .json or .xml file.";
+  }
+  return null;
+}
+
+/**
+ * Returns a descriptive error message for required fields,
+ * or `null` if the field is provided.
+ *
+ * @param value - The field value to validate.
+ * @param fieldName - The name of the field for error messages.
+ * @returns An error string describing the problem, or `null` if valid.
+ */
+export function validateRequired(value: string | undefined | null, fieldName: string): string | null {
+  if (!value || value.trim() === "") {
+    return `${fieldName} is required.`;
+  }
+  return null;
 }

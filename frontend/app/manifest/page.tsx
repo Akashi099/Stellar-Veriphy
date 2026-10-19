@@ -3,12 +3,13 @@
 import { ContentManifest } from "@stellarveriphy/shared/types";
 import { useEffect, useState } from "react";
 
-import { KeyValueBuilder } from "@/components/KeyValueBuilder";
+import { KeyValueBuilder, type MetadataValue } from "@/components/KeyValueBuilder";
 import { ManifestPreview } from "@/components/ManifestPreview";
 import { AutoSaveIndicator } from "@/components/ui/AutoSaveIndicator";
 import { FormInput } from "@/components/ui/FormInput";
 import { HelpIcon } from "@/components/ui/HelpIcon";
 import { useAutoSave } from "@/hooks/useAutoSave";
+import { useToast } from "@/app/context/ToastContext";
 import { ALL_TEMPLATES, loadTemplate, type TemplateId } from "@/utils/manifestTemplates";
 import {
   downloadJSON,
@@ -18,6 +19,7 @@ import {
 } from "@/utils/validation";
 
 export default function ManifestPage() {
+  const { showToast } = useToast();
   const [manifest, setManifest] = useState<Partial<ContentManifest>>({
     contentHash: "",
     creator: "",
@@ -94,6 +96,7 @@ export default function ManifestPage() {
     if (validateForm()) {
       clearSaved();
       downloadJSON(manifest, "manifest.json");
+      showToast("Manifest downloaded as JSON", "success");
     }
   };
 
@@ -101,10 +104,11 @@ export default function ManifestPage() {
     if (validateForm()) {
       clearSaved();
       downloadXML(manifest, "manifest.xml");
+      showToast("Manifest downloaded as XML", "success");
     }
   };
 
-  const handleMetadataChange = (metadata: Record<string, string | number | boolean>) => {
+  const handleMetadataChange = (metadata: Record<string, MetadataValue>) => {
     setManifest((prev) => ({ ...prev, metadata }));
   };
 
@@ -245,6 +249,9 @@ export default function ManifestPage() {
               </button>
             </div>
           </div>
+          <aside className="min-w-0 lg:sticky lg:top-6 lg:self-start">
+            <ManifestPreview manifest={manifest} />
+          </aside>
         </div>
       </div>
     </main>

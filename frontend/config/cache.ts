@@ -140,4 +140,29 @@ export const queryKeys = {
     /** Fee estimate from Horizon. */
     fees: () => [...queryKeys.network.all, "fees"] as const,
   },
+
+  manifests: {
+    all: ["manifests"] as const,
+    list: () => [...queryKeys.manifests.all, "list"] as const,
+    detail: (id: string) => [...queryKeys.manifests.all, "detail", id] as const,
+  },
+
+  assets: {
+    all: ["assets"] as const,
+    list: () => [...queryKeys.assets.all, "list"] as const,
+    detail: (id: string) => [...queryKeys.assets.all, "detail", id] as const,
+    byHash: (hash: string) => [...queryKeys.assets.all, "hash", hash] as const,
+  },
+
+  uploads: {
+    all: ["uploads"] as const,
+    detail: (id: string) => [...queryKeys.uploads.all, id] as const,
+    byHash: (hash: string) => [...queryKeys.uploads.all, "hash", hash] as const,
+  },
+
+  jobs: {
+    all: ["jobs"] as const,
+    list: () => [...queryKeys.jobs.all, "list"] as const,
+    detail: (id: string) => [...queryKeys.jobs.all, id] as const,
+  },
 } as const;

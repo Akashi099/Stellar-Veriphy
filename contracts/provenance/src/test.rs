@@ -2,6 +2,7 @@
 mod tests {
     extern crate std;
     use std::format;
+    use std::string::ToString;
 
     use crate::{
         CertificateRelation, ProvenanceContract, ProvenanceContractClient, ProvenanceError,
@@ -13,7 +14,166 @@ mod tests {
         String::from_str(env, v)
     }
 
+    #[cfg(test)]
+    mod property_tests {
+        use super::*;
+        use quickcheck::quickcheck;
+
+        quickcheck! {
+            fn prop_certificate_ids_are_monotonic(seed: u64) -> bool {
+                let env = Env::default();
+                env.mock_all_auths();
+                let cid = env.register_contract(None, ProvenanceContract);
+                let client = ProvenanceContractClient::new(&env, &cid);
+                let oracle = soroban_sdk::Address::generate(&env);
+                let owner = soroban_sdk::Address::generate(&env);
+                client.initialize(&oracle);
+
+                let mut last = 0u64;
+                for i in 0..16 {
+                    let id = client.mint(
+                        &s(&env, "storage-ref"),
+                        &s(&env, &format!("manifest-{}-{}", seed, i)),
+                        &s(&env, &format!("attestation-{}-{}", seed, i)),
+                        &owner,
+                    );
+                    if id <= last {
+                        return false;
+                    }
+                    last = id;
+                }
+
+                true
+            }
+
+            fn prop_duplicate_manifest_hash_is_rejected(seed: u8) -> bool {
+                let env = Env::default();
+                env.mock_all_auths();
+                let cid = env.register_contract(None, ProvenanceContract);
+                let client = ProvenanceContractClient::new(&env, &cid);
+                let oracle = soroban_sdk::Address::generate(&env);
+                let owner = soroban_sdk::Address::generate(&env);
+                client.initialize(&oracle);
+
+                let manifest = format!("manifest-{}", seed);
+                let storage = format!("storage-{}", seed);
+                let attestation = format!("attestation-{}", seed);
+
+                let first = client.mint(&s(&env, &storage), &s(&env, &manifest), &s(&env, &attestation), &owner);
+                let duplicate = client.try_mint(&s(&env, &storage), &s(&env, &manifest), &s(&env, &attestation), &owner);
+
+                first == 1 && duplicate.is_err()
+            }
+
+            fn prop_revocation_sets_persistent_state(seed: u8) -> bool {
+                let env = Env::default();
+                env.mock_all_auths();
+                let cid = env.register_contract(None, ProvenanceContract);
+                let client = ProvenanceContractClient::new(&env, &cid);
+                let oracle = soroban_sdk::Address::generate(&env);
+                let owner = soroban_sdk::Address::generate(&env);
+                client.initialize(&oracle);
+
+                let id = client.mint(
+                    &s(&env, "storage-revocation"),
+                    &s(&env, &format!("manifest-revocation-{}", seed)),
+                    &s(&env, &format!("attestation-revocation-{}", seed)),
+                    &owner,
+                );
+
+                let reason = match seed % 5 {
+                    0 => RevocationReason::None,
+                    1 => RevocationReason::FraudulentContent,
+                    2 => RevocationReason::LegalRequirement,
+                    3 => RevocationReason::CreatorRequest,
+                    _ => RevocationReason::ContractualViolation,
+                };
+
+                client.revoke_certificate(&id, &reason);
+                let cert = client.get_certificate(&id);
+                cert.revoked && cert.revocation_reason == reason
+            }
+        }
+    }
+
     // --- Issue #38 ---
+
+    // --- Issue #410 --- Upgrade safety / compatibility checks
+
+    #[test]
+    fn test_set_admin_requires_oracle_authorization() {
+        let env = Env::default();
+        let cid = env.register_contract(None, ProvenanceContract);
+        let client = ProvenanceContractClient::new(&env, &cid);
+        let oracle = soroban_sdk::Address::generate(&env);
+        let admin = soroban_sdk::Address::generate(&env);
+
+        client.initialize(&oracle);
+
+        assert!(client.try_set_admin(&admin).is_err());
+        assert!(client.get_admin().is_none());
+    }
+
+    #[test]
+    fn test_set_admin_keeps_existing_certificate_state_stable() {
+        let env = Env::default();
+        env.mock_all_auths();
+        let cid = env.register_contract(None, ProvenanceContract);
+        let client = ProvenanceContractClient::new(&env, &cid);
+        let oracle = soroban_sdk::Address::generate(&env);
+        let owner = soroban_sdk::Address::generate(&env);
+        let replacement_admin = soroban_sdk::Address::generate(&env);
+
+        client.initialize(&oracle);
+        let first_id = client.mint(
+            &s(&env, "storage_legacy"),
+            &s(&env, "manifest_legacy_1"),
+            &s(&env, "attestation_legacy_1"),
+            &owner,
+        );
+
+        client.set_admin(&replacement_admin);
+
+        let cert = client.get_certificate(&first_id);
+        assert_eq!(cert.creator, owner);
+        assert_eq!(cert.manifest_hash, s(&env, "manifest_legacy_1"));
+        assert_eq!(client.get_admin(), Some(replacement_admin));
+
+        let second_id = client.mint(
+            &s(&env, "storage_legacy"),
+            &s(&env, "manifest_legacy_2"),
+            &s(&env, "attestation_legacy_2"),
+            &owner,
+        );
+        assert_eq!(second_id, first_id + 1);
+    }
+
+    #[test]
+    fn test_legacy_certificate_data_remains_readable_after_authorized_changes() {
+        let env = Env::default();
+        env.mock_all_auths();
+        let cid = env.register_contract(None, ProvenanceContract);
+        let client = ProvenanceContractClient::new(&env, &cid);
+        let oracle = soroban_sdk::Address::generate(&env);
+        let owner = soroban_sdk::Address::generate(&env);
+        let replacement_admin = soroban_sdk::Address::generate(&env);
+
+        client.initialize(&oracle);
+        let id = client.mint(
+            &s(&env, "migration_ref"),
+            &s(&env, "migration_manifest"),
+            &s(&env, "migration_attestation"),
+            &owner,
+        );
+
+        client.set_admin(&replacement_admin);
+
+        let cert = client.get_certificate(&id);
+        assert_eq!(cert.storage_ref, s(&env, "migration_ref"));
+        assert_eq!(cert.manifest_hash, s(&env, "migration_manifest"));
+        assert_eq!(cert.attestation_hash, s(&env, "migration_attestation"));
+        assert!(!cert.revoked);
+    }
 
     #[test]
     fn test_double_initialization() {
@@ -733,10 +893,23 @@ mod tests {
             &s(&env, "ahash"),
             &owner1,
         );
+        assert_eq!(client.get_owner(&id), owner1);
         client.transfer_certificate(&id, &owner2);
 
         let cert = client.get_certificate(&id);
-        assert_eq!(cert.creator, owner2);
+        assert_eq!(cert.creator, owner1);
+        assert_eq!(client.get_owner(&id), owner2);
+
+        let history = client.get_certificate_history(&id, &0, &10);
+        assert_eq!(history.get_unchecked(0).action, s(&env, "transferred"));
+        assert_eq!(history.get_unchecked(0).modifier, owner1);
+        assert_eq!(
+            client
+                .try_transfer_certificate(&id, &owner2)
+                .unwrap_err()
+                .unwrap(),
+            ProvenanceError::InvalidOwner
+        );
     }
 
     #[test]
@@ -1200,5 +1373,140 @@ mod tests {
         let all = client.get_most_viewed_certificates(&10);
         assert_eq!(all.len(), 3);
         assert_eq!(all.get_unchecked(2), (a, 1));
+    }
+
+    #[test]
+    fn test_stress_batch_mint_at_max_capacity() {
+        let env = Env::default();
+        env.mock_all_auths();
+        let cid = env.register_contract(None, ProvenanceContract);
+        let client = ProvenanceContractClient::new(&env, &cid);
+        let oracle = soroban_sdk::Address::generate(&env);
+        let owner = soroban_sdk::Address::generate(&env);
+        client.initialize(&oracle);
+
+        let mut storage_refs = soroban_sdk::Vec::new(&env);
+        let mut manifest_hashes = soroban_sdk::Vec::new(&env);
+        let mut attestation_hashes = soroban_sdk::Vec::new(&env);
+
+        for i in 0..50u32 {
+            let suffix = i.to_string();
+            storage_refs.push_back(s(&env, &format!("stress-sid-{}", suffix)));
+            manifest_hashes.push_back(s(&env, &format!("stress-manifest-{}", suffix)));
+            attestation_hashes.push_back(s(&env, &format!("stress-att-{}", suffix)));
+        }
+
+        let ids = client.mint_batch(&storage_refs, &manifest_hashes, &attestation_hashes, &owner);
+
+        assert_eq!(ids.len(), 50);
+        assert_eq!(ids.get_unchecked(0), 1);
+        assert_eq!(ids.get_unchecked(49), 50);
+        assert_eq!(client.get_creator_certificate_count(&owner), 50);
+    }
+
+    #[test]
+    fn test_stress_storage_and_index_growth() {
+        let env = Env::default();
+        env.mock_all_auths();
+        let cid = env.register_contract(None, ProvenanceContract);
+        let client = ProvenanceContractClient::new(&env, &cid);
+        let oracle = soroban_sdk::Address::generate(&env);
+        let owner = soroban_sdk::Address::generate(&env);
+        client.initialize(&oracle);
+
+        for i in 0..200u32 {
+            let suffix = i.to_string();
+            client.mint(
+                &s(&env, &format!("stress-store-{}", suffix)),
+                &s(&env, &format!("stress-manifest-{}", suffix)),
+                &s(&env, &format!("stress-att-{}", suffix)),
+                &owner,
+            );
+        }
+
+        assert_eq!(client.get_creator_certificate_count(&owner), 200);
+        let stats = client.get_certificate_stats();
+        assert_eq!(stats.total_certificates, 200);
+        assert_eq!(stats.certificates_today, 200);
+    }
+
+    #[test]
+    fn test_stress_time_range_and_history_queries() {
+        let env = Env::default();
+        env.mock_all_auths();
+        let cid = env.register_contract(None, ProvenanceContract);
+        let client = ProvenanceContractClient::new(&env, &cid);
+        let oracle = soroban_sdk::Address::generate(&env);
+        let owner = soroban_sdk::Address::generate(&env);
+        client.initialize(&oracle);
+
+        for i in 0..75u32 {
+            let suffix = i.to_string();
+            let id = client.mint(
+                &s(&env, &format!("range-sid-{}", suffix)),
+                &s(&env, &format!("range-manifest-{}", suffix)),
+                &s(&env, &format!("range-att-{}", suffix)),
+                &owner,
+            );
+
+            if i % 3 == 0 {
+                let _ = client.update_metadata(&id, &s(&env, "meta"), &s(&env, "desc"));
+            }
+        }
+
+        let current_time = env.ledger().timestamp();
+        let page = client.get_certificates_by_time_range(&0, &(current_time + 10_000), &0, &25);
+        assert_eq!(page.len(), 25);
+
+        let cert_id = client.mint(
+            &s(&env, "history-final"),
+            &s(&env, "history-final-manifest"),
+            &s(&env, "history-final-att"),
+            &owner,
+        );
+        client.update_metadata(&cert_id, &s(&env, "v1"), &s(&env, "one"));
+        client.update_metadata(&cert_id, &s(&env, "v2"), &s(&env, "two"));
+
+        let history = client.get_certificate_history(&cert_id, &0, &10);
+        assert_eq!(history.len(), 3);
+    }
+
+    #[test]
+    fn test_stress_multi_owner_access_pattern() {
+        let env = Env::default();
+        env.mock_all_auths();
+        let cid = env.register_contract(None, ProvenanceContract);
+        let client = ProvenanceContractClient::new(&env, &cid);
+        let oracle = soroban_sdk::Address::generate(&env);
+        let owner_a = soroban_sdk::Address::generate(&env);
+        let owner_b = soroban_sdk::Address::generate(&env);
+        client.initialize(&oracle);
+
+        for i in 0..35u32 {
+            let suffix = i.to_string();
+            if i % 2 == 0 {
+                client.mint(
+                    &s(&env, &format!("owner-a-{}", suffix)),
+                    &s(&env, &format!("owner-a-manifest-{}", suffix)),
+                    &s(&env, &format!("owner-a-att-{}", suffix)),
+                    &owner_a,
+                );
+            } else {
+                client.mint(
+                    &s(&env, &format!("owner-b-{}", suffix)),
+                    &s(&env, &format!("owner-b-manifest-{}", suffix)),
+                    &s(&env, &format!("owner-b-att-{}", suffix)),
+                    &owner_b,
+                );
+            }
+        }
+
+        assert_eq!(client.get_creator_certificate_count(&owner_a), 18);
+        assert_eq!(client.get_creator_certificate_count(&owner_b), 17);
+
+        let page_a = client.get_certificates_by_creator(&owner_a, &0, &10);
+        assert_eq!(page_a.len(), 10);
+        let page_b = client.get_certificates_by_creator(&owner_b, &0, &10);
+        assert_eq!(page_b.len(), 10);
     }
 }

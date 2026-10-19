@@ -2,15 +2,15 @@
 
 import { useEffect, useState } from "react";
 import {
-  LineChart as RechartsLineChart,
+  CartesianGrid,
+  Legend,
   Line,
+  LineChart as RechartsLineChart,
+  ResponsiveContainer,
+  Tooltip,
+  TooltipProps,
   XAxis,
   YAxis,
-  CartesianGrid,
-  Tooltip,
-  Legend,
-  ResponsiveContainer,
-  TooltipProps,
 } from "recharts";
 
 interface DataPoint {
@@ -78,10 +78,7 @@ export function LineChart({
           accessibilityLayer
         >
           {showGrid && (
-            <CartesianGrid
-              strokeDasharray="3 3"
-              className="stroke-gray-200 dark:stroke-gray-700"
-            />
+            <CartesianGrid strokeDasharray="3 3" className="stroke-gray-200 dark:stroke-gray-700" />
           )}
           <XAxis
             dataKey={xAxisKey}

@@ -1,5 +1,7 @@
 "use client";
 
+import type { ChainFeature } from "@/lib/network/chainCompatibility";
+
 import { WizardNavigation } from "./WizardNavigation";
 import { WizardStepper } from "./WizardStepper";
 
@@ -9,6 +11,7 @@ interface WizardPageShellProps {
   children: React.ReactNode;
   onSubmit?: (() => void | Promise<void>) | undefined;
   isLoading?: boolean | undefined;
+  chainFeature?: ChainFeature | undefined;
 }
 
 export function WizardPageShell({
@@ -17,6 +20,7 @@ export function WizardPageShell({
   children,
   onSubmit,
   isLoading,
+  chainFeature,
 }: WizardPageShellProps) {
   return (
     <div className="flex flex-col min-h-screen bg-white dark:bg-gray-900">
@@ -31,7 +35,7 @@ export function WizardPageShell({
         <div className="bg-gray-50 dark:bg-gray-800 rounded-lg p-6">{children}</div>
       </div>
 
-      <WizardNavigation onSubmit={onSubmit} isLoading={isLoading} />
+      <WizardNavigation onSubmit={onSubmit} isLoading={isLoading} chainFeature={chainFeature} />
     </div>
   );
 }

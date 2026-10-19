@@ -9,12 +9,21 @@
 
 import { useState } from "react";
 
+import { useToastHelpers } from "@/components/ToastProvider";
 import { WalletSelector } from "@/components/wallet/WalletSelector";
 import { useWallet } from "@/context/WalletContext";
 
 export function WalletModal() {
   const { connected, publicKey, walletType, disconnect } = useWallet();
+  const { success: showSuccess } = useToastHelpers();
   const [selectorOpen, setSelectorOpen] = useState(false);
+
+  const handleDisconnect = () => {
+    disconnect();
+    showSuccess("Wallet disconnected successfully", {
+      title: "Disconnected",
+    });
+  };
 
   const truncate = (key: string) => `${key.slice(0, 6)}…${key.slice(-4)}`;
 
@@ -37,7 +46,7 @@ export function WalletModal() {
                 Switch Wallet
               </button>
               <button
-                onClick={disconnect}
+                onClick={handleDisconnect}
                 className="flex-1 px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded transition-colors text-sm"
               >
                 Disconnect

@@ -27,7 +27,7 @@ export function CopyButton({ text, className, label = "Copy to clipboard" }: Cop
             aria-label={isCopied ? "Copied" : label}
             title={label}
             className={cn(
-                "inline-flex items-center justify-center rounded-md p-1.5 transition-colors",
+                "inline-flex items-center justify-center gap-1.5 rounded-md p-1.5 transition-colors",
                 "text-gray-500 hover:text-gray-700 hover:bg-gray-100",
                 "dark:text-gray-400 dark:hover:text-gray-200 dark:hover:bg-gray-700",
                 "focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500",
@@ -35,7 +35,10 @@ export function CopyButton({ text, className, label = "Copy to clipboard" }: Cop
             )}
         >
             {isCopied ? (
-                <FiCheck className="w-4 h-4 text-green-500" aria-hidden="true" />
+                <>
+                    <FiCheck className="w-4 h-4 text-green-600 dark:text-green-400" aria-hidden="true" />
+                    <span className="text-xs font-medium text-green-700 dark:text-green-300">Copied</span>
+                </>
             ) : (
                 <FiCopy className="w-4 h-4" aria-hidden="true" />
             )}

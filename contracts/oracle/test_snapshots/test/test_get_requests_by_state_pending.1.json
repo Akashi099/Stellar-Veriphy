@@ -120,6 +120,12 @@
                   "map": [
                     {
                       "key": {
+                        "symbol": "comment"
+                      },
+                      "val": "void"
+                    },
+                    {
+                      "key": {
                         "symbol": "manifest_hash"
                       },
                       "val": {
@@ -212,6 +218,12 @@
                 "durability": "temporary",
                 "val": {
                   "map": [
+                    {
+                      "key": {
+                        "symbol": "comment"
+                      },
+                      "val": "void"
+                    },
                     {
                       "key": {
                         "symbol": "manifest_hash"
@@ -964,6 +976,12 @@
                               "map": [
                                 {
                                   "key": {
+                                    "symbol": "comment"
+                                  },
+                                  "val": "void"
+                                },
+                                {
+                                  "key": {
                                     "symbol": "manifest_hash"
                                   },
                                   "val": {
@@ -1031,6 +1049,12 @@
                             },
                             "val": {
                               "map": [
+                                {
+                                  "key": {
+                                    "symbol": "comment"
+                                  },
+                                  "val": "void"
+                                },
                                 {
                                   "key": {
                                     "symbol": "manifest_hash"

@@ -23,6 +23,7 @@ components/
 The smallest, most reusable components. These are pure presentational components with no dependencies on business logic.
 
 **Examples:**
+
 - `Button.tsx` - Basic button with variants
 - `Badge.tsx` - Status badge display
 - `Avatar.tsx` - User/creator avatar
@@ -32,6 +33,7 @@ The smallest, most reusable components. These are pure presentational components
 - `EmptyState.tsx` - Empty state placeholder
 
 **Guidelines:**
+
 - No dependencies on domain services or hooks
 - Accept all configuration via props
 - Export types and interfaces in adjacent `types.ts` if needed
@@ -42,6 +44,7 @@ The smallest, most reusable components. These are pure presentational components
 Combinations of atoms that form simple, functional units. Still largely presentational but may contain simple local state.
 
 **Examples:**
+
 - `SearchField.tsx` - Search input with icon button
 - `CertificateCard.tsx` - Card displaying certificate info
 - `StatusIndicator.tsx` - Status badge with loading spinner
@@ -50,6 +53,7 @@ Combinations of atoms that form simple, functional units. Still largely presenta
 - `FileUpload.tsx` - File input with preview
 
 **Guidelines:**
+
 - Combine atoms into meaningful, reusable patterns
 - May include simple local state (expand/collapse, focus states)
 - Keep business logic minimal
@@ -60,6 +64,7 @@ Combinations of atoms that form simple, functional units. Still largely presenta
 Complex combinations of molecules and atoms. These form logical sections of a page and often contain application logic.
 
 **Examples:**
+
 - `CertificateSearchPanel.tsx` - Full search interface with form + results
 - `WalletConnector.tsx` - Wallet connection flow
 - `VerificationHeader.tsx` - Navigation and state indicators
@@ -67,6 +72,7 @@ Complex combinations of molecules and atoms. These form logical sections of a pa
 - `TransactionHistory.tsx` - List with pagination and filters
 
 **Guidelines:**
+
 - Combine molecules and atoms into complete UI sections
 - May contain hooks for data fetching (useQuery, useState)
 - Include application logic (handlers, validations)
@@ -78,12 +84,14 @@ Complex combinations of molecules and atoms. These form logical sections of a pa
 Page-level layouts that compose organisms into complete page structures. These typically don't render directly but are composed in page routes.
 
 **Examples:**
+
 - `CertificateVerificationTemplate.tsx` - Layout for verification page
 - `LandingPageTemplate.tsx` - Homepage layout
 - `DashboardTemplate.tsx` - Dashboard with sidebar and main content
 - `AuthTemplate.tsx` - Authentication flow layout
 
 **Guidelines:**
+
 - Use primarily for page composition
 - Accept content/organisms as children
 - Handle page-level routing and state
@@ -94,6 +102,7 @@ Page-level layouts that compose organisms into complete page structures. These t
 Feature-specific component collections organized by feature domain. These house all components for a particular feature.
 
 **Structure:**
+
 ```
 features/
 ├── certificates/
@@ -116,6 +125,7 @@ features/
 ```
 
 **Guidelines:**
+
 - Group all related feature components together
 - Feature components can span atoms → organisms
 - Include `index.ts` for convenient imports
@@ -127,6 +137,7 @@ features/
 Provider components, helpers, and utilities that support the component hierarchy.
 
 **Examples:**
+
 - `ThemeProvider.tsx` - Theme context and toggle
 - `ToastProvider.tsx` - Toast notification system
 - `ErrorBoundary.tsx` - Error boundary wrapper
@@ -134,6 +145,7 @@ Provider components, helpers, and utilities that support the component hierarchy
 - `LanguageProvider.tsx` - i18n provider
 
 **Guidelines:**
+
 - Wrap application at root level
 - Provide global state/context
 - Handle cross-cutting concerns
@@ -144,25 +156,29 @@ Provider components, helpers, and utilities that support the component hierarchy
 ### Import Patterns
 
 **Bad (deep imports):**
+
 ```tsx
-import Button from '../../../atoms/Button';
-import { SearchField } from '../../molecules/SearchField';
+import Button from "../../../atoms/Button";
+import { SearchField } from "../../molecules/SearchField";
 ```
 
 **Good (use index files):**
+
 ```tsx
-import { Button } from '@/components/atoms';
-import { SearchField } from '@/components/molecules';
+import { Button } from "@/components/atoms";
+import { SearchField } from "@/components/molecules";
 ```
 
 **Best (feature imports):**
+
 ```tsx
-import { CertificateLookup, CertificateExporter } from '@/components/features/certificates';
+import { CertificateLookup, CertificateExporter } from "@/components/features/certificates";
 ```
 
 ### Path Aliases
 
 Configure in `tsconfig.json`:
+
 ```json
 {
   "compilerOptions": {
@@ -182,12 +198,12 @@ Configure in `tsconfig.json`:
 
 ### Typical Component File
 
-```typescript
+````typescript
 /**
  * ComponentName.tsx
- * 
+ *
  * Brief description of component purpose.
- * 
+ *
  * @example
  * ```tsx
  * <ComponentName prop="value" />
@@ -227,14 +243,14 @@ export function ComponentName({
 }
 
 export default ComponentName;
-```
+````
 
 ### With Hooks/Logic
 
 ```typescript
 /**
  * ComplexComponent.tsx
- * 
+ *
  * Description with any hooks used.
  */
 
@@ -270,29 +286,31 @@ export function ComplexComponent({ onSubmit }: ComplexComponentProps) {
 Each category should export all components via an `index.ts`:
 
 **components/atoms/index.ts:**
+
 ```typescript
 // UI Primitives
-export { Button, type ButtonProps } from './Button';
-export { Badge, type BadgeProps } from './Badge';
-export { Avatar, type AvatarProps } from './Avatar';
-export { Spinner } from './Spinner';
-export { Tooltip, type TooltipProps } from './Tooltip';
+export { Button, type ButtonProps } from "./Button";
+export { Badge, type BadgeProps } from "./Badge";
+export { Avatar, type AvatarProps } from "./Avatar";
+export { Spinner } from "./Spinner";
+export { Tooltip, type TooltipProps } from "./Tooltip";
 
 // Form Inputs
-export { FormInput, type FormInputProps } from './FormInput';
-export { Checkbox } from './Checkbox';
-export { RadioButton } from './RadioButton';
+export { FormInput, type FormInputProps } from "./FormInput";
+export { Checkbox } from "./Checkbox";
+export { RadioButton } from "./RadioButton";
 
 // Layout
-export { EmptyState, type EmptyStateProps } from './EmptyState';
+export { EmptyState, type EmptyStateProps } from "./EmptyState";
 ```
 
 **components/molecules/index.ts:**
+
 ```typescript
-export { SearchField, type SearchFieldProps } from './SearchField';
-export { CertificateCard, type CertificateCardProps } from './CertificateCard';
-export { StatusIndicator } from './StatusIndicator';
-export { FormGroup, type FormGroupProps } from './FormGroup';
+export { SearchField, type SearchFieldProps } from "./SearchField";
+export { CertificateCard, type CertificateCardProps } from "./CertificateCard";
+export { StatusIndicator } from "./StatusIndicator";
+export { FormGroup, type FormGroupProps } from "./FormGroup";
 ```
 
 ## Component Testing
@@ -314,17 +332,23 @@ components/
 ### Test Organization
 
 ```typescript
-describe('Button Component', () => {
-  describe('rendering', () => {
-    it('renders button text', () => { /* ... */ });
+describe("Button Component", () => {
+  describe("rendering", () => {
+    it("renders button text", () => {
+      /* ... */
+    });
   });
 
-  describe('variants', () => {
-    it('applies primary variant styles', () => { /* ... */ });
+  describe("variants", () => {
+    it("applies primary variant styles", () => {
+      /* ... */
+    });
   });
 
-  describe('interactions', () => {
-    it('calls onClick handler when clicked', () => { /* ... */ });
+  describe("interactions", () => {
+    it("calls onClick handler when clicked", () => {
+      /* ... */
+    });
   });
 });
 ```

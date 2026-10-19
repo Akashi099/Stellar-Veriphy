@@ -1,6 +1,6 @@
 # Continuous Deployment Pipeline
 
-This documents [`.github/workflows/deploy.yml`](../../.github/workflows/deploy.yml), which builds and deploys the StellarVeriphy frontend. It's separate from [`.github/workflows/ci.yml`](../../.github/workflows/ci.yml) ([`docs/ci/CI.md`](../ci/CI.md)), which only lints/builds/tests — `deploy.yml` only runs once CI-equivalent checks on `main` have a green history, and doesn't re-run the test suite itself. Closes #271.
+This documents the deployment workflow, which builds and deploys the StellarVeriphy frontend. It's separate from the CI workflow (see [`docs/ci/CI.md`](../ci/CI.md)), which only lints/builds/tests — deployment only runs once CI-equivalent checks on `main` have a green history, and doesn't re-run the test suite itself. Closes #271.
 
 ## Pipeline overview
 
@@ -52,9 +52,11 @@ The SSH host referenced by `DEPLOY_HOST` must have:
 
 ## Blue-green strategy
 
-See [`scripts/deploy/blue-green-deploy.sh`](../../scripts/deploy/blue-green-deploy.sh) for the implementation. Summary: two containers, `stellarveriphy-blue` and `stellarveriphy-green`, run on fixed host ports (8081/8082 by default). Each deploy starts the _inactive_ color, waits for Docker's own healthcheck (already defined in the `Dockerfile`, hitting `/api/health`) to report `healthy`, and only then flips the nginx upstream + a state file to point at it. If the health check times out, the new container is torn down and the previously-active color is never touched — so a bad deploy never reaches live traffic in the first place.
+See the blue-green deploy script for the implementation. Summary: two containers, `stellarveriphy-blue` and `stellarveriphy-green`, run on fixed host ports (8081/8082 by default). Each deploy starts the _inactive_ color, waits for Docker's own healthcheck (already defined in the `Dockerfile`, hitting `/api/health`) to report `healthy`, and only then flips the nginx upstream + a state file to point at it. If the health check times out, the new container is torn down and the previously-active color is never touched — so a bad deploy never reaches live traffic in the first place.
 
 ## Rollback
+
+The step-by-step operator checklist (decide, roll back, verify) is in [`../operations/rollback-checklist.md`](../operations/rollback-checklist.md).
 
 Two distinct paths:
 

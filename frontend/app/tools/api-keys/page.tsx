@@ -19,6 +19,10 @@ export default function APIKeysPage() {
         <Breadcrumbs />
       </div>
       <div className="max-w-5xl mx-auto px-6 py-12">
+        <p className="mb-6 rounded-lg border border-blue-200 bg-blue-50 p-4 text-sm text-blue-900 dark:border-blue-800 dark:bg-blue-900/20 dark:text-blue-200">
+          Keys on this page are stored in your browser only. Server-enforced tokens with expiry, rotation and
+          surface-scoped access are managed at <a href="/admin/api-tokens" className="underline">Admin → API Tokens</a>.
+        </p>
         {!connected ? (
           <div className="text-center py-20">
             <div className="inline-flex items-center justify-center w-20 h-20 rounded-full bg-blue-100 dark:bg-blue-900/30 mb-6">

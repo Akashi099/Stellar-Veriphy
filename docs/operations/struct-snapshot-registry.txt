@@ -1,0 +1,14 @@
+# Persisted struct fields for registry — 2026-10-19T03:31:10Z
+ProviderInfo	pub description: String
+ProviderInfo	pub name: String
+ProviderInfo	pub status: ProviderStatus
+ProviderInfo	pub tier: ServiceTier
+ProviderInfo	pub website: Option<String>
+ProviderReputation	pub failed_count: u64
+ProviderReputation	pub last_updated: u64
+ProviderReputation	pub score: u32
+ProviderReputation	pub successful_count: u64
+ProviderReputation	pub total_verifications: u64
+TeeHashRecord	pub added_at: u64
+TeeHashRecord	pub expires_at: u64
+TeeHashRecord	pub rotated: bool

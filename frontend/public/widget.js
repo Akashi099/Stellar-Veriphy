@@ -124,7 +124,7 @@
         onmouseover="this.style.opacity='0.9'"
         onmouseout="this.style.opacity='1'"
       >
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <svg aria-hidden="true" focusable="false" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
           <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
           <path d="M9 12l2 2 4-4"/>
         </svg>
@@ -156,7 +156,7 @@
         onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='0 4px 12px rgba(0, 0, 0, 0.15)'"
       >
         <div style="display: flex; align-items: center; gap: 12px;">
-          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <svg aria-hidden="true" focusable="false" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
             <path d="M9 12l2 2 4-4"/>
           </svg>
@@ -196,7 +196,7 @@
         onmouseout="this.style.boxShadow='0 4px 12px rgba(0, 0, 0, 0.08)'; this.style.transform='translateY(0)'"
       >
         <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 12px;">
-          <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="${config.primaryColor}" stroke-width="2">
+          <svg aria-hidden="true" focusable="false" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="${config.primaryColor}" stroke-width="2">
             <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
             <path d="M9 12l2 2 4-4"/>
           </svg>
@@ -243,7 +243,7 @@
         onmouseover="this.style.transform='scale(1.05)'"
         onmouseout="this.style.transform='scale(1)'"
       >
-        <svg width="80" height="80" viewBox="0 0 24 24" fill="${config.primaryColor}" stroke="${config.textColor}" stroke-width="1.5">
+        <svg aria-hidden="true" focusable="false" width="80" height="80" viewBox="0 0 24 24" fill="${config.primaryColor}" stroke="${config.textColor}" stroke-width="1.5">
           <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
           <path d="M9 12l2 2 4-4" stroke-width="2"/>
         </svg>
@@ -313,7 +313,7 @@
         color: #dc2626;
         font-size: 14px;
       ">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <svg aria-hidden="true" focusable="false" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
           <circle cx="12" cy="12" r="10"/>
           <line x1="12" y1="8" x2="12" y2="12"/>
           <line x1="12" y1="16" x2="12.01" y2="16"/>

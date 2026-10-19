@@ -1,0 +1,106 @@
+# Prometheus alert rules for the StellarVeriphy backend.
+# Runbooks: docs/operations/{health-checks,job-queue,data-retention,database-indexes}.md
+groups:
+  - name: dependencies
+    rules:
+      - alert: CriticalDependencyDown
+        expr: max by (dependency) (sv_dependency_health{critical="true"}) == 0
+        for: 1m
+        labels: { severity: page }
+        annotations:
+          summary: "Critical dependency {{ $labels.dependency }} is down"
+          description: "Pods are failing readiness. See GET /health for the error and remediation hint."
+          runbook: docs/operations/health-checks.md#recovery-and-retries
+
+      - alert: DependencyDown
+        expr: max by (dependency) (sv_dependency_health{critical="false"}) == 0
+        for: 5m
+        labels: { severity: warning }
+        annotations:
+          summary: "Dependency {{ $labels.dependency }} has been down for 5 minutes"
+          description: "Dependent jobs are retrying with backoff. Check GET /health and the 'dependency down' log for the reason."
+          runbook: docs/operations/health-checks.md#recovery-and-retries
+
+      - alert: DependencyDegraded
+        expr: max by (dependency) (sv_dependency_health) == 1
+        for: 15m
+        labels: { severity: warning }
+        annotations:
+          summary: "Dependency {{ $labels.dependency }} degraded for 15 minutes"
+          runbook: docs/operations/health-checks.md#dependencies
+
+      - alert: DependencyHealthChecksStale
+        expr: time() - max by (dependency) (sv_dependency_last_success_timestamp_seconds) > 600
+        labels: { severity: warning }
+        annotations:
+          summary: "No successful health check for {{ $labels.dependency }} in 10 minutes"
+
+  - name: job-queue
+    rules:
+      - alert: JobBacklogGrowing
+        expr: max by (queue) (sv_job_oldest_ready_age_seconds) > 600
+        for: 10m
+        labels: { severity: warning }
+        annotations:
+          summary: "Oldest ready {{ $labels.queue }} job has waited over 10 minutes"
+          description: "Workers are down, saturated, or the queue has no handlers."
+          runbook: docs/operations/job-queue.md#identifying-retry-loops-and-stalled-jobs
+
+      - alert: JobDeadLetterRate
+        expr: sum by (queue, type) (increase(sv_jobs_finished_total{outcome="dead"}[15m])) > 5
+        labels: { severity: warning }
+        annotations:
+          summary: "{{ $value }} {{ $labels.queue }}/{{ $labels.type }} jobs dead-lettered in 15m"
+          description: "Check topDeadErrors24h in GET /admin/jobs and sv_job_failures_total by code."
+          runbook: docs/operations/job-queue.md#tracing-a-failed-job-to-its-cause
+
+      - alert: JobFailureRatioHigh
+        expr: |
+          sum by (queue) (rate(sv_jobs_finished_total{outcome!="succeeded"}[15m]))
+            / sum by (queue) (rate(sv_jobs_finished_total[15m])) > 0.25
+        for: 15m
+        labels: { severity: warning }
+        annotations:
+          summary: "Over 25% of {{ $labels.queue }} job attempts are failing"
+
+      - alert: JobRetryLoop
+        expr: max by (queue) (sv_jobs_retry_loop_suspects) > 0
+        for: 30m
+        labels: { severity: warning }
+        annotations:
+          summary: "{{ $labels.queue }} has jobs stuck retrying"
+          runbook: docs/operations/job-queue.md#identifying-retry-loops-and-stalled-jobs
+
+      - alert: JobsStalling
+        expr: sum by (queue) (increase(sv_jobs_stalled_total[30m])) > 3
+        labels: { severity: warning }
+        annotations:
+          summary: "{{ $labels.queue }} jobs are stalling (workers crashing or hanging)"
+          runbook: docs/operations/job-queue.md#identifying-retry-loops-and-stalled-jobs
+
+  - name: retention
+    rules:
+      - alert: RetentionCleanupFailing
+        expr: sum by (task) (increase(sv_cleanup_runs_total{outcome="failure"}[3h])) > 0
+        labels: { severity: warning }
+        annotations:
+          summary: "Retention task {{ $labels.task }} is failing"
+          runbook: docs/operations/data-retention.md
+
+      - alert: RetentionCleanupNotRunning
+        expr: time() - max by (task) (sv_cleanup_last_success_timestamp_seconds) > 6 * 3600
+        labels: { severity: warning }
+        annotations:
+          summary: "Retention task {{ $labels.task }} has not succeeded in 6 hours"
+          runbook: docs/operations/data-retention.md#schedule
+
+  - name: database
+    rules:
+      - alert: SlowVerificationQueries
+        expr: sum by (collection, command) (rate(sv_db_slow_commands_total[10m])) > 0.1
+        for: 10m
+        labels: { severity: warning }
+        annotations:
+          summary: "Slow MongoDB {{ $labels.command }} on {{ $labels.collection }}"
+          description: "Look for 'slow mongodb command' logs to get the query shape, then explain() it."
+          runbook: docs/operations/database-indexes.md#observing-query-performance

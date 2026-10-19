@@ -24,8 +24,8 @@ The content manifest is the piece of JSON metadata attached to every asset submi
     "contentHash": {
       "type": "string",
       "description": "SHA-256 digest of the raw media file, prefixed with the algorithm name.",
-      "pattern": "^sha256:[a-f0-9]{64}$",
-      "examples": ["sha256:9f86d081884c7d659a2feaa0c55ad015a3bf4f1b2b0b822cd15d6c15b0f00a08"]
+      "pattern": "^[a-fA-F0-9]{64}$",
+      "examples": ["9f86d081884c7d659a2feaa0c55ad015a3bf4f1b2b0b822cd15d6c15b0f00a08"]
     },
     "creator": {
       "type": "string",
@@ -69,7 +69,7 @@ The content manifest is the piece of JSON metadata attached to every asset submi
 | Field | Type | Required | Description |
 |---|---|---|---|
 | `schemaVersion` | string | yes | Semver of the manifest schema this document conforms to. See [Versioning](#4-schema-versioning). |
-| `contentHash` | string | yes | `sha256:<hex>` digest of the raw media bytes. Computed with [`buildManifestHash`](../packages/shared/utils/hash.ts) style hashing — hash the file, not the manifest, for this field. |
+| `contentHash` | string | yes | 64-character hex SHA-256 digest of the raw media bytes, without a `sha256:` prefix. Computed with [`buildManifestHash`](../packages/shared/utils/hash.ts) style hashing — hash the file, not the manifest, for this field. |
 | `creator` | string | yes | Stellar `G...` public key identifying the submitting account. Must pass StrKey validation. |
 | `timestamp` | string | yes | ISO 8601 UTC datetime the manifest was assembled (not necessarily when the media was captured). |
 | `metadata` | object | no | Freeform capture context. Unknown keys are permitted so clients can attach extra context without a schema bump. |
@@ -79,11 +79,13 @@ The content manifest is the piece of JSON metadata attached to every asset submi
 
 ## 3. Validation Rules
 
-- **`contentHash`** must match `^sha256:[a-f0-9]{64}$`. Reject manifests where the recomputed hash of the submitted file doesn't match this field — that mismatch is exactly what the manifest is meant to prevent.
+- **`contentHash`** must match `^[a-fA-F0-9]{64}$` (bare hex). Input that carries a `sha256:` prefix is normalised before validation, but the stored value is bare hex. Reject manifests where the recomputed hash of the submitted file doesn't match this field — that mismatch is exactly what the manifest is meant to prevent.
 - **`creator`** must be a valid Stellar ed25519 public key (StrKey `G...`, 56 characters). Validate with the Stellar SDK's `StrKey.isValidEd25519PublicKey()` rather than the regex alone, since the regex only checks shape, not checksum.
 - **`timestamp`** must be a valid ISO 8601 date-time and should not be in the future relative to server receipt time (allow small clock-skew tolerance, e.g. ±5 minutes).
-- **`metadata`** is optional; when present, `additionalProperties: true` is intentional — do not tighten this without a schema version bump, since it would break existing producers.
+- **`metadata`** is optional and accepts only `device`, `location` and `aiModel`, each 1–256 characters (`additionalProperties: false` in the published v1 and v2 schemas). Adding a field needs a schema version bump.
 - Manifests are hashed for on-chain storage via `sha256(JSON.stringify(manifest))` (see [`buildManifestHash`](../packages/shared/utils/hash.ts)). Because `JSON.stringify` key ordering affects the hash, producers **must** serialize manifest keys in the order they appear in this schema's `properties` block so independent implementations reproduce the same `manifestHash`.
+
+- **Enforcement.** `validateUploadMetadata` (in `packages/shared/validation/upload.ts`) runs `validateManifestSchema(manifest, "v1")` on the normalised manifest before anything is stored. The check is strict, so a manifest that passes it matches the published schema exactly. See [`packages/shared/validation/manifestSchema.ts`](../packages/shared/validation/manifestSchema.ts).
 
 ## 4. Schema Versioning
 
@@ -100,7 +102,7 @@ Minimal (no optional metadata):
 ```json
 {
   "schemaVersion": "1.0.0",
-  "contentHash": "sha256:9f86d081884c7d659a2feaa0c55ad015a3bf4f1b2b0b822cd15d6c15b0f00a08",
+  "contentHash": "9f86d081884c7d659a2feaa0c55ad015a3bf4f1b2b0b822cd15d6c15b0f00a08",
   "creator": "GABCDEFGHIJKLMNOPQRSTUVWXYZ234567ABCDEFGHIJKLMNOPQRSTUVWXY2",
   "timestamp": "2026-03-15T17:00:00Z"
 }
@@ -111,7 +113,7 @@ Full example (photo capture):
 ```json
 {
   "schemaVersion": "1.0.0",
-  "contentHash": "sha256:9f86d081884c7d659a2feaa0c55ad015a3bf4f1b2b0b822cd15d6c15b0f00a08",
+  "contentHash": "9f86d081884c7d659a2feaa0c55ad015a3bf4f1b2b0b822cd15d6c15b0f00a08",
   "creator": "GABCDEFGHIJKLMNOPQRSTUVWXYZ234567ABCDEFGHIJKLMNOPQRSTUVWXY2",
   "timestamp": "2026-03-15T17:00:00Z",
   "metadata": {
@@ -127,7 +129,7 @@ AI-generated content example:
 ```json
 {
   "schemaVersion": "1.0.0",
-  "contentHash": "sha256:3b5d5c3712955042212316173ccf37be9b6d3e17e3b96f8f2e3b1a6ef2f4c5d",
+  "contentHash": "3b5d5c3712955042212316173ccf37be9b6d3e17e3b96f8f2e3b1a6ef2f4c5d",
   "creator": "GZYXWVUTSRQPONMLKJIHGFEDCBA234567ZYXWVUTSRQPONMLKJIHGFE234",
   "timestamp": "2026-03-15T18:22:41Z",
   "metadata": {

@@ -162,6 +162,22 @@
                   "map": [
                     {
                       "key": {
+                        "symbol": "description"
+                      },
+                      "val": {
+                        "string": ""
+                      }
+                    },
+                    {
+                      "key": {
+                        "symbol": "name"
+                      },
+                      "val": {
+                        "string": ""
+                      }
+                    },
+                    {
+                      "key": {
                         "symbol": "status"
                       },
                       "val": {
@@ -183,6 +199,12 @@
                           }
                         ]
                       }
+                    },
+                    {
+                      "key": {
+                        "symbol": "website"
+                      },
+                      "val": "void"
                     }
                   ]
                 }

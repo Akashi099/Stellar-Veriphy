@@ -1,3 +1,5 @@
+#![no_std]
+
 //! # StellarVeriphy — Registry Contract
 //!
 //! Maintains the on-chain registry of:
@@ -39,7 +41,6 @@
 //! assert!(approved);
 //! ```
 
-#![no_std]
 use soroban_sdk::{
     contract, contracterror, contractimpl, contracttype, symbol_short, Address, Bytes, BytesN, Env,
     String, Symbol, Vec,
@@ -68,6 +69,8 @@ mod provenance {
         pub version: u32,
     }
 
+    // Only the generated `ProvenanceClient` is used; the trait itself is never named.
+    #[allow(dead_code)]
     #[contractclient(name = "ProvenanceClient")]
     pub trait ProvenanceContract {
         fn mint(
@@ -419,6 +422,19 @@ pub struct RegistryContract;
 
 #[contractimpl]
 impl RegistryContract {
+    /// Register an approved TEE code hash.
+    pub fn register(env: Env, admin: soroban_sdk::Address, code_hash: Bytes) {
+        admin.require_auth();
+        env.storage().persistent().set(&code_hash, &true);
+        env.events()
+            .publish((Symbol::new(&env, "registered"),), code_hash);
+    }
+
+    /// Check if a TEE code hash is approved.
+    pub fn is_approved(env: Env, code_hash: Bytes) -> bool {
+        env.storage().persistent().get(&code_hash).unwrap_or(false)
+    }
+
     /// One-time initialisation.
     pub fn init(env: Env, admin: Address, provenance: Address) {
         if env.storage().instance().has(&DataKey::Admin) {
@@ -476,7 +492,9 @@ impl RegistryContract {
     /// Register an approved TEE code hash with a 180-day validity window.  #22 #23 #191
     pub fn add_tee_hash(env: Env, code_hash: BytesN<32>) {
         Self::require_admin(&env);
-        Self::add_tee_hash_internal(&env, code_hash);
+        Self::add_tee_hash_internal(&env, code_hash.clone());
+        env.events()
+            .publish((Symbol::new(&env, "tee_hash_added"),), code_hash);
     }
 
     // Shared storage-writing logic for `add_tee_hash`, factored out so
@@ -494,7 +512,9 @@ impl RegistryContract {
         };
         env.storage()
             .persistent()
-            .set(&DataKey::TeeHashInfo(code_hash), &record);
+            .set(&DataKey::TeeHashInfo(code_hash.clone()), &record);
+        env.events()
+            .publish((Symbol::new(env, "tee_hash_added"),), code_hash);
     }
 
     /// Check whether a TEE code hash is approved, not rotated and not expired.  #22 #23 #191
@@ -710,9 +730,9 @@ impl RegistryContract {
                 &ProviderInfo {
                     tier: ServiceTier::Basic,
                     status: ProviderStatus::Active,
-                    name: String::from_str(&env, ""),
+                    name: String::from_str(env, ""),
                     website: None,
-                    description: String::from_str(&env, ""),
+                    description: String::from_str(env, ""),
                 },
             );
             let mut list: Vec<BytesN<32>> = env
@@ -753,6 +773,14 @@ impl RegistryContract {
             .get(&DataKey::Provider(provider.clone()))
             .unwrap_or(false);
         if !registered {
+            return false;
+        }
+        // A blacklisted provider is never considered valid until whitelisted again.
+        if env
+            .storage()
+            .persistent()
+            .has(&DataKey::ProviderBlacklist(provider.clone()))
+        {
             return false;
         }
         let info: Option<ProviderInfo> = env
@@ -1605,7 +1633,7 @@ impl RegistryContract {
             .get(&DataKey::ProposalApprovals(proposal_id))
             .unwrap_or(Vec::new(&env));
 
-        if (approvals.len() as u32) < threshold {
+        if approvals.len() < threshold {
             return Err(Error::InsufficientApprovals);
         }
 
@@ -1663,10 +1691,9 @@ impl RegistryContract {
         info.description = description;
         env.storage()
             .persistent()
-            .set(&DataKey::ProviderInfo(provider), &info);
+            .set(&DataKey::ProviderInfo(provider.clone()), &info);
 
-        env.events()
-            .publish((symbol_short!("metadata"),), provider);
+        env.events().publish((symbol_short!("metadata"),), provider);
         Ok(())
     }
 
@@ -1687,7 +1714,7 @@ impl RegistryContract {
     pub fn get_provider_name(env: Env, provider: BytesN<32>) -> Result<String, Error> {
         env.storage()
             .persistent()
-            .get(&DataKey::ProviderInfo(provider))
+            .get::<DataKey, ProviderInfo>(&DataKey::ProviderInfo(provider))
             .map(|info| info.name)
             .ok_or(Error::ProviderNotFound)
     }
@@ -1696,7 +1723,7 @@ impl RegistryContract {
     pub fn get_provider_website(env: Env, provider: BytesN<32>) -> Result<Option<String>, Error> {
         env.storage()
             .persistent()
-            .get(&DataKey::ProviderInfo(provider))
+            .get::<DataKey, ProviderInfo>(&DataKey::ProviderInfo(provider))
             .map(|info| info.website)
             .ok_or(Error::ProviderNotFound)
     }
@@ -1705,7 +1732,7 @@ impl RegistryContract {
     pub fn get_provider_description(env: Env, provider: BytesN<32>) -> Result<String, Error> {
         env.storage()
             .persistent()
-            .get(&DataKey::ProviderInfo(provider))
+            .get::<DataKey, ProviderInfo>(&DataKey::ProviderInfo(provider))
             .map(|info| info.description)
             .ok_or(Error::ProviderNotFound)
     }
@@ -1899,7 +1926,7 @@ impl RegistryContract {
                 .persistent()
                 .get(&DataKey::ProviderGroups(provider.clone()))
                 .unwrap_or(Vec::new(&env));
-            if !groups.contains(&group_id) {
+            if !groups.contains(group_id) {
                 groups.push_back(group_id);
                 env.storage()
                     .persistent()
@@ -2010,6 +2037,61 @@ mod tests {
 
     fn hash32_with_value(env: &Env, value: u8) -> BytesN<32> {
         BytesN::from_array(env, &[value; 32])
+    }
+
+    #[cfg(test)]
+    mod property_tests {
+        extern crate std;
+        use super::*;
+        use quickcheck::quickcheck;
+
+        fn hash_from_values(env: &Env, values: &[u8]) -> BytesN<32> {
+            let mut out = [0u8; 32];
+            for (idx, value) in values.iter().take(32).enumerate() {
+                out[idx] = *value;
+            }
+            BytesN::from_array(env, &out)
+        }
+
+        quickcheck! {
+            fn prop_duplicate_tee_hash_registration_is_idempotent(values: std::vec::Vec<u8>) -> bool {
+                let (env, _admin, client) = setup();
+                let tee_hash = hash_from_values(&env, &values);
+
+                client.add_tee_hash(&tee_hash);
+                client.add_tee_hash(&tee_hash);
+
+                client.is_tee_hash_approved(&tee_hash)
+            }
+
+            fn prop_duplicate_provider_registration_keeps_single_entry(values: std::vec::Vec<u8>) -> bool {
+                let (env, _admin, client) = setup();
+                let provider = hash_from_values(&env, &values);
+
+                client.add_provider(&provider);
+                client.add_provider(&provider);
+
+                client.is_provider(&provider)
+                    && client.get_providers_by_min_reputation(&0).len() == 1
+            }
+
+            fn prop_provider_list_is_monotonic_for_unique_additions(values: std::vec::Vec<u8>) -> bool {
+                let (env, _admin, client) = setup();
+                let mut seen = 0u32;
+
+                for (index, value) in values.iter().take(12).enumerate() {
+                    let provider = hash_from_values(&env, &[*value, (index as u8), 0u8]);
+                    client.add_provider(&provider);
+                    let list = client.get_providers_by_min_reputation(&0);
+                    if list.len() < seen + 1 {
+                        return false;
+                    }
+                    seen = list.len();
+                }
+
+                true
+            }
+        }
     }
 
     // --- #22 / #23 tests ---
@@ -3105,3 +3187,10 @@ mod tests {
         assert_eq!(err, Error::GroupNotFound);
     }
 }
+
+// #654 — integration tests covering multi-step workflows, storage mutations,
+// event emission, and error paths across the registry contract.
+#[cfg(test)]
+mod integration_tests;
+#[cfg(test)]
+mod smoke_tests;

@@ -79,10 +79,7 @@ export class RequestDeduplicator<T = unknown> {
    * @param options.maxPendingTime - Maximum time (ms) to reuse a pending request
    * @param options.enableLogging - Enable debug logging
    */
-  constructor(options?: {
-    maxPendingTime?: number;
-    enableLogging?: boolean;
-  }) {
+  constructor(options?: { maxPendingTime?: number; enableLogging?: boolean }) {
     if (options?.maxPendingTime !== undefined) {
       this.maxPendingTime = options.maxPendingTime;
     }
@@ -110,10 +107,7 @@ export class RequestDeduplicator<T = unknown> {
    * );
    * ```
    */
-  async deduplicate(
-    key: string,
-    fetchFn: () => Promise<T>,
-  ): Promise<T> {
+  async deduplicate(key: string, fetchFn: () => Promise<T>): Promise<T> {
     const pending = this.pendingRequests.get(key);
 
     // Check if we have a pending request within the allowed window
@@ -252,7 +246,7 @@ export const globalDeduplicator = new RequestDeduplicator({
 export function createDedupFunction<Args extends unknown[], T>(
   fn: (...args: Args) => Promise<T>,
   keyGen: (...args: Args) => string,
-  deduplicator: RequestDeduplicator<T> = globalDeduplicator,
+  deduplicator: RequestDeduplicator<T> = globalDeduplicator as unknown as RequestDeduplicator<T>
 ): (...args: Args) => Promise<T> {
   return (...args: Args): Promise<T> => {
     const key = keyGen(...args);

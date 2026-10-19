@@ -15,6 +15,9 @@ set -euo pipefail
 #
 # Usage:
 #   STELLAR_NETWORK=testnet STELLAR_ACCOUNT=GDG... ./deploy.sh
+#
+# For branch preview deployments, only ever use testnet:
+# docs/deployment/preview-deployments.md#2-contracts-for-a-preview
 
 # Check required environment variables
 if [[ -z "${STELLAR_NETWORK:-}" ]]; then

@@ -5,6 +5,7 @@ Comprehensive guide for monitoring and optimizing application performance.
 ## Overview
 
 The performance monitoring system provides:
+
 - **Web Vitals tracking**: LCP, FID, CLS, TTFB, FCP
 - **Custom operation timing**: Measure any operation
 - **API latency tracking**: Monitor endpoint performance
@@ -16,13 +17,13 @@ The performance monitoring system provides:
 
 ### Web Vitals
 
-| Metric | Full Name | Threshold | Measures |
-|--------|-----------|-----------|----------|
-| **LCP** | Largest Contentful Paint | ≤ 2.5s | When largest content is visible |
-| **FID** | First Input Delay | ≤ 100ms | Responsiveness to user input |
-| **CLS** | Cumulative Layout Shift | ≤ 0.1 | Visual stability |
-| **TTFB** | Time to First Byte | ≤ 600ms | Server response time |
-| **FCP** | First Contentful Paint | ≤ 1.8s | When first content appears |
+| Metric   | Full Name                | Threshold | Measures                        |
+| -------- | ------------------------ | --------- | ------------------------------- |
+| **LCP**  | Largest Contentful Paint | ≤ 2.5s    | When largest content is visible |
+| **FID**  | First Input Delay        | ≤ 100ms   | Responsiveness to user input    |
+| **CLS**  | Cumulative Layout Shift  | ≤ 0.1     | Visual stability                |
+| **TTFB** | Time to First Byte       | ≤ 600ms   | Server response time            |
+| **FCP**  | First Contentful Paint   | ≤ 1.8s    | When first content appears      |
 
 ### Performance Data Flow
 
@@ -43,10 +44,10 @@ Analytics/Logging
 ### Measure Custom Operations
 
 ```typescript
-import { performanceTracker } from '@/lib/performance';
+import { performanceTracker } from "@/lib/performance";
 
 // Simple measurement
-const stop = performanceTracker.startMeasure('my_operation');
+const stop = performanceTracker.startMeasure("my_operation");
 
 // Do work
 await doSomething();
@@ -59,19 +60,17 @@ console.log(`Operation took ${duration}ms`);
 ### Track API Calls
 
 ```typescript
-import { performanceTracker, trackedFetch } from '@/lib/performance';
+import { performanceTracker, trackedFetch } from "@/lib/performance";
 
 // Manual tracking
 const start = performance.now();
-const response = await fetch('/api/certificates');
+const response = await fetch("/api/certificates");
 const duration = performance.now() - start;
-performanceTracker.trackApiCall('GET', '/api/certificates', duration);
+performanceTracker.trackApiCall("GET", "/api/certificates", duration);
 
 // Automatic tracking with wrapper
-const data = await trackedFetch(
-  'GET',
-  '/api/certificates',
-  () => fetch('/api/certificates').then(r => r.json())
+const data = await trackedFetch("GET", "/api/certificates", () =>
+  fetch("/api/certificates").then((r) => r.json())
 );
 ```
 
@@ -107,13 +106,13 @@ export function CertificateCard({ data }: Props) {
 ```typescript
 // Record metric with metadata
 performanceTracker.recordMetric({
-  name: 'certificate_verification',
+  name: "certificate_verification",
   value: 245,
-  unit: 'ms',
+  unit: "ms",
   timestamp: Date.now(),
   metadata: {
-    certificateId: 'cert-123',
-    verificationLevel: 'strict',
+    certificateId: "cert-123",
+    verificationLevel: "strict",
     success: true,
   },
 });
@@ -123,13 +122,13 @@ performanceTracker.recordMetric({
 
 ```typescript
 // Average API latency for specific endpoint
-const avgLatency = performanceTracker.getAverageApiLatency('/api/certificates');
+const avgLatency = performanceTracker.getAverageApiLatency("/api/certificates");
 
 // Average latency across all endpoints
 const overallLatency = performanceTracker.getAverageApiLatency();
 
 // Average render time for component
-const cardRenderTime = performanceTracker.getAverageRenderTime('CertificateCard');
+const cardRenderTime = performanceTracker.getAverageRenderTime("CertificateCard");
 
 // Full performance summary
 const summary = performanceTracker.getSummary();
@@ -149,7 +148,7 @@ console.log(summary);
 ### Check Performance Thresholds
 
 ```typescript
-import { checkWebVitalsThresholds } from '@/lib/performance';
+import { checkWebVitalsThresholds } from "@/lib/performance";
 
 const { passed, violations } = checkWebVitalsThresholds();
 
@@ -166,11 +165,11 @@ if (!passed) {
 ### Report Performance Metrics
 
 ```typescript
-import { reportPerformanceMetrics } from '@/lib/performance';
+import { reportPerformanceMetrics } from "@/lib/performance";
 
 // With callback
 reportPerformanceMetrics((summary) => {
-  console.log('Performance Report:', summary);
+  console.log("Performance Report:", summary);
   analyticsService.trackPerformance(summary);
 });
 
@@ -212,7 +211,7 @@ export function VerificationPanel() {
 
 ```typescript
 // services/certificateVerificationService.ts
-import { performanceTracker } from '@/lib/performance';
+import { performanceTracker } from "@/lib/performance";
 
 export async function verifyCertificateAuthenticity(id: string) {
   const stop = performanceTracker.startMeasure(`verify_authenticity_${id}`);
@@ -225,9 +224,9 @@ export async function verifyCertificateAuthenticity(id: string) {
     const duration = stop();
 
     performanceTracker.recordMetric({
-      name: 'certificate_verification_success',
+      name: "certificate_verification_success",
       value: duration,
-      unit: 'ms',
+      unit: "ms",
       timestamp: Date.now(),
       metadata: {
         certificateId: id,
@@ -238,15 +237,15 @@ export async function verifyCertificateAuthenticity(id: string) {
 
     return {
       authentic: hashValid && signatureValid,
-      details: ['Hash validated', 'Signature verified'],
+      details: ["Hash validated", "Signature verified"],
     };
   } catch (error) {
     const duration = stop();
-    
+
     performanceTracker.recordMetric({
-      name: 'certificate_verification_error',
+      name: "certificate_verification_error",
       value: duration,
-      unit: 'ms',
+      unit: "ms",
       timestamp: Date.now(),
       metadata: {
         certificateId: id,
@@ -262,12 +261,12 @@ export async function verifyCertificateAuthenticity(id: string) {
 ### With React Query
 
 ```typescript
-import { useQuery } from '@tanstack/react-query';
-import { performanceTracker } from '@/lib/performance';
+import { useQuery } from "@tanstack/react-query";
+import { performanceTracker } from "@/lib/performance";
 
 export function useCertificateById(id: string) {
   return useQuery({
-    queryKey: ['certificates', id],
+    queryKey: ["certificates", id],
     queryFn: async () => {
       const stop = performanceTracker.startMeasure(`fetch_cert_${id}`);
 
@@ -276,9 +275,9 @@ export function useCertificateById(id: string) {
         const duration = stop();
 
         performanceTracker.recordMetric({
-          name: 'certificate_fetch',
+          name: "certificate_fetch",
           value: duration,
-          unit: 'ms',
+          unit: "ms",
           timestamp: Date.now(),
           metadata: { certificateId: id, success: true },
         });
@@ -287,9 +286,9 @@ export function useCertificateById(id: string) {
       } catch (error) {
         const duration = stop();
         performanceTracker.recordMetric({
-          name: 'certificate_fetch_error',
+          name: "certificate_fetch_error",
           value: duration,
-          unit: 'ms',
+          unit: "ms",
           timestamp: Date.now(),
           metadata: { certificateId: id, error: error.message },
         });
@@ -304,11 +303,9 @@ export function useCertificateById(id: string) {
 
 ```typescript
 // middleware/performanceMiddleware.ts
-import { performanceTracker } from '@/lib/performance';
+import { performanceTracker } from "@/lib/performance";
 
-export function withPerformanceTracking(
-  handler: (req: Request) => Promise<Response>
-) {
+export function withPerformanceTracking(handler: (req: Request) => Promise<Response>) {
   return async (req: Request) => {
     const method = req.method;
     const endpoint = new URL(req.url).pathname;
@@ -342,11 +339,13 @@ export async function POST(request: Request) {
 ### Identifying Bottlenecks
 
 1. **Monitor Web Vitals**
+
    ```typescript
    checkWebVitalsThresholds(); // Check for violations
    ```
 
 2. **Track Slow Operations**
+
    ```typescript
    // Alert when render > 50ms
    performanceTracker.trackRender(component, time);
@@ -357,23 +356,24 @@ export async function POST(request: Request) {
    // Get slow endpoints
    const latency = performanceTracker.getAverageApiLatency(endpoint);
    if (latency > 300) {
-     logger.warn('Slow endpoint', { endpoint, latency });
+     logger.warn("Slow endpoint", { endpoint, latency });
    }
    ```
 
 ### Common Performance Issues & Solutions
 
-| Issue | Metric | Solution |
-|-------|--------|----------|
-| Slow initial load | High LCP | Code splitting, lazy loading |
-| Unresponsive UI | High FID | Reduce JS execution |
-| Layout shifts | High CLS | Fixed dimensions, content placeholders |
-| Slow API | High latency | Caching, pagination, optimization |
-| Slow render | High render time | Memoization, virtualization |
+| Issue             | Metric           | Solution                               |
+| ----------------- | ---------------- | -------------------------------------- |
+| Slow initial load | High LCP         | Code splitting, lazy loading           |
+| Unresponsive UI   | High FID         | Reduce JS execution                    |
+| Layout shifts     | High CLS         | Fixed dimensions, content placeholders |
+| Slow API          | High latency     | Caching, pagination, optimization      |
+| Slow render       | High render time | Memoization, virtualization            |
 
 ### Best Practices
 
 1. **Measure Real User Performance**
+
    ```typescript
    // Not synthetic/lab data
    reportPerformanceMetrics((summary) => {
@@ -382,14 +382,17 @@ export async function POST(request: Request) {
    ```
 
 2. **Set Performance Budgets**
+
    ```typescript
-   const latency = performanceTracker.getAverageApiLatency('/api/verify');
-   if (latency > 500) { // Budget exceeded
+   const latency = performanceTracker.getAverageApiLatency("/api/verify");
+   if (latency > 500) {
+     // Budget exceeded
      alertPerformanceDegradation();
    }
    ```
 
 3. **Monitor Continuously**
+
    ```typescript
    // Check Web Vitals regularly
    setInterval(() => {
@@ -399,8 +402,9 @@ export async function POST(request: Request) {
 
 4. **Optimize Before It's Critical**
    ```typescript
-   if (avgRenderTime > 50) { // Warn before it becomes a problem
-     logger.warn('Component render approaching threshold');
+   if (avgRenderTime > 50) {
+     // Warn before it becomes a problem
+     logger.warn("Component render approaching threshold");
    }
    ```
 
@@ -442,14 +446,14 @@ export default function RootLayout({
 ### Custom Handler for APM Integration
 
 ```typescript
-import { performanceTracker } from '@/lib/performance';
+import { performanceTracker } from "@/lib/performance";
 
 // Send performance data to service
 const performanceHandler = (metric: PerformanceMetric) => {
   // Send to DataDog, New Relic, etc.
   if (process.env.NEXT_PUBLIC_APM_ENDPOINT) {
     fetch(process.env.NEXT_PUBLIC_APM_ENDPOINT, {
-      method: 'POST',
+      method: "POST",
       body: JSON.stringify({
         name: metric.name,
         value: metric.value,
@@ -462,7 +466,7 @@ const performanceHandler = (metric: PerformanceMetric) => {
 };
 
 // Register handler (e.g., in app initialization)
-performanceTracker['onMetric'] = performanceHandler;
+performanceTracker["onMetric"] = performanceHandler;
 ```
 
 ### Monitor Thresholds
@@ -474,7 +478,7 @@ setInterval(() => {
 
   if (!passed) {
     violations.forEach(({ metric, value, threshold }) => {
-      logger.warn('Performance threshold exceeded', {
+      logger.warn("Performance threshold exceeded", {
         metric,
         value,
         threshold,

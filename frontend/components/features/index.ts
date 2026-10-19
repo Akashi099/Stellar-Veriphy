@@ -15,8 +15,8 @@
  */
 
 // Re-export feature collections
-export * as certificates from './certificates';
-export * as batch from './batch';
-export * as wallet from './wallet';
-export * as manifest from './manifest';
-export * as transactions from './transactions';
+export * as batch from "./batch";
+export * as certificates from "./certificates";
+export * as manifest from "./manifest";
+export * as transactions from "./transactions";
+export * as wallet from "./wallet";

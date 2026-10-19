@@ -1,3 +1,73 @@
+:root {
+  --fg: #1a1d23;
+  --muted: #5b6270;
+  --border: #d8dce3;
+  --bg: #ffffff;
+  --accent: #3b5bdb;
+  --error: #c92a2a;
+  --error-bg: #fff5f5;
+  --warning-bg: #fff9db;
+  --success: #2b8a3e;
+  --success-bg: #ebfbee;
+}
+
+* { box-sizing: border-box; }
+body { margin: 0; font-family: system-ui, sans-serif; color: var(--fg); background: var(--bg); line-height: 1.5; }
+main { max-width: 760px; margin: 0 auto; padding: 1.5rem 1rem 4rem; }
+a { color: var(--accent); }
+
+.nav { display: flex; flex-wrap: wrap; gap: 1rem; padding: 0.75rem 1rem; border-bottom: 1px solid var(--border); }
+.nav a:first-child { font-weight: 600; margin-right: auto; }
+
+.form { display: grid; gap: 1.25rem; }
+fieldset { border: 1px solid var(--border); border-radius: 8px; padding: 1rem; display: grid; gap: 0.75rem; }
+legend { font-weight: 600; padding: 0 0.25rem; }
+.field { display: grid; gap: 0.25rem; }
+.field label { font-weight: 500; }
+.field p { margin: 0; font-size: 0.875rem; }
+input[type="text"], input[type="datetime-local"], textarea {
+  font: inherit; padding: 0.5rem; border: 1px solid var(--border); border-radius: 6px; width: 100%;
+}
+.field-invalid input, .field-invalid textarea { border-color: var(--error); }
+
+button { font: inherit; padding: 0.5rem 1rem; border-radius: 6px; border: 1px solid var(--accent); background: var(--accent); color: #fff; cursor: pointer; justify-self: start; }
+button:disabled { opacity: 0.6; cursor: not-allowed; }
+button.secondary { background: transparent; color: var(--accent); }
+button.link { border: 0; background: none; color: var(--accent); padding: 0; text-decoration: underline; }
+
+.muted { color: var(--muted); }
+.error-text { color: var(--error); }
+.hint { color: var(--muted); }
+.hash { font-family: ui-monospace, monospace; font-size: 0.85em; word-break: break-all; }
+.hash-diff .diff { background: #ffc9c9; color: var(--error); font-weight: 700; }
+
+.notice { border-radius: 8px; padding: 0.75rem 1rem; margin: 0.5rem 0; }
+.notice p { margin: 0.25rem 0; }
+.notice-error { background: var(--error-bg); border: 1px solid #ffc9c9; }
+.notice-warning { background: var(--warning-bg); border: 1px solid #ffe066; }
+.notice-success { background: var(--success-bg); border: 1px solid #b2f2bb; }
+
+.card { border: 1px solid var(--border); border-radius: 8px; padding: 1rem; }
+.toolbar { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 0.5rem; margin-bottom: 0.75rem; }
+.job-list { list-style: none; padding: 0; display: grid; gap: 1rem; }
+.job-header { display: flex; justify-content: space-between; align-items: center; gap: 0.5rem; }
+
+.badge { font-size: 0.8rem; font-weight: 600; padding: 0.1rem 0.6rem; border-radius: 999px; }
+.badge-pending { background: #e9ecef; color: #343a40; }
+.badge-processing { background: #dbe4ff; color: #1c3faa; }
+.badge-certified { background: var(--success-bg); color: #1b6e2f; }
+.badge-failed { background: var(--error-bg); color: #a61e1e; }
+
+.steps { display: flex; list-style: none; padding: 0; margin: 0.5rem 0; gap: 0.25rem; }
+.step { flex: 1; text-align: center; font-size: 0.85rem; padding: 0.35rem; border-top: 4px solid var(--border); color: var(--muted); }
+.step-done { border-color: var(--success); color: var(--success); }
+.step-current { border-color: var(--accent); color: var(--accent); font-weight: 600; }
+.step-failed { border-color: var(--error); color: var(--error); font-weight: 600; }
+
+.details { display: grid; grid-template-columns: max-content 1fr; gap: 0.35rem 1rem; }
+.details dt { font-weight: 600; }
+.details dd { margin: 0; min-width: 0; }
+@media (max-width: 520px) { .details { grid-template-columns: 1fr; } }
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -50,7 +120,7 @@
     --destructive-foreground: 210 40% 98%;
     --border: 217.2 32.6% 17.5%;
     --input: 217.2 32.6% 17.5%;
-    --ring: 224.3 76.3% 48%;
+    --ring: 217.2 91.2% 59.8%;
     --chart-1: 220 70% 50%;
     --chart-2: 160 60% 45%;
     --chart-3: 30 80% 55%;
@@ -123,6 +193,11 @@
 }
 
 @layer utilities {
+  button:focus-visible:not(:disabled) {
+    outline: none;
+    box-shadow: 0 0 0 2px hsl(var(--background)), 0 0 0 4px hsl(var(--ring));
+  }
+
   /* Hide scrollbar but keep functionality */
   .scrollbar-hide {
     -ms-overflow-style: none;

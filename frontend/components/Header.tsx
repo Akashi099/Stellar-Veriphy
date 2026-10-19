@@ -1,23 +1,22 @@
 "use client";
 
 import Link from "next/link";
+
+import { APIHealthIndicator } from "@/components/APIHealthIndicator";
 import { MobileNav } from "@/components/MobileNav";
 import { NotificationBell } from "@/components/notifications";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { useWallet } from "@/context/WalletContext";
+import { renderTextWithLink } from "@/utils/renderTextWithLink";
 
 export function Header() {
-  const { connected, publicKey, connect, disconnect } = useWallet();
+  const { connected, publicKey, connect, disconnect, error, clearError } = useWallet();
 
   const handleWalletClick = async () => {
     if (connected) {
       disconnect();
     } else {
-      try {
-        await connect("freighter");
-      } catch (error) {
-        console.error("Failed to connect wallet:", error);
-      }
+      await connect("freighter");
     }
   };
 
@@ -26,6 +25,8 @@ export function Header() {
     { href: "/verify", label: "Verify" },
     { href: "/manifest", label: "Manifest" },
     { href: "/builder", label: "Builder" },
+    { href: "/certificates", label: "Certificates" },
+    { href: "/oracles", label: "Oracles" },
     { href: "/transactions", label: "Transactions" },
     { href: "/tools", label: "Tools" },
   ];
@@ -74,16 +75,34 @@ export function Header() {
 
           {/* Right Section */}
           <div className="hidden md:flex items-center gap-4" role="group" aria-label="User actions">
+            <APIHealthIndicator className="text-gray-300" />
             <ThemeToggle />
             <NotificationBell />
-            <button
-              onClick={handleWalletClick}
-              className="px-4 py-2 rounded-lg bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white font-medium transition-all focus:outline-none focus:ring-2 focus:ring-white focus:ring-offset-2 focus:ring-offset-black focus:scale-105 min-h-[44px] min-w-[44px]"
-              aria-label={connected ? "Disconnect wallet" : "Connect wallet"}
-              aria-pressed={connected}
-            >
-              {connected ? `${publicKey?.slice(0, 6)}...${publicKey?.slice(-4)}` : "Connect Wallet"}
-            </button>
+            <div className="relative">
+              <button
+                onClick={handleWalletClick}
+                className="px-4 py-2 rounded-lg bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white font-medium transition-all focus:outline-none focus:ring-2 focus:ring-white focus:ring-offset-2 focus:ring-offset-black focus:scale-105 min-h-[44px] min-w-[44px]"
+                aria-label={connected ? "Disconnect wallet" : "Connect wallet"}
+                aria-pressed={connected}
+              >
+                {connected ? `${publicKey?.slice(0, 6)}...${publicKey?.slice(-4)}` : "Connect Wallet"}
+              </button>
+              {error && (
+                <div
+                  role="alert"
+                  className="absolute right-0 top-full mt-2 flex w-72 items-start gap-2 rounded-lg border border-red-700 bg-red-900/95 backdrop-blur-sm px-3 py-2.5 text-xs text-red-200 shadow-xl"
+                >
+                  <p className="flex-1">{renderTextWithLink(error, "underline hover:text-red-100")}</p>
+                  <button
+                    onClick={clearError}
+                    aria-label="Dismiss error"
+                    className="shrink-0 text-red-400 hover:text-red-100 transition-colors leading-none"
+                  >
+                    ✕
+                  </button>
+                </div>
+              )}
+            </div>
           </div>
 
           {/* Mobile Menu Button */}

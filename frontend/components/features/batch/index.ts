@@ -9,4 +9,4 @@
  * ```
  */
 
-export { BatchVerificationPanel } from '../../batch/BatchVerificationPanel';
+export { BatchVerificationPanel } from "../../batch/BatchVerificationPanel";

@@ -1,0 +1,15 @@
+{
+  "$comment": "Expected public configuration for branch preview deployments (docs/deployment/preview-deployments.md).",
+  "environment": "preview",
+  "url": "http://localhost:4100",
+  "expected": {
+    "NODE_ENV": "production",
+    "NEXT_PUBLIC_APP_ENV": "preview",
+    "NEXT_PUBLIC_NETWORK": "testnet",
+    "NEXT_PUBLIC_RPC_URL": "https://soroban-testnet.stellar.org"
+  },
+  "required": [],
+  "forbidden": {
+    "NEXT_PUBLIC_NETWORK": ["mainnet"]
+  }
+}

@@ -67,6 +67,21 @@ export function Footer() {
               powered by the Stellar blockchain and Soroban smart contracts.
             </p>
 
+            {/* Documentation Quick Link */}
+            <div className="pt-4 mt-4 border-t border-slate-200 dark:border-slate-800">
+              <Link
+                href="/docs"
+                className="inline-flex items-center gap-2 px-3 py-2 rounded-lg bg-blue-50 dark:bg-blue-950/40 text-blue-700 dark:text-blue-300 hover:bg-blue-100 dark:hover:bg-blue-900/60 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm font-medium"
+                aria-label="Read project documentation for getting started"
+              >
+                <span>📖</span>
+                <span>Read the Docs</span>
+              </Link>
+              <p className="text-xs text-slate-500 dark:text-slate-400 mt-2">
+                Get started with guides and API reference
+              </p>
+            </div>
+
             {/* Network / Status Badge */}
             <div className="flex items-center gap-2 pt-2 text-xs font-medium text-slate-500 dark:text-slate-400">
               <span className="relative flex h-2 w-2">
@@ -212,7 +227,11 @@ export function Footer() {
                       href={link.href}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="hover:text-blue-600 dark:hover:text-blue-400 transition-colors focus:outline-none focus:underline inline-flex items-center gap-1"
+                      className={`transition-colors focus:outline-none focus:underline inline-flex items-center gap-1 ${
+                        link.label === "Documentation"
+                          ? "font-semibold text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300"
+                          : "hover:text-blue-600 dark:hover:text-blue-400"
+                      }`}
                     >
                       {link.label}
                       <span aria-hidden="true" className="text-xs">
@@ -222,7 +241,11 @@ export function Footer() {
                   ) : (
                     <Link
                       href={link.href}
-                      className="hover:text-blue-600 dark:hover:text-blue-400 transition-colors focus:outline-none focus:underline"
+                      className={`transition-colors focus:outline-none focus:underline ${
+                        link.label === "Documentation"
+                          ? "font-semibold text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300"
+                          : "hover:text-blue-600 dark:hover:text-blue-400"
+                      }`}
                     >
                       {link.label}
                     </Link>

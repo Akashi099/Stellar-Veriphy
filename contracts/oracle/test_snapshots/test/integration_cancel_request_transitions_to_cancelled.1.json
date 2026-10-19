@@ -171,6 +171,12 @@
                   "map": [
                     {
                       "key": {
+                        "symbol": "comment"
+                      },
+                      "val": "void"
+                    },
+                    {
+                      "key": {
                         "symbol": "manifest_hash"
                       },
                       "val": {
@@ -861,6 +867,12 @@
             ],
             "data": {
               "map": [
+                {
+                  "key": {
+                    "symbol": "comment"
+                  },
+                  "val": "void"
+                },
                 {
                   "key": {
                     "symbol": "manifest_hash"

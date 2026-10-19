@@ -182,35 +182,37 @@ export function CertificateHistoryTimelineView({
   }
 
   return (
-    <div className="w-full max-w-5xl mx-auto p-6 space-y-6">
+    <div className="w-full max-w-5xl mx-auto p-4 sm:p-6 space-y-4 sm:space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h2 className="text-2xl font-bold text-gray-900 dark:text-white">Certificate Timeline</h2>
-          <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <div className="min-w-0">
+          <h2 className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-white break-words">
+            Certificate Timeline
+          </h2>
+          <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400 mt-1 break-all">
             Certificate ID: <span className="font-mono">{certificateId}</span>
           </p>
         </div>
 
         {/* Actions */}
-        <div className="flex items-center gap-2">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2 flex-shrink-0">
           {/* Filter */}
           <div className="relative">
             <button
               onClick={() => setShowFilterMenu(!showFilterMenu)}
-              className="inline-flex items-center gap-2 px-4 py-2 bg-gray-100 dark:bg-gray-800 text-gray-900 dark:text-white rounded-lg hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors"
+              className="w-full sm:w-auto inline-flex items-center justify-center gap-1 sm:gap-2 px-3 sm:px-4 py-2 bg-gray-100 dark:bg-gray-800 text-gray-900 dark:text-white text-sm rounded-lg hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors"
             >
-              <Filter className="w-4 h-4" />
-              Filter
+              <Filter className="w-4 h-4 flex-shrink-0" />
+              <span>Filter</span>
               {filterType !== "all" && (
-                <span className="ml-1 px-2 py-0.5 bg-blue-600 text-white text-xs rounded-full">
+                <span className="ml-0 sm:ml-1 px-2 py-0.5 bg-blue-600 text-white text-xs rounded-full flex-shrink-0">
                   {filterType}
                 </span>
               )}
             </button>
 
             {showFilterMenu && (
-              <div className="absolute right-0 mt-2 w-48 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg z-10">
+              <div className="absolute left-0 sm:right-0 mt-2 w-48 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg z-10">
                 {[
                   "all",
                   "minted",
@@ -243,18 +245,18 @@ export function CertificateHistoryTimelineView({
           {/* Export */}
           <button
             onClick={exportAsImage}
-            className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+            className="w-full sm:w-auto inline-flex items-center justify-center gap-1 sm:gap-2 px-3 sm:px-4 py-2 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700 transition-colors"
             title="Export as Image"
           >
-            <Download className="w-4 h-4" />
-            Export
+            <Download className="w-4 h-4 flex-shrink-0" />
+            <span>Export</span>
           </button>
         </div>
       </div>
 
       {/* Event Count */}
       {filterType !== "all" && (
-        <div className="text-sm text-gray-600 dark:text-gray-400">
+        <div className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">
           Showing {filteredEvents.length} of {events.length} events
         </div>
       )}
@@ -262,46 +264,48 @@ export function CertificateHistoryTimelineView({
       {/* Timeline */}
       <div ref={timelineRef} className="relative">
         {/* Vertical line */}
-        <div className="absolute left-8 top-0 bottom-0 w-0.5 bg-gray-200 dark:bg-gray-700" />
+        <div className="absolute left-4 sm:left-8 top-0 bottom-0 w-0.5 bg-gray-200 dark:bg-gray-700" />
 
-        <div className="space-y-6">
+        <div className="space-y-4 sm:space-y-6">
           {filteredEvents.map((event, idx) => {
             const style = getEventStyle(event.action);
             const isExpanded = expandedEvents.has(event.id);
             const isLast = idx === filteredEvents.length - 1;
 
             return (
-              <div key={event.id} className="relative flex gap-6 group">
+              <div key={event.id} className="relative flex gap-3 sm:gap-6 group">
                 {/* Event icon */}
                 <div
-                  className={`relative z-10 flex-shrink-0 w-16 h-16 flex items-center justify-center rounded-full ring-4 ring-white dark:ring-gray-900 ${style.bg}`}
+                  className={`relative z-10 flex-shrink-0 w-10 sm:w-16 h-10 sm:h-16 flex items-center justify-center rounded-full ring-4 ring-white dark:ring-gray-900 ${style.bg}`}
                 >
-                  <span className="text-2xl">{style.icon}</span>
+                  <span className="text-lg sm:text-2xl">{style.icon}</span>
                 </div>
 
                 {/* Event card */}
                 <div className="flex-1 pb-8">
+                  <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-sm hover:shadow-md transition-shadow duration-200 ease-out motion-reduce:transition-none">
+                <div className="flex-1 pb-4 sm:pb-8">
                   <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-sm hover:shadow-md transition-shadow">
                     {/* Event header */}
-                    <div className="p-4 cursor-pointer" onClick={() => toggleExpand(event.id)}>
-                      <div className="flex items-start justify-between gap-4">
-                        <div className="flex-1">
-                          <div className="flex items-center gap-3">
-                            <h3 className={`text-lg font-semibold ${style.color}`}>
+                    <div className="p-3 sm:p-4 cursor-pointer" onClick={() => toggleExpand(event.id)}>
+                      <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-2 sm:gap-4">
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-1 sm:gap-3 flex-wrap">
+                            <h3 className={`text-base sm:text-lg font-semibold ${style.color} break-words`}>
                               {style.label}
                             </h3>
-                            <ArrowRight className="w-4 h-4 text-gray-400" />
+                            <ArrowRight className="w-4 h-4 text-gray-400 hidden sm:inline flex-shrink-0" />
                           </div>
 
-                          <div className="mt-2 text-sm text-gray-600 dark:text-gray-400">
-                            <div className="flex items-center gap-2">
-                              <Calendar className="w-4 h-4" />
+                          <div className="mt-1 sm:mt-2 text-xs sm:text-sm text-gray-600 dark:text-gray-400">
+                            <div className="flex items-center gap-1 sm:gap-2 break-all">
+                              <Calendar className="w-4 h-4 flex-shrink-0" />
                               {formatDateTime(event.timestamp)}
                             </div>
                           </div>
 
                           {event.modifier && (
-                            <div className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                            <div className="mt-0.5 sm:mt-1 text-xs text-gray-500 dark:text-gray-400 break-all">
                               by{" "}
                               <span className="font-mono text-gray-700 dark:text-gray-300">
                                 {truncateAddress(event.modifier)}
@@ -310,11 +314,11 @@ export function CertificateHistoryTimelineView({
                           )}
                         </div>
 
-                        <button className="p-1 hover:bg-gray-100 dark:hover:bg-gray-700 rounded transition-colors">
+                        <button className="p-1 hover:bg-gray-100 dark:hover:bg-gray-700 rounded transition-colors flex-shrink-0">
                           {isExpanded ? (
-                            <ChevronUp className="w-5 h-5 text-gray-400" />
+                            <ChevronUp className="w-4 h-4 sm:w-5 sm:h-5 text-gray-400" />
                           ) : (
-                            <ChevronDown className="w-5 h-5 text-gray-400" />
+                            <ChevronDown className="w-4 h-4 sm:w-5 sm:h-5 text-gray-400" />
                           )}
                         </button>
                       </div>
@@ -322,8 +326,8 @@ export function CertificateHistoryTimelineView({
 
                     {/* Expanded details */}
                     {isExpanded && event.details && (
-                      <div className="px-4 pb-4 pt-0 border-t border-gray-100 dark:border-gray-700">
-                        <div className="mt-3 text-sm text-gray-700 dark:text-gray-300 bg-gray-50 dark:bg-gray-900/50 rounded p-3">
+                      <div className="px-3 sm:px-4 pb-3 sm:pb-4 pt-0 border-t border-gray-100 dark:border-gray-700">
+                        <div className="mt-2 sm:mt-3 text-xs sm:text-sm text-gray-700 dark:text-gray-300 bg-gray-50 dark:bg-gray-900/50 rounded p-2 sm:p-3 break-words">
                           <p className="font-medium mb-1">Details:</p>
                           <p>{event.details}</p>
                         </div>
@@ -339,10 +343,10 @@ export function CertificateHistoryTimelineView({
 
       {/* Load More */}
       {hasMore && onLoadMore && (
-        <div className="text-center pt-4">
+        <div className="text-center pt-2 sm:pt-4">
           <button
             onClick={onLoadMore}
-            className="px-6 py-2 bg-gray-100 dark:bg-gray-800 text-gray-900 dark:text-white rounded-lg hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors"
+            className="px-4 sm:px-6 py-2 bg-gray-100 dark:bg-gray-800 text-gray-900 dark:text-white text-sm rounded-lg hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors"
           >
             Load More Events
           </button>
@@ -350,7 +354,7 @@ export function CertificateHistoryTimelineView({
       )}
 
       {/* Export note */}
-      <div className="text-xs text-gray-500 dark:text-gray-400 text-center pt-4 border-t border-gray-200 dark:border-gray-700">
+      <div className="text-xs text-gray-500 dark:text-gray-400 text-center pt-2 sm:pt-4 border-t border-gray-200 dark:border-gray-700">
         Timeline can be exported as image or PDF using the Export button above
       </div>
     </div>

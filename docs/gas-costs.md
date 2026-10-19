@@ -353,6 +353,8 @@ Both the Oracle and Provenance contracts support batch operations that reduce pe
 
 Always simulate before submitting a transaction in production.
 
+For a repeatable per-operation cost baseline of the oracle contract's most-used calls, see the [contract performance benchmark](benchmarks/README.md) and `pnpm bench:contracts`.
+
 **Using the Stellar CLI:**
 
 ```bash

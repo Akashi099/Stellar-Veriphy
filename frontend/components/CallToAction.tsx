@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { trackCtaClick } from "@/lib/analytics";
 // import { motion } from 'framer-motion';
 
 export default function CallToAction() {
@@ -22,6 +23,14 @@ export default function CallToAction() {
           </p>
           <Link
             href="/verify"
+            onClick={() => {
+              trackCtaClick({
+                ctaId: "cta_start_verifying",
+                ctaLabel: "Start Verifying",
+                ctaLocation: "cta_section",
+                targetUrl: "/verify",
+              });
+            }}
             className="inline-block px-8 py-4 bg-white text-blue-600 font-semibold rounded-lg hover:bg-blue-50 transition-colors shadow-lg"
           >
             Start Verifying →

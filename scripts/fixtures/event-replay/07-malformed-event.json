@@ -1,0 +1,32 @@
+{
+  "name": "malformed-event",
+  "description": "An event is missing its ledger number. It must be reported and skipped, not crash the replay.",
+  "contractId": "C_PROVENANCE",
+  "expectErrors": ["malformed_event"],
+  "events": [
+    {
+      "id": "0000000700-0000000001",
+      "ledger": 700,
+      "ledgerClosedAt": "2026-10-07T10:00:00Z",
+      "contractId": "C_PROVENANCE",
+      "type": "contract",
+      "topic": ["minted"],
+      "value": 1,
+      "txHash": "tx-m",
+      "inSuccessfulContractCall": true
+    },
+    {
+      "id": "0000000700-0000000002",
+      "ledgerClosedAt": "2026-10-07T10:00:00Z",
+      "contractId": "C_PROVENANCE",
+      "type": "contract",
+      "topic": ["minted"],
+      "value": 2,
+      "txHash": "tx-n",
+      "inSuccessfulContractCall": true
+    }
+  ],
+  "expected": {
+    "eventCount": 1
+  }
+}

@@ -20,14 +20,14 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { queryKeys, STALE_TIMES } from "@/config/cache";
+import type { CertificateSearchFilters } from "@/services/certificateVerificationService";
 import {
-  getCertificateById,
   getCertificateByCode,
+  getCertificateById,
   getCertificatesByCreator,
   searchCertificates,
   verifyCertificateAuthenticity,
 } from "@/services/certificateVerificationService";
-import type { CertificateSearchFilters } from "@/services/certificateVerificationService";
 
 // ---------------------------------------------------------------------------
 // Certificate by ID
@@ -85,7 +85,7 @@ export function useCertificateByCode(code: string | null | undefined) {
 export function useCertificatesByCreator(
   creator: string | null | undefined,
   offset = 0,
-  limit = 10,
+  limit = 10
 ) {
   return useQuery({
     queryKey: queryKeys.certificates.byCreator(creator ?? "", offset, limit),
@@ -111,10 +111,7 @@ export function useCertificatesByCreator(
  *   (e.g. while the form is empty).
  * @returns React Query result containing an array of matching certificates.
  */
-export function useCertificateSearch(
-  filters: CertificateSearchFilters,
-  enabled = true,
-) {
+export function useCertificateSearch(filters: CertificateSearchFilters, enabled = true) {
   return useQuery({
     queryKey: queryKeys.certificates.search(filters),
     queryFn: () => searchCertificates(filters),
@@ -185,7 +182,6 @@ export function useCertificateInvalidation() {
      * Invalidates the entire certificate cache namespace (all keys under
      * `["certificates"]`).
      */
-    invalidateAll: () =>
-      queryClient.invalidateQueries({ queryKey: queryKeys.certificates.all }),
+    invalidateAll: () => queryClient.invalidateQueries({ queryKey: queryKeys.certificates.all }),
   };
 }

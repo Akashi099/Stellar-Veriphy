@@ -1,3 +1,5 @@
+#![no_std]
+
 //! # StellarVeriphy — Oracle Contract
 //!
 //! Manages **verification request lifecycles** and oracle provider
@@ -58,8 +60,8 @@
 
 #![no_std]
 use soroban_sdk::{
-    contract, contracterror, contractimpl, contracttype, vec, Address, Bytes, BytesN, Env, Symbol,
-    Vec,
+    contract, contracterror, contractimpl, contracttype, vec, Address, Bytes, BytesN, Env, String,
+    Symbol, Vec,
 };
 
 // ---------------------------------------------------------------------------
@@ -77,6 +79,20 @@ const SLA_SUSPENSION_THRESHOLD: u32 = 70;
 const MAX_RECENT_FAILURES: u32 = 5;
 // Load balancing: how many ledgers to consider a provider "recently failed"
 const FAILURE_COOLDOWN_LEDGERS: u32 = 500;
+// #668 — trust score model (weights sum to 100; prior pulls small samples to 80%)
+const TRUST_PRIOR_BPS: u64 = 8_000;
+const TRUST_PRIOR_WEIGHT: u64 = 20;
+const TRUST_WEIGHT_OUTCOME: u64 = 35;
+const TRUST_WEIGHT_DISPUTE: u64 = 25;
+const TRUST_WEIGHT_SLA: u64 = 20;
+const TRUST_WEIGHT_STAKE: u64 = 20;
+const TRUST_FAULT_PENALTY_BPS: u32 = 2_500;
+const TRUST_OPEN_PENALTY_BPS: u32 = 500;
+const TRUST_SUSPENDED_MULTIPLIER: u32 = 40;
+/// Only the most recent disputes are inspected to bound read costs.
+const TRUST_MAX_DISPUTES_SCANNED: u32 = 100;
+// #671 — cap on anchored evidence packages per dispute
+const MAX_EVIDENCE_ANCHORS: u32 = 50;
 
 // ---------------------------------------------------------------------------
 // Errors
@@ -219,6 +235,9 @@ pub enum DataKey {
     Delegate(Address),
     /// Request ids submitted on behalf of a principal via delegation.
     DelegatedRequestsByPrincipal(Address),
+    // ── #671 dispute evidence anchoring (persistent storage) ──────────────
+    /// Dispute id → ordered list of evidence package hashes anchored for it.
+    DisputeEvidence(u64),
 }
 
 // ---------------------------------------------------------------------------
@@ -279,14 +298,11 @@ pub enum DisputeResolution {
 pub struct VerificationRequest {
     pub storage_ref: Bytes,
     pub manifest_hash: Bytes,
-    pub requester:     Address,
-    pub state:         RequestState,
-    pub priority:      Priority,
-    // #449 — Optional comments/notes for context during verification
-    pub comment:       Option<String>,
     pub requester: Address,
     pub state: RequestState,
     pub priority: Priority,
+    // #449 — Optional comments/notes for context during verification
+    pub comment: Option<String>,
 }
 
 #[contracttype]
@@ -377,41 +393,6 @@ pub struct SLACompliance {
     pub success_rate_ok: bool,
     /// Overall compliance percentage (0–100): fraction of targets met × 100.
     pub compliance_percent: u32,
-    pub suspended:          bool,
-}
-
-/// Event emitted when an SLA violation is detected.
-#[contractevent]
-pub struct SLAViolationEvent {
-    #[topic]
-    pub provider:    Address,
-    pub metric:      Symbol,
-    pub actual:      u32,
-    pub target:      u32,
-}
-
-/// Event emitted when a provider is auto-suspended for falling below threshold.
-#[contractevent]
-pub struct ProviderAutoSuspendedEvent {
-    #[topic]
-    pub provider:           Address,
-    pub compliance_percent: u32,
-}
-
-/// #449 — Event emitted when a comment is added/updated on a verification request.
-#[contractevent]
-pub struct RequestCommentEvent {
-    #[topic]
-    pub request_id: u64,
-    #[topic]
-    pub requester: Address,
-    pub comment: String,
-    pub timestamp: u64,
-}
-
-pub struct ProviderStakeInfo {
-    pub amount:                    u128,
-    pub withdrawal_cooldown_until: u32,
     pub suspended: bool,
 }
 
@@ -476,6 +457,36 @@ pub struct Dispute {
     pub resolved_at_ledger: Option<u32>,
     /// Reputation penalty applied (in basis points, e.g. 500 = 5%).
     pub reputation_penalty: u32,
+}
+
+/// #671 — An evidence package hash anchored against a dispute. The package
+/// itself lives off-chain; anchoring makes later tampering detectable.
+#[contracttype]
+#[derive(Clone, Debug)]
+pub struct EvidenceAnchor {
+    /// SHA-256 of the canonical evidence package.
+    pub package_hash: BytesN<32>,
+    pub submitter: Address,
+    pub anchored_at_ledger: u32,
+}
+
+/// #668 — On-chain provider trust score. All components are basis points
+/// (0–10_000). Mirrors a subset of the off-chain model in
+/// `packages/shared/scoring/providerTrust.ts`.
+#[contracttype]
+#[derive(Clone, Debug)]
+pub struct ProviderTrustScore {
+    pub score_bps: u32,
+    /// 0 = untrusted, 1 = low, 2 = medium, 3 = high.
+    pub tier: u32,
+    pub outcome_bps: u32,
+    pub dispute_bps: u32,
+    pub sla_bps: u32,
+    pub stake_bps: u32,
+    pub total_verifications: u64,
+    pub provider_fault_disputes: u32,
+    pub open_disputes: u32,
+    pub suspended: bool,
 }
 
 // ---------------------------------------------------------------------------
@@ -843,7 +854,7 @@ impl OracleContract {
             .get(&DataKey::ProviderList)
             .unwrap_or(vec![&env]);
 
-        if list.len() == 0 {
+        if list.is_empty() {
             return Err(Error::NoAvailableProvider);
         }
 
@@ -860,10 +871,10 @@ impl OracleContract {
             .get(&DataKey::RoundRobinIndex)
             .unwrap_or(0u32);
 
-        let len = list.len() as u32;
+        let len = list.len();
 
         for offset in 0..len {
-            let idx = ((rr_start + offset) % len) as u32;
+            let idx = (rr_start + offset) % len;
             let provider = list.get(idx).unwrap();
 
             // Skip if not registered
@@ -1426,6 +1437,7 @@ impl OracleContract {
                 requester: requester.clone(),
                 state: RequestState::Pending,
                 priority: priority.clone(),
+                comment: None,
             };
 
             env.storage().temporary().set(&DataKey::Request(id), &req);
@@ -1475,7 +1487,7 @@ impl OracleContract {
         if start >= all_ids.len() {
             return PaginatedRequests {
                 requests: results,
-                total_count: all_ids.len() as u32,
+                total_count: all_ids.len(),
             };
         }
 
@@ -1504,7 +1516,7 @@ impl OracleContract {
 
         PaginatedRequests {
             requests: results,
-            total_count: all_ids.len() as u32,
+            total_count: all_ids.len(),
         }
     }
 
@@ -1985,6 +1997,7 @@ impl OracleContract {
             requester: requester.clone(),
             state: RequestState::Pending,
             priority,
+            comment: None,
         };
 
         env.storage().temporary().set(&DataKey::Request(id), &req);
@@ -2052,11 +2065,7 @@ impl OracleContract {
 
     /// #449 — Add or update a comment on a verification request.
     /// The requester must authenticate and the request must exist and be in Pending state.
-    pub fn add_request_comment(
-        env: Env,
-        request_id: u64,
-        comment: String,
-    ) -> Result<(), Error> {
+    pub fn add_request_comment(env: Env, request_id: u64, comment: String) -> Result<(), Error> {
         let mut request: VerificationRequest = env
             .storage()
             .temporary()
@@ -2070,24 +2079,24 @@ impl OracleContract {
         }
 
         request.comment = Some(comment.clone());
-        env.storage().temporary().set(&DataKey::Request(request_id), &request);
+        env.storage()
+            .temporary()
+            .set(&DataKey::Request(request_id), &request);
 
-        RequestCommentEvent {
-            request_id,
-            requester: request.requester.clone(),
-            comment,
-            timestamp: env.ledger().timestamp(),
-        }
-        .emit(&env);
+        env.events().publish(
+            (
+                Symbol::new(&env, "request_comment"),
+                request_id,
+                request.requester.clone(),
+            ),
+            (comment, env.ledger().timestamp()),
+        );
 
         Ok(())
     }
 
     /// #449 — Retrieve the comment on a verification request, if any.
-    pub fn get_request_comment(
-        env: Env,
-        request_id: u64,
-    ) -> Result<Option<String>, Error> {
+    pub fn get_request_comment(env: Env, request_id: u64) -> Result<Option<String>, Error> {
         let request: VerificationRequest = env
             .storage()
             .temporary()
@@ -2099,10 +2108,7 @@ impl OracleContract {
 
     /// #449 — Clear/remove a comment from a verification request.
     /// The requester must authenticate.
-    pub fn remove_request_comment(
-        env: Env,
-        request_id: u64,
-    ) -> Result<(), Error> {
+    pub fn remove_request_comment(env: Env, request_id: u64) -> Result<(), Error> {
         let mut request: VerificationRequest = env
             .storage()
             .temporary()
@@ -2112,7 +2118,9 @@ impl OracleContract {
         request.requester.require_auth();
 
         request.comment = None;
-        env.storage().temporary().set(&DataKey::Request(request_id), &request);
+        env.storage()
+            .temporary()
+            .set(&DataKey::Request(request_id), &request);
 
         env.events()
             .publish((Symbol::new(&env, "comment_removed"),), request_id);
@@ -2120,12 +2128,192 @@ impl OracleContract {
         Ok(())
     }
 
-    /// #449 — Query all pending requests that have comments (supports discovery).
-    pub fn get_requests_with_comments(
+    // -----------------------------------------------------------------------
+    // #671 — Dispute evidence anchoring
+    // -----------------------------------------------------------------------
+
+    /// Anchor the hash of an off-chain evidence package against a dispute.
+    ///
+    /// Callable by the admin, the dispute's requester, or the disputed
+    /// provider. Packages are append-only; re-packaging after new evidence
+    /// adds a new anchor so the full history is preserved.
+    pub fn anchor_dispute_evidence(
         env: Env,
-        offset: u32,
-        limit: u32,
-    ) -> Vec<RequestWithId> {
+        dispute_id: u64,
+        package_hash: BytesN<32>,
+        submitter: Address,
+    ) -> Result<u32, Error> {
+        submitter.require_auth();
+
+        let dispute: Dispute = env
+            .storage()
+            .persistent()
+            .get(&DataKey::Dispute(dispute_id))
+            .ok_or(Error::DisputeNotFound)?;
+
+        let admin: Address = env
+            .storage()
+            .instance()
+            .get(&DataKey::Admin)
+            .ok_or(Error::NotInitialized)?;
+
+        if submitter != admin && submitter != dispute.requester && submitter != dispute.provider {
+            return Err(Error::Unauthorized);
+        }
+
+        let mut anchors: Vec<EvidenceAnchor> = env
+            .storage()
+            .persistent()
+            .get(&DataKey::DisputeEvidence(dispute_id))
+            .unwrap_or(Vec::new(&env));
+
+        if anchors.len() >= MAX_EVIDENCE_ANCHORS {
+            return Err(Error::InvalidState);
+        }
+        for i in 0..anchors.len() {
+            if anchors.get_unchecked(i).package_hash == package_hash {
+                // Idempotent: the same package was already anchored.
+                return Ok(i);
+            }
+        }
+
+        anchors.push_back(EvidenceAnchor {
+            package_hash: package_hash.clone(),
+            submitter: submitter.clone(),
+            anchored_at_ledger: env.ledger().sequence(),
+        });
+        let index = anchors.len() - 1;
+        env.storage()
+            .persistent()
+            .set(&DataKey::DisputeEvidence(dispute_id), &anchors);
+
+        env.events().publish(
+            (Symbol::new(&env, "dispute_evidence_anchored"),),
+            (dispute_id, package_hash, submitter),
+        );
+        Ok(index)
+    }
+
+    /// All evidence package anchors for a dispute, oldest first.
+    pub fn get_dispute_evidence(env: Env, dispute_id: u64) -> Vec<EvidenceAnchor> {
+        env.storage()
+            .persistent()
+            .get(&DataKey::DisputeEvidence(dispute_id))
+            .unwrap_or(Vec::new(&env))
+    }
+
+    // -----------------------------------------------------------------------
+    // #668 — Provider trust score
+    // -----------------------------------------------------------------------
+
+    /// Computes a trust score for a provider from on-chain state: smoothed
+    /// verification outcomes, dispute history, SLA compliance and stake.
+    /// Suspended providers are heavily penalised.
+    pub fn get_provider_trust_score(
+        env: Env,
+        provider: Address,
+    ) -> Result<ProviderTrustScore, Error> {
+        if !Self::is_provider(env.clone(), provider.clone()) {
+            return Err(Error::ProviderNotRegistered);
+        }
+
+        // Outcomes — Beta-prior smoothed success rate.
+        let metrics: ProviderMetrics = env
+            .storage()
+            .persistent()
+            .get(&DataKey::ProviderMetrics(provider.clone()))
+            .unwrap_or(ProviderMetrics {
+                total_verifications: 0,
+                successful_verifications: 0,
+                failed_verifications: 0,
+                last_activity: 0,
+            });
+        let outcome_bps = ((metrics.successful_verifications.saturating_mul(10_000)
+            + TRUST_PRIOR_BPS * TRUST_PRIOR_WEIGHT)
+            / (metrics.total_verifications + TRUST_PRIOR_WEIGHT)) as u32;
+        let outcome_bps = outcome_bps.min(10_000);
+
+        // Disputes — only provider-fault resolutions and open disputes count.
+        let dispute_ids = Self::get_disputes_by_provider(env.clone(), provider.clone());
+        let mut provider_fault_disputes: u32 = 0;
+        let mut open_disputes: u32 = 0;
+        let len = dispute_ids.len();
+        let start = len.saturating_sub(TRUST_MAX_DISPUTES_SCANNED);
+        for i in start..len {
+            let id = dispute_ids.get_unchecked(i);
+            if let Some(d) = env
+                .storage()
+                .persistent()
+                .get::<DataKey, Dispute>(&DataKey::Dispute(id))
+            {
+                if d.state == DisputeState::Open {
+                    open_disputes += 1;
+                } else if d.resolution == DisputeResolution::ProviderFault {
+                    provider_fault_disputes += 1;
+                }
+            }
+        }
+        let dispute_penalty = provider_fault_disputes
+            .saturating_mul(TRUST_FAULT_PENALTY_BPS)
+            .saturating_add(open_disputes.saturating_mul(TRUST_OPEN_PENALTY_BPS));
+        let dispute_bps = 10_000u32.saturating_sub(dispute_penalty);
+
+        // SLA — compliance percentage, or the neutral prior when no SLA is set.
+        let sla_bps = match env
+            .storage()
+            .persistent()
+            .get::<DataKey, ProviderSLA>(&DataKey::ProviderSLA(provider.clone()))
+        {
+            Some(sla) => Self::_compliance_percent(&sla).min(100) * 100,
+            None => TRUST_PRIOR_BPS as u32,
+        };
+
+        // Stake — 50% credit at MINIMUM_STAKE rising linearly to 100% at 10×.
+        let stake = Self::get_provider_stake(env.clone(), provider.clone());
+        let stake_bps: u32 = if stake < MINIMUM_STAKE {
+            0
+        } else {
+            let extra = (stake - MINIMUM_STAKE).min(MINIMUM_STAKE * 9);
+            5_000 + ((extra * 5_000) / (MINIMUM_STAKE * 9)) as u32
+        };
+
+        let weighted = (outcome_bps as u64 * TRUST_WEIGHT_OUTCOME
+            + dispute_bps as u64 * TRUST_WEIGHT_DISPUTE
+            + sla_bps as u64 * TRUST_WEIGHT_SLA
+            + stake_bps as u64 * TRUST_WEIGHT_STAKE)
+            / 100;
+        let suspended = Self::is_provider_suspended(env.clone(), provider.clone());
+        let mut score_bps = weighted as u32;
+        if suspended {
+            score_bps = score_bps * TRUST_SUSPENDED_MULTIPLIER / 100;
+        }
+
+        let tier = if suspended || score_bps < 4_000 {
+            0
+        } else if score_bps < 6_500 || metrics.total_verifications < 10 {
+            1
+        } else if score_bps < 8_500 {
+            2
+        } else {
+            3
+        };
+
+        Ok(ProviderTrustScore {
+            score_bps,
+            tier,
+            outcome_bps,
+            dispute_bps,
+            sla_bps,
+            stake_bps,
+            total_verifications: metrics.total_verifications,
+            provider_fault_disputes,
+            open_disputes,
+            suspended,
+        })
+    }
+
+    /// #449 — Query all pending requests that have comments (supports discovery).
+    pub fn get_requests_with_comments(env: Env, offset: u32, limit: u32) -> Vec<RequestWithId> {
         let all_requests: Vec<RequestWithId> = env
             .storage()
             .temporary()
@@ -2156,3 +2344,12 @@ impl OracleContract {
 }
 
 mod test;
+
+// #654 — integration tests covering multi-step workflows, storage mutations,
+// event emission, and error paths across the oracle contract.
+#[cfg(test)]
+mod integration_tests;
+
+// #807 — repeatable cost benchmark for the most-used calls. Run via scripts/benchmark-contracts.mjs.
+#[cfg(test)]
+mod benchmark;

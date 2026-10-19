@@ -1,0 +1,39 @@
+# Branch preview deployments (docs/deployment/preview-deployments.md).
+#
+# Started by scripts/preview-deploy.sh, which sets a per-branch compose project
+# name and port so several previews can run on one host side by side:
+#   COMPOSE_PROJECT_NAME=veriphy-preview-<slug> PREVIEW_PORT=41xx \
+#     docker compose -f docker-compose.preview.yml up -d --build
+
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: runtime
+    image: stellarveriphy-preview:${PREVIEW_SLUG:-local}
+    ports:
+      - "${PREVIEW_PORT:-4100}:3000"
+    environment:
+      NODE_ENV: production
+      NEXT_PUBLIC_APP_ENV: preview
+      NEXT_PUBLIC_DEPLOY_ENV: preview
+      NEXT_PUBLIC_NETWORK: testnet
+      NEXT_PUBLIC_TESTNET_RPC_URL: https://soroban-testnet.stellar.org
+      NEXT_PUBLIC_APP_URL: ${PREVIEW_URL:-http://localhost:4100}
+      NEXT_PUBLIC_MOCK_WALLET: ${PREVIEW_MOCK_WALLET:-false}
+      NEXT_PUBLIC_ORACLE_CONTRACT_ID: ${PREVIEW_ORACLE_CONTRACT_ID:-}
+      NEXT_PUBLIC_PROVENANCE_CONTRACT_ID: ${PREVIEW_PROVENANCE_CONTRACT_ID:-}
+      NEXT_PUBLIC_REGISTRY_CONTRACT_ID: ${PREVIEW_REGISTRY_CONTRACT_ID:-}
+      VERIPHY_DATA_DIR: /app/frontend/.data
+    labels:
+      veriphy.preview: "true"
+      veriphy.preview.branch: ${PREVIEW_BRANCH:-unknown}
+      veriphy.preview.commit: ${PREVIEW_COMMIT:-unknown}
+    healthcheck:
+      test: ["CMD", "node", "/app/docker/healthcheck.mjs"]
+      interval: 15s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    restart: unless-stopped

@@ -19,6 +19,9 @@
 // Types
 // ---------------------------------------------------------------------------
 
+import type { AttestationEvidence, ContentManifest } from "@stellarveriphy/shared/types";
+import type { ProvenanceAnchor } from "@stellarveriphy/shared/types";
+
 export type CertificateLookupMethod = "id" | "code" | "creator";
 
 export interface CertificateLookupRequest {
@@ -33,6 +36,10 @@ export interface CertificateDetails {
   attestationHash: string;
   creator: string;
   timestamp: number;
+  /** Derived status label, populated by search/list endpoints. */
+  statusLabel?: string;
+  /** Derived verification level, populated by search/list endpoints. */
+  verificationLevel?: string;
 }
 
 export interface CertificateVerificationResult {
@@ -55,14 +62,32 @@ export interface CertificateVerificationResult {
   description?: string;
   /** Whether the certificate is immutably locked. */
   isLocked: boolean;
+  /**
+   * Attestation evidence produced by the TEE oracle.
+   * Present once the oracle has run; null while pending or when the
+   * certificate was minted before evidence tracking was added.
+   */
+  evidence: AttestationEvidence | null;
+  /**
+   * Content manifest associated with this certificate.
+   * Present once the oracle has fetched and decoded it.
+   */
+  manifest: ContentManifest | null;
+  /**
+   * Supplemental provenance anchors attached after minting.
+   * Empty array for certificates with no additional anchors.
+   */
+  anchors: ProvenanceAnchor[];
 }
 
 export interface CertificateSearchFilters {
-  creator?: string;
-  verificationLevel?: string;
-  contentType?: string;
-  startTime?: number;
-  endTime?: number;
+  creator?: string | undefined;
+  verificationLevel?: string | undefined;
+  /** Filter by derived status label (Active / Revoked / Expired / Locked). */
+  status?: string | undefined;
+  contentType?: string | undefined;
+  startTime?: number | undefined;
+  endTime?: number | undefined;
   offset?: number;
   limit?: number;
 }
@@ -151,8 +176,8 @@ function buildVerificationResult(
   const isExpired = NOW > expiresAt;
   const isLocked = false;
 
-  const verificationLevel =
-    cert.attestationHash && cert.manifestHash && cert.storageRef ? "Standard" : "Basic";
+  const hasAttestation = Boolean(cert.attestationHash && cert.manifestHash && cert.storageRef);
+  const verificationLevel = hasAttestation ? "Standard" : "Basic";
 
   let statusLabel: string;
   if (isRevoked) {
@@ -165,6 +190,31 @@ function buildVerificationResult(
     statusLabel = "Active";
   }
 
+  // Build representative mock evidence so the confidence panel renders
+  // with real signal data. In production this comes from the TEE oracle
+  // response stored alongside the certificate.
+  const evidence: AttestationEvidence = {
+    enclave: "AWS Nitro Enclave",
+    attestationHash: cert.attestationHash,
+    attestationValid: hasAttestation,
+    teeCodeHash: cert.attestationHash.slice(0, 64),
+    teeCodeHashApproved: hasAttestation,
+    contentHashMatches: hasAttestation,
+    creatorSigned: true,
+  };
+
+  // Build a minimal mock manifest so metadata completeness can be scored.
+  const manifest: ContentManifest = {
+    contentHash: cert.manifestHash,
+    creator: cert.creator,
+    timestamp: new Date(cert.timestamp * 1000).toISOString(),
+    metadata: {
+      device: "Camera Model X",
+      location: "48.8566,2.3522",
+      aiModel: undefined,
+    },
+  };
+
   return {
     certificate: { ...cert, id },
     isValid: !isRevoked && !isExpired,
@@ -174,6 +224,28 @@ function buildVerificationResult(
     statusLabel,
     owner: cert.creator,
     isLocked,
+    evidence,
+    manifest,
+    // Mock a representative set of supplemental anchors so the UI renders
+    // with real data. In production these come from provenance.get_anchors().
+    anchors: hasAttestation
+      ? [
+          {
+            anchorType: "Arweave" as const,
+            reference: "ar://" + cert.attestationHash.slice(0, 43),
+            description: "Permanent Arweave archive of the original media file.",
+            anchoredAt: cert.timestamp + 3600,
+          },
+          {
+            anchorType: "Ipfs" as const,
+            reference: cert.storageRef.startsWith("ipfs://")
+              ? cert.storageRef.replace("ipfs://", "")
+              : cert.storageRef,
+            description: "IPFS content-addressed reference for decentralised retrieval.",
+            anchoredAt: cert.timestamp + 60,
+          },
+        ]
+      : [],
   };
 }
 
@@ -304,11 +376,28 @@ export async function searchCertificates(
     if (filters.endTime) {
       allCerts = allCerts.filter((c) => c.timestamp <= filters.endTime!);
     }
+    if (filters.verificationLevel) {
+      allCerts = allCerts.filter(
+        (c) => buildVerificationResult(c, c.id).verificationLevel === filters.verificationLevel
+      );
+    }
+    if (filters.status) {
+      allCerts = allCerts.filter(
+        (c) => buildVerificationResult(c, c.id).statusLabel === filters.status
+      );
+    }
 
     const offset = filters.offset ?? 0;
     const limit = filters.limit ?? 10;
     const total = allCerts.length;
-    const sliced = allCerts.slice(offset, offset + limit);
+    const sliced = allCerts.slice(offset, offset + limit).map((c) => {
+      const derived = buildVerificationResult(c, c.id);
+      return {
+        ...c,
+        statusLabel: derived.statusLabel,
+        verificationLevel: derived.verificationLevel,
+      };
+    });
 
     return {
       success: true,

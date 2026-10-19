@@ -1,8 +1,9 @@
 "use client";
 
-import { createContext, useCallback, useContext, useEffect,useState } from "react";
-import { FiAlertCircle, FiAlertTriangle,FiCheckCircle, FiInfo, FiX } from "react-icons/fi";
+import { createContext, useCallback, useContext, useEffect, useState } from "react";
+import { FiAlertCircle, FiAlertTriangle, FiCheckCircle, FiInfo, FiX } from "react-icons/fi";
 
+import { TOAST_DURATION_MS } from "@/config/app";
 import { cn } from "@/utils/cn";
 
 type ToastType = "success" | "error" | "info" | "warning";
@@ -53,10 +54,10 @@ const typeIcons = {
 };
 
 const typeColors = {
-  success: "bg-green-500 border-green-400",
-  error: "bg-red-500 border-red-400",
-  info: "bg-blue-500 border-blue-400",
-  warning: "bg-yellow-500 border-yellow-400",
+  success: "border-l-green-500",
+  error: "border-l-red-500",
+  info: "border-l-blue-500",
+  warning: "border-l-yellow-500",
 };
 
 const typeTextColors = {
@@ -66,14 +67,22 @@ const typeTextColors = {
   warning: "text-yellow-500",
 };
 
-const positionClasses: Record<ToastPosition, string> = {
-  "top-left": "top-4 left-4",
-  "top-center": "top-4 left-1/2 transform -translate-x-1/2",
-  "top-right": "top-4 right-4",
-  "bottom-left": "bottom-4 left-4",
-  "bottom-center": "bottom-4 left-1/2 transform -translate-x-1/2",
-  "bottom-right": "bottom-4 right-4",
+const typeProgressColors = {
+  success: "bg-green-500",
+  error: "bg-red-500",
+  info: "bg-blue-500",
+  warning: "bg-yellow-500",
 };
+
+const positionClasses: Record<ToastPosition, string> = {
+  "top-left": "top-4 left-4 sm:right-auto sm:items-start",
+  "top-center": "top-4 left-4 right-4 sm:left-1/2 sm:right-auto sm:-translate-x-1/2 sm:items-center",
+  "top-right": "top-4 right-4 sm:left-auto sm:items-end",
+  "bottom-left": "bottom-4 left-4 sm:right-auto sm:items-start",
+  "bottom-center": "bottom-4 left-4 right-4 sm:left-1/2 sm:right-auto sm:-translate-x-1/2 sm:items-center",
+  "bottom-right": "bottom-4 right-4 sm:left-auto sm:items-end",
+};
+const MAX_VISIBLE_TOASTS = 4;
 
 export function ToastProvider({ children }: { children: React.ReactNode }) {
   const [toasts, setToasts] = useState<Toast[]>([]);
@@ -86,7 +95,7 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
         type = "info",
         title,
         action,
-        duration = 4000,
+        duration = TOAST_DURATION_MS,
         position: toastPosition = "bottom-right",
       } = options;
 
@@ -103,7 +112,7 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
         ...(action !== undefined ? { action } : {}),
       };
 
-      setToasts((prev) => [...prev, newToast]);
+      setToasts((prev) => [...prev, newToast].slice(-MAX_VISIBLE_TOASTS));
 
       if (duration > 0) {
         setTimeout(() => {
@@ -133,10 +142,10 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
     setToasts([]);
   }, []);
 
-  // Limit maximum toasts
+  // Keep a predictable, bounded stack so repeated actions do not cover the page.
   useEffect(() => {
-    if (toasts.length > 5) {
-      setToasts((prev) => prev.slice(-5));
+    if (toasts.length > MAX_VISIBLE_TOASTS) {
+      setToasts((prev) => prev.slice(-MAX_VISIBLE_TOASTS));
     }
   }, [toasts]);
 
@@ -147,7 +156,8 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
       {/* Toast container */}
       <div
         className={cn(
-          "fixed z-[100] flex flex-col gap-3 max-w-sm w-full",
+          "fixed z-[100] flex w-auto max-w-none flex-col gap-3",
+          "w-[calc(100%-2rem)] max-h-[calc(100vh-2rem)] overflow-y-auto sm:w-full sm:max-w-sm",
           positionClasses[position]
         )}
         role="region"
@@ -155,16 +165,16 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
         aria-live="polite"
         aria-atomic="false"
       >
-        {toasts.map((toast) => {
+        {toasts.slice().reverse().map((toast) => {
           const Icon = typeIcons[toast.type];
           return (
             <div
               key={toast.id}
               className={cn(
-                "relative flex items-start gap-3 p-4 rounded-lg shadow-lg border",
+                "relative flex w-full items-start gap-3 rounded-lg border border-l-4 p-4 shadow-lg",
                 "bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700",
                 "animate-in fade-in slide-in-from-bottom-5 duration-200",
-                "transform transition-all hover:scale-[1.02] hover:shadow-xl",
+                "transition-shadow duration-200 ease-out hover:shadow-xl motion-reduce:transition-none",
                 typeColors[toast.type]
               )}
               role="alert"
@@ -214,9 +224,10 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
 
               {/* Close button */}
               <button
+                type="button"
                 onClick={() => dismiss(toast.id)}
                 className={cn(
-                  "flex-shrink-0 p-1 rounded-md transition-colors",
+                  "flex-shrink-0 rounded-md p-2 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2",
                   "text-gray-400 hover:text-gray-700 dark:hover:text-gray-300",
                   "hover:bg-gray-100 dark:hover:bg-gray-700",
                   "focus:outline-none focus:ring-2 focus:ring-gray-400"
@@ -239,7 +250,7 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
                   <div
                     className={cn(
                       "h-full transition-all duration-linear",
-                      typeColors[toast.type].split(" ")[0]
+                      typeProgressColors[toast.type]
                     )}
                     style={{
                       width: "100%",

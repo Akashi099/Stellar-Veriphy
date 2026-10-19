@@ -1,0 +1,41 @@
+{
+  "manifest_version": 3,
+  "name": "Stellar Veriphy",
+  "version": "1.0.0",
+  "description": "Instant content verification and authenticity checking powered by Stellar blockchain",
+  "permissions": [
+    "contextMenus",
+    "scripting",
+    "storage",
+    "activeTab",
+    "webRequest",
+    "tabs"
+  ],
+  "host_permissions": [
+    "<all_urls>"
+  ],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "content_scripts": [
+    {
+      "matches": ["<all_urls>"],
+      "js": ["content.js"],
+      "run_at": "document_end"
+    }
+  ],
+  "action": {
+    "default_popup": "popup.html",
+    "default_title": "Stellar Veriphy",
+    "default_icon": {
+      "16": "images/icon-16.png",
+      "48": "images/icon-48.png",
+      "128": "images/icon-128.png"
+    }
+  },
+  "icons": {
+    "16": "images/icon-16.png",
+    "48": "images/icon-48.png",
+    "128": "images/icon-128.png"
+  }
+}

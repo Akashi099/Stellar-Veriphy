@@ -31,7 +31,9 @@
  * ```
  */
 
-import { logger } from './logger';
+import { useEffect } from "react";
+
+import { logger } from "./logger";
 
 // ============================================================================
 // Types
@@ -59,7 +61,7 @@ export interface WebVitals {
 export interface PerformanceMetric {
   name: string;
   value: number;
-  unit: 'ms' | 'bytes' | 'score';
+  unit: "ms" | "bytes" | "score";
   timestamp: number;
   metadata?: Record<string, unknown>;
 }
@@ -72,7 +74,7 @@ export interface ApiMetric {
   endpoint: string;
   duration: number;
   timestamp: number;
-  status?: number;
+  status?: number | undefined;
   error?: boolean;
 }
 
@@ -83,7 +85,7 @@ export interface RenderMetric {
   component: string;
   renderTime: number;
   timestamp: number;
-  props?: Record<string, unknown>;
+  props?: Record<string, unknown> | undefined;
 }
 
 /**
@@ -111,10 +113,10 @@ class PerformanceTracker {
   private enableWebVitals = true;
   private enableApiTracking = true;
   private enableRenderTracking = true;
-  private onMetric?: (metric: PerformanceMetric) => void;
-  private onWebVitals?: (vitals: WebVitals) => void;
-  private onApiMetric?: (metric: ApiMetric) => void;
-  private onRenderMetric?: (metric: RenderMetric) => void;
+  private onMetric?: ((metric: PerformanceMetric) => void) | undefined;
+  private onWebVitals?: ((vitals: WebVitals) => void) | undefined;
+  private onApiMetric?: ((metric: ApiMetric) => void) | undefined;
+  private onRenderMetric?: ((metric: RenderMetric) => void) | undefined;
   private metrics: PerformanceMetric[] = [];
   private apiMetrics: ApiMetric[] = [];
   private renderMetrics: RenderMetric[] = [];
@@ -145,22 +147,25 @@ class PerformanceTracker {
    * @internal
    */
   private initializeWebVitalsTracking(): void {
-    if (!this.enableWebVitals || typeof window === 'undefined') {
+    if (!this.enableWebVitals || typeof window === "undefined") {
       return;
     }
 
     // Track Largest Contentful Paint (LCP)
-    if ('PerformanceObserver' in window) {
+    if ("PerformanceObserver" in window) {
       try {
         const lcpObserver = new PerformanceObserver((list) => {
           const entries = list.getEntries();
-          const lastEntry = entries[entries.length - 1];
-          this.webVitals.LCP = lastEntry.renderTime || lastEntry.loadTime;
+          const lastEntry = entries[entries.length - 1] as
+            (PerformanceEntry & { renderTime?: number; loadTime?: number }) | undefined;
+          if (!lastEntry) return;
+          const lcp = lastEntry.renderTime || lastEntry.loadTime;
+          if (lcp !== undefined) this.webVitals.LCP = lcp;
           this.reportWebVitals();
         });
-        lcpObserver.observe({ entryTypes: ['largest-contentful-paint'] });
+        lcpObserver.observe({ entryTypes: ["largest-contentful-paint"] });
       } catch (err) {
-        logger.debug('LCP tracking failed', { error: String(err) });
+        logger.debug("LCP tracking failed", { error: String(err) });
       }
 
       // Track Cumulative Layout Shift (CLS)
@@ -174,9 +179,9 @@ class PerformanceTracker {
             this.reportWebVitals();
           }
         });
-        clsObserver.observe({ entryTypes: ['layout-shift'] });
+        clsObserver.observe({ entryTypes: ["layout-shift"] });
       } catch (err) {
-        logger.debug('CLS tracking failed', { error: String(err) });
+        logger.debug("CLS tracking failed", { error: String(err) });
       }
 
       // Track First Input Delay (FID) - deprecated but still useful
@@ -189,22 +194,22 @@ class PerformanceTracker {
             this.reportWebVitals();
           }
         });
-        fidObserver.observe({ entryTypes: ['first-input'] });
+        fidObserver.observe({ entryTypes: ["first-input"] });
       } catch (err) {
-        logger.debug('FID tracking failed', { error: String(err) });
+        logger.debug("FID tracking failed", { error: String(err) });
       }
     }
 
     // Track TTFB and FCP via navigation timing
-    if ('performance' in window) {
-      window.addEventListener('load', () => {
-        const navigation = window.performance.getEntriesByType('navigation')[0] as any;
+    if ("performance" in window) {
+      window.addEventListener("load", () => {
+        const navigation = window.performance.getEntriesByType("navigation")[0] as any;
         if (navigation) {
           this.webVitals.TTFB = navigation.responseStart - navigation.fetchStart;
         }
 
-        const fcpEntries = window.performance.getEntriesByName('first-contentful-paint');
-        if (fcpEntries.length > 0) {
+        const fcpEntries = window.performance.getEntriesByName("first-contentful-paint");
+        if (fcpEntries.length > 0 && fcpEntries[0]) {
           this.webVitals.FCP = fcpEntries[0].startTime;
         }
 
@@ -223,7 +228,7 @@ class PerformanceTracker {
       this.onWebVitals(this.webVitals);
     }
 
-    logger.debug('Web Vitals updated', {
+    logger.debug("Web Vitals updated", {
       vitals: this.webVitals,
     });
   }
@@ -253,7 +258,7 @@ class PerformanceTracker {
       this.recordMetric({
         name,
         value: duration,
-        unit: 'ms',
+        unit: "ms",
         timestamp: Date.now(),
       });
 
@@ -273,7 +278,7 @@ class PerformanceTracker {
       this.onMetric(metric);
     }
 
-    logger.debug('Performance metric recorded', {
+    logger.debug("Performance metric recorded", {
       metric: metric.name,
       value: metric.value,
       unit: metric.unit,
@@ -296,12 +301,7 @@ class PerformanceTracker {
    * tracker.trackApiCall('GET', '/api/certificates', duration, response.status);
    * ```
    */
-  trackApiCall(
-    method: string,
-    endpoint: string,
-    duration: number,
-    status?: number,
-  ): void {
+  trackApiCall(method: string, endpoint: string, duration: number, status?: number): void {
     const metric: ApiMetric = {
       method,
       endpoint,
@@ -318,7 +318,7 @@ class PerformanceTracker {
         this.onApiMetric(metric);
       }
 
-      logger.debug('API call tracked', {
+      logger.debug("API call tracked", {
         method,
         endpoint,
         duration,
@@ -342,11 +342,7 @@ class PerformanceTracker {
    * tracker.trackRender('CertificateCard', duration);
    * ```
    */
-  trackRender(
-    component: string,
-    renderTime: number,
-    props?: Record<string, unknown>,
-  ): void {
+  trackRender(component: string, renderTime: number, props?: Record<string, unknown>): void {
     const metric: RenderMetric = {
       component,
       renderTime,
@@ -363,7 +359,7 @@ class PerformanceTracker {
 
       // Warn if render time exceeds threshold
       if (renderTime > 50) {
-        logger.warn('Slow component render', {
+        logger.warn("Slow component render", {
           component,
           renderTime,
           threshold: 50,
@@ -436,7 +432,7 @@ class PerformanceTracker {
     this.apiMetrics = [];
     this.renderMetrics = [];
     this.marks.clear();
-    logger.debug('Performance metrics cleared');
+    logger.debug("Performance metrics cleared");
   }
 
   /**
@@ -473,7 +469,7 @@ class PerformanceTracker {
 export const performanceTracker = new PerformanceTracker({
   enableWebVitals: true,
   enableApiTracking: true,
-  enableRenderTracking: process.env.NODE_ENV === 'development',
+  enableRenderTracking: process.env.NODE_ENV === "development",
 });
 
 // ============================================================================
@@ -497,17 +493,14 @@ export const performanceTracker = new PerformanceTracker({
  * ```
  */
 export function useRenderTracking(componentName: string): void {
-  if (typeof window === 'undefined') return;
-
   const startTime = performance.now();
 
   // Measure using React's useEffect to catch actual render time
-  if (typeof React !== 'undefined' && React.useEffect) {
-    React.useEffect(() => {
-      const renderTime = performance.now() - startTime;
-      performanceTracker.trackRender(componentName, renderTime);
-    });
-  }
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const renderTime = performance.now() - startTime;
+    performanceTracker.trackRender(componentName, renderTime);
+  });
 }
 
 // ============================================================================
@@ -534,7 +527,7 @@ export function useRenderTracking(componentName: string): void {
 export async function trackedFetch<T>(
   method: string,
   endpoint: string,
-  fetchFn: () => Promise<T>,
+  fetchFn: () => Promise<T>
 ): Promise<T> {
   const startTime = performance.now();
 
@@ -565,11 +558,11 @@ export async function trackedFetch<T>(
  * ```
  */
 export function reportPerformanceMetrics(
-  callback?: (summary: ReturnType<typeof performanceTracker.getSummary>) => void,
+  callback?: (summary: ReturnType<typeof performanceTracker.getSummary>) => void
 ): void {
   const summary = performanceTracker.getSummary();
 
-  logger.info('Performance Summary', summary);
+  logger.info("Performance Summary", summary);
 
   if (callback) {
     callback(summary);
@@ -596,15 +589,15 @@ export function checkWebVitalsThresholds(): {
   }> = [];
 
   if (vitals.LCP && vitals.LCP > 2500) {
-    violations.push({ metric: 'LCP', value: vitals.LCP, threshold: 2500 });
+    violations.push({ metric: "LCP", value: vitals.LCP, threshold: 2500 });
   }
 
   if (vitals.FID && vitals.FID > 100) {
-    violations.push({ metric: 'FID', value: vitals.FID, threshold: 100 });
+    violations.push({ metric: "FID", value: vitals.FID, threshold: 100 });
   }
 
   if (vitals.CLS && vitals.CLS > 0.1) {
-    violations.push({ metric: 'CLS', value: vitals.CLS, threshold: 0.1 });
+    violations.push({ metric: "CLS", value: vitals.CLS, threshold: 0.1 });
   }
 
   return {

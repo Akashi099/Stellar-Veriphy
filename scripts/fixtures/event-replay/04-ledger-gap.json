@@ -1,0 +1,34 @@
+{
+  "name": "ledger-gap",
+  "description": "Ledgers 401 to 403 are missing from the dataset. The gap must be reported so the operator knows the index may be incomplete.",
+  "contractId": "C_PROVENANCE",
+  "events": [
+    {
+      "id": "0000000400-0000000001",
+      "ledger": 400,
+      "ledgerClosedAt": "2026-10-04T10:00:00Z",
+      "contractId": "C_PROVENANCE",
+      "type": "contract",
+      "topic": ["minted"],
+      "value": 1,
+      "txHash": "tx-g",
+      "inSuccessfulContractCall": true
+    },
+    {
+      "id": "0000000404-0000000001",
+      "ledger": 404,
+      "ledgerClosedAt": "2026-10-04T10:00:20Z",
+      "contractId": "C_PROVENANCE",
+      "type": "contract",
+      "topic": ["minted"],
+      "value": 2,
+      "txHash": "tx-h",
+      "inSuccessfulContractCall": true
+    }
+  ],
+  "expected": {
+    "eventCount": 2,
+    "highWaterLedger": 404,
+    "gapCount": 1
+  }
+}

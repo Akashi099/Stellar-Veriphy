@@ -13,9 +13,11 @@
  * rendering to sub-components.
  */
 
-import { useCallback,useState } from "react";
+import { useState, useCallback, useEffect } from "react";
+import { useCallback, useState } from "react";
 
 import { CertificateCardSkeleton } from "@/components/ui/Skeleton";
+import { recordVerificationEvent } from "@/lib/verificationHistory";
 import type {
   CertificateLookupMethod,
   CertificateSearchResult,
@@ -51,7 +53,12 @@ type LookupState =
 // Component
 // ---------------------------------------------------------------------------
 
-export function CertificateVerificationPanel() {
+interface CertificateVerificationPanelProps {
+  /** When set, the certificate is looked up by ID on mount (e.g. opened in a new tab). */
+  initialCertificateId?: string | null;
+}
+
+export function CertificateVerificationPanel({ initialCertificateId }: CertificateVerificationPanelProps = {}) {
   const [lookupState, setLookupState] = useState<LookupState>({ status: "idle" });
   const [generatedCode, setGeneratedCode] = useState<string | null>(null);
   const [historyEvents, setHistoryEvents] = useState<HistoryEvent[]>([]);
@@ -81,6 +88,12 @@ export function CertificateVerificationPanel() {
     }
 
     if (!response.success || !response.data) {
+      recordVerificationEvent({
+        method,
+        query: value,
+        status: "not_found",
+        details: response.error,
+      });
       setLookupState({ status: "error", message: response.error ?? "Unknown error" });
       return;
     }
@@ -91,6 +104,13 @@ export function CertificateVerificationPanel() {
       // Single result
       const result = data as CertificateVerificationResult;
       setLookupState({ status: "loaded", result });
+      recordVerificationEvent({
+        method,
+        query: value,
+        certificateId: result.certificate.id,
+        status: result.isRevoked ? "revoked" : "verified",
+        details: result.statusLabel,
+      });
       // Populate mock history
       setHistoryEvents(
         generateMockHistory(
@@ -103,12 +123,23 @@ export function CertificateVerificationPanel() {
       // Multiple results (creator search)
       const searchResult = data as CertificateSearchResult;
       if (searchResult.certificates.length === 0) {
+        recordVerificationEvent({ method, query: value, status: "not_found" });
         setLookupState({ status: "error", message: "No certificates found for this creator" });
       } else {
+        recordVerificationEvent({
+          method,
+          query: value,
+          status: "verified",
+          details: `${searchResult.certificates.length} result(s)`,
+        });
         setLookupState({ status: "multiple", result: searchResult });
       }
     }
   }, []);
+
+  useEffect(() => {
+    if (initialCertificateId) handleSearch("id", initialCertificateId);
+  }, [initialCertificateId, handleSearch]);
 
   // ── Authenticity verification handler ───────────────────────────────────────
 
@@ -116,12 +147,26 @@ export function CertificateVerificationPanel() {
     setLookupState({ status: "verifying", certificateId: id });
     const response = await verifyCertificateAuthenticity(id);
     if (response.success && response.data) {
+      recordVerificationEvent({
+        method: "authenticity",
+        query: id,
+        certificateId: id,
+        status: response.data.authentic ? "verified" : "error",
+        details: response.data.details.join("; "),
+      });
       setLookupState({
         status: "verified",
         certificateId: id,
         details: response.data.details,
       });
     } else {
+      recordVerificationEvent({
+        method: "authenticity",
+        query: id,
+        certificateId: id,
+        status: "error",
+        details: response.error,
+      });
       setLookupState({ status: "error", message: response.error ?? "Verification failed" });
     }
   }, []);
@@ -218,7 +263,7 @@ export function CertificateVerificationPanel() {
             {lookupState.result.certificates.map((cert) => (
               <div
                 key={cert.id}
-                className="bg-white dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-700 p-4 hover:border-blue-300 dark:hover:border-blue-700 transition-colors cursor-pointer"
+                className="bg-white dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-700 p-4 hover:border-blue-300 dark:hover:border-blue-700 transition-colors duration-200 ease-out motion-reduce:transition-none cursor-pointer"
                 onClick={() => {
                   setLookupState({ status: "loading", method: "id", value: cert.id });
                   handleSearch("id", cert.id);

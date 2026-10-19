@@ -73,7 +73,7 @@ export const LazyAdvancedManifestEditor = dynamic(
 export const LazyNotificationCenter = dynamic(
   () =>
     import("@/components/notifications/NotificationCenter").then((m) => ({
-      default: m.NotificationCenter,
+      default: m.NotificationBell,
     })),
   { ssr: false }
 );

@@ -1,0 +1,13 @@
+# Persisted struct fields for provenance — 2026-10-19T03:31:10Z
+ProvenanceCert	pub attestation_hash: String
+ProvenanceCert	pub creator: Address
+ProvenanceCert	pub expires_at: Option<u64>
+ProvenanceCert	pub locked: bool
+ProvenanceCert	pub manifest_hash: String
+ProvenanceCert	pub revocation_reason: RevocationReason
+ProvenanceCert	pub revocation_timestamp: Option<u64>
+ProvenanceCert	pub revoked: bool
+ProvenanceCert	pub storage_ref: String
+ProvenanceCert	pub tags: Vec<String>
+ProvenanceCert	pub timestamp: u64
+ProvenanceCert	pub verification_level: VerificationLevel

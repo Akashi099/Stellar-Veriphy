@@ -1,0 +1,33 @@
+{
+  "name": "conflicting-duplicate",
+  "description": "Two sources disagree about the same event id. The replay must refuse to pick silently and report the conflict.",
+  "contractId": "C_PROVENANCE",
+  "expectErrors": ["conflicting_event"],
+  "events": [
+    {
+      "id": "0000000300-0000000001",
+      "ledger": 300,
+      "ledgerClosedAt": "2026-10-03T10:00:00Z",
+      "contractId": "C_PROVENANCE",
+      "type": "contract",
+      "topic": ["minted"],
+      "value": 1,
+      "txHash": "tx-f",
+      "inSuccessfulContractCall": true
+    },
+    {
+      "id": "0000000300-0000000001",
+      "ledger": 300,
+      "ledgerClosedAt": "2026-10-03T10:00:00Z",
+      "contractId": "C_PROVENANCE",
+      "type": "contract",
+      "topic": ["minted"],
+      "value": 99,
+      "txHash": "tx-f",
+      "inSuccessfulContractCall": true
+    }
+  ],
+  "expected": {
+    "eventCount": 1
+  }
+}

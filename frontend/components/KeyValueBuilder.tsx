@@ -10,10 +10,10 @@ interface KeyValuePair {
 }
 
 /** Scalar metadata values supported by the key-value builder. */
-type MetadataScalar = string | number | boolean;
+export type MetadataScalar = string | number | boolean;
 
 /** Parsed metadata value — scalar, nested object, or array of scalars. */
-type MetadataValue = MetadataScalar | Record<string, MetadataScalar> | MetadataScalar[];
+export type MetadataValue = MetadataScalar | Record<string, MetadataScalar> | MetadataScalar[];
 
 interface KeyValueBuilderProps {
   value?: Record<string, MetadataValue>;
@@ -87,7 +87,9 @@ export function KeyValueBuilder({ value = {}, onChange }: KeyValueBuilderProps) 
           />
           <select
             value={pair.type}
-            onChange={(e) => handleUpdatePair(pair.id, "type", e.target.value as KeyValuePair["type"])}
+            onChange={(e) =>
+              handleUpdatePair(pair.id, "type", e.target.value as KeyValuePair["type"])
+            }
             className="px-3 py-2 border rounded bg-white dark:bg-gray-800 text-black dark:text-white"
           >
             <option value="string">String</option>

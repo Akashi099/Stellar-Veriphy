@@ -1,0 +1,57 @@
+{
+  "name": "happy-path",
+  "description": "Four in-order events across three ledgers, all from one contract and all successful.",
+  "contractId": "C_PROVENANCE",
+  "events": [
+    {
+      "id": "0000000100-0000000001",
+      "ledger": 100,
+      "ledgerClosedAt": "2026-10-01T10:00:00Z",
+      "contractId": "C_PROVENANCE",
+      "type": "contract",
+      "topic": ["minted"],
+      "value": 1,
+      "txHash": "tx-a",
+      "inSuccessfulContractCall": true
+    },
+    {
+      "id": "0000000100-0000000002",
+      "ledger": 100,
+      "ledgerClosedAt": "2026-10-01T10:00:00Z",
+      "contractId": "C_PROVENANCE",
+      "type": "contract",
+      "topic": ["minted"],
+      "value": 2,
+      "txHash": "tx-b",
+      "inSuccessfulContractCall": true
+    },
+    {
+      "id": "0000000101-0000000001",
+      "ledger": 101,
+      "ledgerClosedAt": "2026-10-01T10:00:05Z",
+      "contractId": "C_PROVENANCE",
+      "type": "contract",
+      "topic": ["revoked"],
+      "value": 1,
+      "txHash": "tx-c",
+      "inSuccessfulContractCall": true
+    },
+    {
+      "id": "0000000102-0000000001",
+      "ledger": 102,
+      "ledgerClosedAt": "2026-10-01T10:00:10Z",
+      "contractId": "C_PROVENANCE",
+      "type": "contract",
+      "topic": ["transfer"],
+      "value": 2,
+      "txHash": "tx-d",
+      "inSuccessfulContractCall": true
+    }
+  ],
+  "expected": {
+    "eventCount": 4,
+    "highWaterLedger": 102,
+    "gapCount": 0,
+    "eventNameCounts": { "minted": 2, "revoked": 1, "transfer": 1 }
+  }
+}

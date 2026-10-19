@@ -9,6 +9,11 @@ import { type AuditLogEntry, auditLogger } from "@/lib/security/auditLogger";
 
 export default function AuditLogsPage() {
   const [entries, setEntries] = useState<AuditLogEntry[]>([]);
+  const [categoryFilter, setCategoryFilter] = useState("all");
+  const [severityFilter, setSeverityFilter] = useState("all");
+  const [query, setQuery] = useState("");
+  const [sortBy, setSortBy] = useState<"timestamp" | "severity" | "actor" | "action">("timestamp");
+  const [sortDirection, setSortDirection] = useState<"asc" | "desc">("desc");
   const [summary, setSummary] = useState({
     totalEntries: 0,
     byCategory: {} as Record<string, number>,
@@ -30,9 +35,9 @@ export default function AuditLogsPage() {
     await auditLogger.logEvent({
       actor: "security-operator",
       category: "admin",
-      action: "reviewed verification settings",
-      severity: "info",
-      details: "Triggered from the audit log viewer",
+      action: "approved verification policy change",
+      severity: "critical",
+      details: "Triggered from the audit log viewer; requires operational review",
     });
     await refresh();
   };
@@ -55,6 +60,37 @@ export default function AuditLogsPage() {
     link.download = "audit-log-report.json";
     link.click();
     URL.revokeObjectURL(url);
+  };
+
+  const filteredEntries = entries
+    .filter((entry) => categoryFilter === "all" || entry.category === categoryFilter)
+    .filter((entry) => severityFilter === "all" || entry.severity === severityFilter)
+    .filter((entry) => {
+      const haystack = `${entry.actor} ${entry.action} ${entry.details ?? ""}`.toLowerCase();
+      return haystack.includes(query.toLowerCase());
+    })
+    .sort((a, b) => {
+      const direction = sortDirection === "asc" ? 1 : -1;
+      if (sortBy === "severity") {
+        const rank = { info: 0, warning: 1, critical: 2 };
+        return (rank[a.severity] - rank[b.severity]) * direction;
+      }
+      return String(a[sortBy]).localeCompare(String(b[sortBy])) * direction;
+    });
+
+  const sensitiveActions = filteredEntries.filter(
+    (entry) =>
+      entry.severity === "critical" ||
+      /approve|reject|policy|revoke|delete|verification/i.test(entry.action)
+  ).length;
+
+  const toggleSort = (field: typeof sortBy) => {
+    if (sortBy === field) {
+      setSortDirection((current) => (current === "asc" ? "desc" : "asc"));
+      return;
+    }
+    setSortBy(field);
+    setSortDirection(field === "timestamp" || field === "severity" ? "desc" : "asc");
   };
 
   return (
@@ -113,6 +149,50 @@ export default function AuditLogsPage() {
           </div>
         </div>
 
+        <div className="grid gap-3 rounded-2xl border border-slate-800 bg-slate-900/80 p-4 md:grid-cols-4">
+          <label className="text-sm text-slate-300">
+            Search
+            <input
+              value={query}
+              onChange={(event) => setQuery(event.target.value)}
+              className="mt-1 w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-slate-100"
+              placeholder="Actor, action, details"
+            />
+          </label>
+          <label className="text-sm text-slate-300">
+            Category
+            <select
+              value={categoryFilter}
+              onChange={(event) => setCategoryFilter(event.target.value)}
+              className="mt-1 w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-slate-100"
+            >
+              <option value="all">All categories</option>
+              {Object.keys(summary.byCategory).map((category) => (
+                <option key={category} value={category}>
+                  {category}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label className="text-sm text-slate-300">
+            Severity
+            <select
+              value={severityFilter}
+              onChange={(event) => setSeverityFilter(event.target.value)}
+              className="mt-1 w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-slate-100"
+            >
+              <option value="all">All severities</option>
+              <option value="critical">Critical</option>
+              <option value="warning">Warning</option>
+              <option value="info">Info</option>
+            </select>
+          </label>
+          <div className="rounded-lg border border-amber-500/40 bg-amber-500/10 p-3 text-sm text-amber-100">
+            <p className="font-semibold">{sensitiveActions} sensitive actions</p>
+            <p className="text-amber-200/80">Critical approvals, rejections, policy and verification changes are flagged.</p>
+          </div>
+        </div>
+
         <div className="rounded-2xl border border-slate-800 bg-slate-900/80 p-6">
           <div className="mb-4 flex flex-wrap gap-2 text-sm text-slate-400">
             {Object.entries(summary.byCategory).map(([category, count]) => (
@@ -125,25 +205,56 @@ export default function AuditLogsPage() {
             <table className="min-w-full text-left text-sm">
               <thead className="border-b border-slate-800 text-slate-400">
                 <tr>
-                  <th className="px-3 py-2">Timestamp</th>
-                  <th className="px-3 py-2">Actor</th>
+                  <th className="px-3 py-2">
+                    <button onClick={() => toggleSort("timestamp")} className="font-semibold hover:text-slate-200">
+                      Timestamp
+                    </button>
+                  </th>
+                  <th className="px-3 py-2">
+                    <button onClick={() => toggleSort("actor")} className="font-semibold hover:text-slate-200">
+                      Actor
+                    </button>
+                  </th>
                   <th className="px-3 py-2">Category</th>
-                  <th className="px-3 py-2">Action</th>
-                  <th className="px-3 py-2">Severity</th>
+                  <th className="px-3 py-2">
+                    <button onClick={() => toggleSort("action")} className="font-semibold hover:text-slate-200">
+                      Action
+                    </button>
+                  </th>
+                  <th className="px-3 py-2">
+                    <button onClick={() => toggleSort("severity")} className="font-semibold hover:text-slate-200">
+                      Severity
+                    </button>
+                  </th>
+                  <th className="px-3 py-2">Review</th>
                   <th className="px-3 py-2">Details</th>
                 </tr>
               </thead>
               <tbody>
-                {entries.map((entry) => (
-                  <tr key={entry.id} className="border-b border-slate-800/70 text-slate-200">
-                    <td className="px-3 py-2 whitespace-nowrap">{entry.timestamp}</td>
-                    <td className="px-3 py-2">{entry.actor}</td>
-                    <td className="px-3 py-2">{entry.category}</td>
-                    <td className="px-3 py-2">{entry.action}</td>
-                    <td className="px-3 py-2">{entry.severity}</td>
-                    <td className="px-3 py-2">{entry.details}</td>
-                  </tr>
-                ))}
+                {filteredEntries.map((entry) => {
+                  const needsReview =
+                    entry.severity === "critical" ||
+                    /approve|reject|policy|revoke|delete|verification/i.test(entry.action);
+                  return (
+                    <tr key={entry.id} className="border-b border-slate-800/70 text-slate-200">
+                      <td className="px-3 py-2 whitespace-nowrap">{entry.timestamp}</td>
+                      <td className="px-3 py-2">{entry.actor}</td>
+                      <td className="px-3 py-2">{entry.category}</td>
+                      <td className="px-3 py-2">{entry.action}</td>
+                      <td className="px-3 py-2">{entry.severity}</td>
+                      <td className="px-3 py-2">
+                        {needsReview ? (
+                          <span className="rounded-full border border-amber-400/60 bg-amber-400/10 px-2 py-1 text-xs font-semibold text-amber-200">
+                            Review
+                          </span>
+                        ) : (
+                          <span className="text-slate-500">Standard</span>
+                        )}
+                      </td>
+                      <td className="px-3 py-2">{entry.details}</td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>

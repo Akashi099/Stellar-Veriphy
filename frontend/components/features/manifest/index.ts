@@ -13,9 +13,9 @@
  * ```
  */
 
-export { ManifestPreview } from '../../manifest/ManifestPreview';
-export { AdvancedManifestEditor } from '../../manifest/AdvancedManifestEditor';
-export { ManifestModal } from '../../manifest/ManifestModal';
-export { ManifestModalTrigger } from '../../manifest/ManifestModalTrigger';
-export { KeyValueBuilder } from '../../manifest/KeyValueBuilder';
-export { FormatToggle } from '../../manifest/FormatToggle';
+export { AdvancedManifestEditor } from "../../manifest/AdvancedManifestEditor";
+export { FormatToggle } from "../../manifest/FormatToggle";
+export { KeyValueBuilder } from "../../manifest/KeyValueBuilder";
+export { ManifestModal } from "../../manifest/ManifestModal";
+export { ManifestModalTrigger } from "../../manifest/ManifestModalTrigger";
+export { ManifestPreview } from "../../manifest/ManifestPreview";

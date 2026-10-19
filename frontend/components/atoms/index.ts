@@ -13,15 +13,15 @@
  */
 
 // Re-export existing UI components as atoms
-export { Button, type ButtonProps } from '../ui/Button';
-export { Badge, type BadgeProps } from '../ui/StatusBadge';
-export { Avatar, type AvatarProps } from '../ui/Avatar';
-export { Spinner } from '../ui/Spinner';
-export { Tooltip, type TooltipProps } from '../ui/Tooltip';
-export { FormInput, type FormInputProps } from '../ui/FormInput';
-export { EmptyState, type EmptyStateProps } from '../ui/EmptyState';
-export { Accordion, type AccordionProps } from '../ui/Accordion';
-export { Tabs, type TabsProps } from '../ui/Tabs';
-export { Skeleton } from '../ui/Skeleton';
-export { HelpIcon } from '../ui/HelpIcon';
-export { LiveRegion } from '../ui/LiveRegion';
+export { Accordion, type AccordionProps } from "../ui/Accordion";
+export { Avatar, type AvatarProps } from "../ui/Avatar";
+export { Button, type ButtonProps } from "../ui/Button";
+export { EmptyState, type EmptyStateProps } from "../ui/EmptyState";
+export { FormInput, type FormInputProps } from "../ui/FormInput";
+export { HelpIcon } from "../ui/HelpIcon";
+export { LiveRegion } from "../ui/LiveRegion";
+export { Skeleton } from "../ui/Skeleton";
+export { Spinner } from "../ui/Spinner";
+export { StatusBadge as Badge, type StatusBadgeProps as BadgeProps } from "../ui/StatusBadge";
+export { Tabs, type TabsProps } from "../ui/Tabs";
+export { Tooltip, type TooltipProps } from "../ui/Tooltip";

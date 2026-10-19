@@ -10,6 +10,10 @@ for the home page Playwright smoke test. It installs the Chromium browser,
 builds the frontend, starts `next start` through Playwright's `webServer`
 configuration, runs `e2e/home.spec.ts`, and uploads the Playwright HTML report.
 
+## Caching
+
+Dependency stores and build output are cached between runs; keys, invalidation rules and the security rationale are in [`caching.md`](caching.md).
+
 ## `ci.yml` jobs
 
 | Job                   | What it does                                                                                                                                                                                                                                                                                                                 |

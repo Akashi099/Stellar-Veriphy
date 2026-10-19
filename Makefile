@@ -268,3 +268,30 @@ ci-test: ## Run all tests for CI
 	docker compose exec dev sh -c "cd contracts/registry && cargo test"
 	docker compose down
 	@echo "$(GREEN)✓ CI tests complete!$(NC)"
+
+# ============================================================================
+# Contract Upgrade Safety Targets
+# ============================================================================
+
+snapshot-storage-keys: ## Snapshot DataKey variants for a contract (CONTRACT=oracle|provenance|registry)
+	@echo "$(GREEN)Snapshotting storage keys for $(CONTRACT)...$(NC)"
+	@bash scripts/snapshot-contract-state.sh $(CONTRACT)
+
+upgrade-check: ## Run pre-upgrade safety checks (CONTRACT= OLD_WASM= NEW_WASM= NETWORK=testnet)
+	@echo "$(GREEN)Running upgrade safety checks for $(CONTRACT)...$(NC)"
+	@bash scripts/upgrade-safety-check.sh $(CONTRACT) $(OLD_WASM) $(NEW_WASM) $(NETWORK)
+
+verify-deploy: ## Smoke-test a deployed contract (CONTRACT= CONTRACT_ID= NETWORK=testnet)
+	@echo "$(GREEN)Verifying deployment of $(CONTRACT) on $(NETWORK)...$(NC)"
+	@bash scripts/verify-deployment.sh $(CONTRACT) $(CONTRACT_ID) $(NETWORK)
+
+snapshot-all: ## Snapshot all three contracts before an upgrade
+	@echo "$(GREEN)Snapshotting all contracts...$(NC)"
+	@bash scripts/snapshot-contract-state.sh oracle
+	@bash scripts/snapshot-contract-state.sh provenance
+	@bash scripts/snapshot-contract-state.sh registry
+	@echo "$(GREEN)✓ All contracts snapshotted$(NC)"
+
+upgrade-selftest: ## Run the self-test for the upgrade safety tooling (no contract build needed)
+	@echo "$(GREEN)Running upgrade safety self-test...$(NC)"
+	@bash scripts/tests/upgrade-safety-check.test.sh

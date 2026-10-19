@@ -348,6 +348,12 @@
                   "map": [
                     {
                       "key": {
+                        "symbol": "comment"
+                      },
+                      "val": "void"
+                    },
+                    {
+                      "key": {
                         "symbol": "manifest_hash"
                       },
                       "val": {

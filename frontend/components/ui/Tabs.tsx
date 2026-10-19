@@ -145,12 +145,11 @@ export function Tabs({
   }, [syncHash, setActiveTab]);
 
   return (
-    <TabsContext.Provider value={{ activeTab, setActiveTab, orientation, activatedTabs, instanceId }}>
+    <TabsContext.Provider
+      value={{ activeTab, setActiveTab, orientation, activatedTabs, instanceId }}
+    >
       <div
-        className={cn(
-          orientation === "vertical" ? "flex gap-6" : "flex flex-col gap-0",
-          className
-        )}
+        className={cn(orientation === "vertical" ? "flex gap-6" : "flex flex-col gap-0", className)}
       >
         {children}
       </div>
@@ -187,16 +186,16 @@ export function TabList({ className, children, "aria-label": ariaLabel }: TabLis
 
     if (e.key === nextKey) {
       e.preventDefault();
-      tabs[(currentIndex + 1) % tabs.length].focus();
+      tabs[(currentIndex + 1) % tabs.length]!.focus();
     } else if (e.key === prevKey) {
       e.preventDefault();
-      tabs[(currentIndex - 1 + tabs.length) % tabs.length].focus();
+      tabs[(currentIndex - 1 + tabs.length) % tabs.length]!.focus();
     } else if (e.key === "Home") {
       e.preventDefault();
-      tabs[0].focus();
+      tabs[0]!.focus();
     } else if (e.key === "End") {
       e.preventDefault();
-      tabs[tabs.length - 1].focus();
+      tabs[tabs.length - 1]!.focus();
     }
   };
 
@@ -275,7 +274,11 @@ export function Tab({ id, disabled = false, className, children, icon, badge }: 
         className
       )}
     >
-      {icon && <span className="w-4 h-4 shrink-0" aria-hidden="true">{icon}</span>}
+      {icon && (
+        <span className="w-4 h-4 shrink-0" aria-hidden="true">
+          {icon}
+        </span>
+      )}
       <span>{children}</span>
       {badge !== undefined && (
         <span

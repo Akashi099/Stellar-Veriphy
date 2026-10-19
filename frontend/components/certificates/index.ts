@@ -1,9 +1,14 @@
+export { CertificateGallery } from "./CertificateGallery";
 export type { HistoryEvent } from "./CertificateHistoryTimeline";
 export { CertificateHistoryTimeline, generateMockHistory } from "./CertificateHistoryTimeline";
 export { CertificateLookupForm } from "./CertificateLookupForm";
+export { CertificateQRCode, CertificateShareQR } from "./CertificateQRCode";
+export { CertificateRegenerationPanel } from "./CertificateRegenerationPanel";
 export { CertificateResultCard } from "./CertificateResultCard";
 export type { CertificateStatus } from "./CertificateStatusBadge";
 export { CertificateStatusBadge } from "./CertificateStatusBadge";
 export { CertificateVerificationPanel } from "./CertificateVerificationPanel";
+export type { WatermarkPosition } from "./CertificateWatermark";
+export { CertificateWatermark } from "./CertificateWatermark";
 export type { BadgeSize, BadgeStyle, VerificationLevel } from "./VerificationBadge";
 export { VerificationBadge } from "./VerificationBadge";

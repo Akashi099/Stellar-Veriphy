@@ -2,6 +2,7 @@
 
 import { motion } from "framer-motion";
 import Link from "next/link";
+import { trackCtaClick } from "@/lib/analytics";
 
 export function HeroSection() {
   const containerVariants = {
@@ -66,12 +67,28 @@ export function HeroSection() {
         >
           <Link
             href="/verify"
+            onClick={() => {
+              trackCtaClick({
+                ctaId: "hero_start_verifying",
+                ctaLabel: "Start Verifying",
+                ctaLocation: "hero",
+                targetUrl: "/verify",
+              });
+            }}
             className="px-8 py-4 rounded-lg bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white font-semibold transition-all transform hover:scale-105 active:scale-95"
           >
             Start Verifying
           </Link>
           <Link
             href="/docs"
+            onClick={() => {
+              trackCtaClick({
+                ctaId: "hero_view_docs",
+                ctaLabel: "View Docs",
+                ctaLocation: "hero",
+                targetUrl: "/docs",
+              });
+            }}
             className="px-8 py-4 rounded-lg border-2 border-gray-400 hover:border-white text-gray-300 hover:text-white font-semibold transition-all"
           >
             View Docs

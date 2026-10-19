@@ -16,6 +16,8 @@
 
 import { useEffect, useRef, useState } from "react";
 
+import { type ExifField, parseExif } from "@/utils/exif";
+
 // ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
@@ -264,6 +266,62 @@ function MetaItem({ label, value, mono = true }: { label: string; value: string;
   );
 }
 
+function ExifPanel({ exif }: { exif: ExifField[] }) {
+  const [showSensitive, setShowSensitive] = useState(false);
+  const primary = exif.filter((field) => field.sensitivity === "primary");
+  const secondary = exif.filter((field) => field.sensitivity === "secondary");
+  const sensitive = exif.filter((field) => field.sensitivity === "sensitive");
+
+  if (exif.length === 0) return null;
+
+  return (
+    <div className="rounded-lg border border-gray-200 bg-gray-50 p-4 dark:border-gray-700 dark:bg-gray-800">
+      <div className="mb-3 flex items-center justify-between gap-3">
+        <div>
+          <p className="text-sm font-semibold text-gray-900 dark:text-gray-100">Embedded image metadata</p>
+          <p className="text-xs text-gray-600 dark:text-gray-400">Sensitive fields stay hidden by default.</p>
+        </div>
+        {sensitive.length > 0 && (
+          <button
+            type="button"
+            onClick={() => setShowSensitive((current) => !current)}
+            className="rounded-md border border-gray-300 px-3 py-1 text-xs font-medium text-gray-700 hover:bg-white dark:border-gray-600 dark:text-gray-200 dark:hover:bg-gray-900"
+          >
+            {showSensitive ? "Hide sensitive" : "Show sensitive"}
+          </button>
+        )}
+      </div>
+
+      <div className="grid gap-3 md:grid-cols-2">
+        {primary.map((field) => (
+          <MetaItem key={`${field.label}-${field.value}`} label={field.label} value={field.value} mono={false} />
+        ))}
+      </div>
+
+      {secondary.length > 0 && (
+        <details className="mt-3">
+          <summary className="cursor-pointer text-sm font-medium text-gray-700 dark:text-gray-200">
+            Secondary metadata ({secondary.length})
+          </summary>
+          <div className="mt-3 grid gap-3 md:grid-cols-2">
+            {secondary.map((field) => (
+              <MetaItem key={`${field.label}-${field.value}`} label={field.label} value={field.value} mono={false} />
+            ))}
+          </div>
+        </details>
+      )}
+
+      {showSensitive && sensitive.length > 0 && (
+        <div className="mt-3 grid gap-3 border-t border-gray-200 pt-3 md:grid-cols-2 dark:border-gray-700">
+          {sensitive.map((field) => (
+            <MetaItem key={`${field.label}-${field.value}`} label={field.label} value={field.value} mono={false} />
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ---------------------------------------------------------------------------
 // Main export
 // ---------------------------------------------------------------------------
@@ -281,6 +339,7 @@ export function MediaPreview({ file }: MediaPreviewProps) {
     size: file.size,
     type: file.type,
   });
+  const [exif, setExif] = useState<ExifField[]>([]);
 
   const category = getCategory(file.type);
 
@@ -294,6 +353,21 @@ export function MediaPreview({ file }: MediaPreviewProps) {
   // Reset meta (dimensions/duration) when a new file is selected
   useEffect(() => {
     setMeta({ name: file.name, size: file.size, type: file.type });
+    setExif([]);
+  }, [file]);
+
+  useEffect(() => {
+    let cancelled = false;
+    parseExif(file)
+      .then((fields) => {
+        if (!cancelled) setExif(fields);
+      })
+      .catch((error) => {
+        console.warn("Unable to parse embedded image metadata", { fileName: file.name, error });
+      });
+    return () => {
+      cancelled = true;
+    };
   }, [file]);
 
   function handleDuration(s: number) {
@@ -317,6 +391,7 @@ export function MediaPreview({ file }: MediaPreviewProps) {
 
       {/* ── Metadata panel ── */}
       <MetadataPanel meta={meta} />
+      <ExifPanel exif={exif} />
     </div>
   );
 }

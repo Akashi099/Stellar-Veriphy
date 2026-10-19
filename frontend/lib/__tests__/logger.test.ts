@@ -6,12 +6,12 @@
  */
 
 import {
-  logger,
   createChildLogger,
   formatError,
-  type LogLevel,
   type LogContext,
   type LogEntry,
+  logger,
+  type LogLevel,
 } from "../logger";
 
 // Mock console methods to capture output
@@ -39,7 +39,7 @@ describe("Logger - Basic Logging", () => {
     testLogger.debug("Debug message");
     expect(mockConsoleDebug).toHaveBeenCalledWith(
       expect.stringContaining("[DEBUG]"),
-      expect.any(String),
+      expect.any(String)
     );
   });
 
@@ -52,7 +52,7 @@ describe("Logger - Basic Logging", () => {
     testLogger.info("Info message");
     expect(mockConsoleInfo).toHaveBeenCalledWith(
       expect.stringContaining("[INFO]"),
-      expect.any(String),
+      expect.any(String)
     );
   });
 
@@ -65,7 +65,7 @@ describe("Logger - Basic Logging", () => {
     testLogger.warn("Warn message");
     expect(mockConsoleWarn).toHaveBeenCalledWith(
       expect.stringContaining("[WARN]"),
-      expect.any(String),
+      expect.any(String)
     );
   });
 
@@ -256,7 +256,7 @@ describe("Logger - Custom Handlers", () => {
         message: "Test message",
         level: "info",
         context: expect.objectContaining({ data: "value" }),
-      }),
+      })
     );
   });
 

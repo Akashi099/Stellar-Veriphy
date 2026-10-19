@@ -2,7 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 
 import { auditLogger } from "@/lib/security/auditLogger";
 import { validateVerificationRequest } from "@/lib/security/inputValidation";
-import { buildRateLimitHeaders, evaluateRateLimit } from "@/lib/security/rateLimiter";
+import { buildRateLimitErrorBody, buildRateLimitHeaders, evaluateRateLimit } from "@/lib/security/rateLimiter";
+import { logOperationalEvent, requestIdFrom } from "@/lib/server/observability";
 
 function resolveAddressForRateLimit(bodyAddress: string | undefined, request: NextRequest): string {
   if (bodyAddress && bodyAddress.trim()) return bodyAddress.trim();
@@ -19,6 +20,7 @@ function resolveAddressForRateLimit(bodyAddress: string | undefined, request: Ne
 }
 
 export async function POST(request: NextRequest): Promise<NextResponse> {
+  const requestId = requestIdFrom(request);
   let payload: unknown;
   try {
     payload = await request.json();
@@ -35,16 +37,32 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
         severity: "warning",
         details: "Malformed JSON payload triggered rate-limit enforcement",
       });
-      return NextResponse.json(
-        {
-          success: false,
-          error: "Rate limit exceeded. Please retry after the backoff period.",
+      logOperationalEvent("warn", "verification_request.rate_limited", {
+        requestId,
+        route: "POST /api/verification",
+        operation: "parse_verification_request",
+        status: 429,
+        reason: "malformed_json_rate_limited",
+        actor: fallbackIdentity,
+        details: {
           retryAfterSeconds: fallbackLimit.retryAfterSeconds,
+          violations: fallbackLimit.violations,
         },
+      });
+      return NextResponse.json(
+        buildRateLimitErrorBody(fallbackLimit, { action: "verification requests", requestId }),
         { status: 429, headers: fallbackHeaders }
       );
     }
 
+    logOperationalEvent("warn", "verification_request.rejected", {
+      requestId,
+      route: "POST /api/verification",
+      operation: "parse_verification_request",
+      status: 400,
+      reason: "malformed_json",
+      actor: fallbackIdentity,
+    });
     return NextResponse.json(
       {
         success: false,
@@ -71,12 +89,21 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       severity: "warning",
       details: "Rate limit exceeded for verification request",
     });
-    return NextResponse.json(
-      {
-        success: false,
-        error: "Rate limit exceeded. Please retry after the backoff period.",
+    logOperationalEvent("warn", "verification_request.rate_limited", {
+      requestId,
+      route: "POST /api/verification",
+      operation: "evaluate_rate_limit",
+      status: 429,
+      reason: "rate_limit_exceeded",
+      actor: rateLimitKey,
+      details: {
         retryAfterSeconds: limit.retryAfterSeconds,
+        violations: limit.violations,
+        blockedUntil: limit.blockedUntil,
       },
+    });
+    return NextResponse.json(
+      buildRateLimitErrorBody(limit, { action: "verification requests", requestId }),
       { status: 429, headers: rateLimitHeaders }
     );
   }
@@ -90,6 +117,17 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       severity: "warning",
       details: validation.errors.join(", "),
     });
+    logOperationalEvent("warn", "verification_request.rejected", {
+      requestId,
+      route: "POST /api/verification",
+      operation: "validate_verification_request",
+      status: 400,
+      reason: "validation_error",
+      actor: rateLimitKey,
+      details: {
+        errors: validation.errors,
+      },
+    });
     return NextResponse.json(
       {
         success: false,
@@ -100,6 +138,13 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     );
   }
 
+  logOperationalEvent("info", "verification_request.accepted", {
+    requestId,
+    route: "POST /api/verification",
+    operation: "accept_verification_request",
+    status: 202,
+    actor: rateLimitKey,
+  });
   return NextResponse.json(
     {
       success: true,

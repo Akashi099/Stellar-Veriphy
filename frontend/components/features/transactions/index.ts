@@ -9,4 +9,4 @@
  * ```
  */
 
-export { TransactionDetailsModal } from '../../transactions/TransactionDetailsModal';
+export { TransactionDetailsModal } from "../../transactions/TransactionDetailsModal";

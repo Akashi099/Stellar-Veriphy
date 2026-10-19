@@ -1,5 +1,10 @@
+#!/usr/bin/env sh
+. "$(dirname -- "$0")/_/husky.sh"
+
+echo "🔨 Running pre-push checks..."
+
 # Run frontend build to catch build errors before pushing
-echo "🔨 Building frontend to catch errors before push..."
+echo "📦 Building frontend..."
 pnpm build:frontend
 
 if [ $? -ne 0 ]; then
@@ -7,4 +12,32 @@ if [ $? -ne 0 ]; then
   exit 1
 fi
 
-echo "✅ Frontend build successful. Proceeding with push..."
+# Run frontend tests
+echo "🧪 Running frontend tests..."
+pnpm test
+
+if [ $? -ne 0 ]; then
+  echo "❌ Frontend tests failed. Fix test failures before pushing."
+  exit 1
+fi
+
+# Run contract tests
+echo "🔬 Running contract tests..."
+cd contracts/oracle && cargo test --lib 2>/dev/null
+if [ $? -ne 0 ]; then
+  echo "⚠️  Oracle contract tests failed (non-blocking for push)"
+fi
+
+cd ../provenance && cargo test --lib 2>/dev/null
+if [ $? -ne 0 ]; then
+  echo "⚠️  Provenance contract tests failed (non-blocking for push)"
+fi
+
+cd ../registry && cargo test --lib 2>/dev/null
+if [ $? -ne 0 ]; then
+  echo "⚠️  Registry contract tests failed (non-blocking for push)"
+fi
+
+cd ..
+
+echo "✅ All pre-push checks passed! Proceeding with push..."

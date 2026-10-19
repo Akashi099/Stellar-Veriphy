@@ -104,7 +104,7 @@ type MultipleProps = {
   onValueChange?: (value: string[]) => void;
 };
 
-type AccordionProps = (SingleProps | MultipleProps) & {
+export type AccordionProps = (SingleProps | MultipleProps) & {
   children: React.ReactNode;
   className?: string;
 };
@@ -179,7 +179,9 @@ export function Accordion({ children, className, ...props }: AccordionProps) {
     <AccordionContext.Provider
       value={{ type: props.type, openItems, toggle, registerTrigger, triggerValues }}
     >
-      <div className={cn("w-full divide-y divide-border rounded-md border border-border", className)}>
+      <div
+        className={cn("w-full divide-y divide-border rounded-md border border-border", className)}
+      >
         {children}
       </div>
     </AccordionContext.Provider>
@@ -263,12 +265,12 @@ export function AccordionTrigger({
     const idx = triggerValues.current.indexOf(value);
     if (e.key === "ArrowDown" && idx < triggerValues.current.length - 1) {
       e.preventDefault();
-      const nextValue = triggerValues.current[idx + 1];
+      const nextValue = triggerValues.current[idx + 1]!;
       document.getElementById(`accordion-trigger-${nextValue.replace(/[^a-z0-9]/gi, "")}`)?.focus();
     }
     if (e.key === "ArrowUp" && idx > 0) {
       e.preventDefault();
-      const prevValue = triggerValues.current[idx - 1];
+      const prevValue = triggerValues.current[idx - 1]!;
       document.getElementById(`accordion-trigger-${prevValue.replace(/[^a-z0-9]/gi, "")}`)?.focus();
     }
     if (e.key === "Home") {
@@ -310,10 +312,7 @@ export function AccordionTrigger({
       {!hideIcon && (
         <span
           aria-hidden="true"
-          className={cn(
-            "ml-2 shrink-0 transition-transform duration-200",
-            isOpen && "rotate-180"
-          )}
+          className={cn("ml-2 shrink-0 transition-transform duration-200", isOpen && "rotate-180")}
         >
           {icon ?? (
             // Default chevron-down SVG (no external icon library required)
@@ -394,10 +393,7 @@ export function AccordionContent({ children, className }: AccordionContentProps)
         transition: "max-height 200ms ease-in-out",
       }}
     >
-      <div
-        ref={innerRef}
-        className={cn("px-4 pb-4 pt-0 text-sm text-muted-foreground", className)}
-      >
+      <div ref={innerRef} className={cn("px-4 pb-4 pt-0 text-sm text-muted-foreground", className)}>
         {children}
       </div>
     </div>

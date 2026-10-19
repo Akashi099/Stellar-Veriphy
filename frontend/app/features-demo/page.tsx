@@ -1,11 +1,12 @@
 "use client";
 
 import { useState } from "react";
-import { PageTransition } from "@/components/ui/PageTransition";
-import { LoadingTransition } from "@/components/ui/LoadingTransition";
-import { WizardTransition } from "@/components/ui/WizardTransition";
-import { LineChart, BarChart, PieChart } from "@/components/charts";
+
+import { BarChart, LineChart, PieChart } from "@/components/charts";
 import { EmptyState } from "@/components/ui/EmptyState";
+import { LoadingTransition } from "@/components/ui/LoadingTransition";
+import { PageTransition } from "@/components/ui/PageTransition";
+import { WizardTransition } from "@/components/ui/WizardTransition";
 
 export default function FeaturesDemo() {
   const [isLoading, setIsLoading] = useState(false);
@@ -56,9 +57,7 @@ export default function FeaturesDemo() {
       <div className="min-h-screen bg-gradient-to-br from-slate-900 via-blue-900 to-slate-900 text-white">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
           <h1 className="text-4xl font-bold mb-2">Features Demo</h1>
-          <p className="text-gray-300 mb-12">
-            Demonstrating new UI components and transitions
-          </p>
+          <p className="text-gray-300 mb-12">Demonstrating new UI components and transitions</p>
 
           {/* Transitions Section */}
           <section className="mb-16">
@@ -95,8 +94,8 @@ export default function FeaturesDemo() {
                         step === wizardStep
                           ? "bg-blue-500"
                           : step < wizardStep
-                          ? "bg-green-500"
-                          : "bg-white/20"
+                            ? "bg-green-500"
+                            : "bg-white/20"
                       }`}
                     >
                       {step + 1}
@@ -138,7 +137,7 @@ export default function FeaturesDemo() {
                   {wizardStep === 2 && (
                     <div>
                       <h3 className="text-xl font-semibold mb-2">Step 3: Complete</h3>
-                      <p className="text-gray-300">You've reached the final step!</p>
+                      <p className="text-gray-300">You&apos;ve reached the final step!</p>
                     </div>
                   )}
                 </div>
@@ -149,7 +148,7 @@ export default function FeaturesDemo() {
           {/* Charts Section */}
           <section className="mb-16">
             <h2 className="text-2xl font-bold mb-6">3. Chart Components</h2>
-            
+
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
               <div className="bg-white/10 backdrop-blur-md rounded-lg p-6 border border-white/20">
                 <h3 className="text-lg font-semibold mb-4">Line Chart</h3>
@@ -179,11 +178,7 @@ export default function FeaturesDemo() {
             <div className="bg-white/10 backdrop-blur-md rounded-lg p-6 border border-white/20">
               <h3 className="text-lg font-semibold mb-4">Pie Chart</h3>
               <div className="max-w-md mx-auto">
-                <PieChart
-                  data={pieData}
-                  colors={["#10b981", "#f59e0b", "#ef4444"]}
-                  height={300}
-                />
+                <PieChart data={pieData} colors={["#10b981", "#f59e0b", "#ef4444"]} height={300} />
               </div>
             </div>
           </section>

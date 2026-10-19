@@ -58,9 +58,9 @@ export default function Ecosystem() {
               // transition={{ duration: 0.5, delay: index * 0.1 }}
               // viewport={{ once: true }}
               // whileHover={{ y: -8, boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1)' }}
-              className="bg-white dark:bg-gray-800 rounded-lg p-6 shadow-md transition-all cursor-pointer"
+              className="bg-white dark:bg-gray-800 rounded-lg p-6 shadow-md transition-[transform,box-shadow] duration-200 ease-out will-change-transform hover:-translate-y-1 hover:shadow-lg motion-reduce:transition-none motion-reduce:hover:translate-y-0"
             >
-              <div className="text-4xl mb-4">{integration.icon}</div>
+              <div className="text-4xl mb-4" aria-hidden="true">{integration.icon}</div>
               <h3 className="text-lg font-semibold mb-2 text-gray-900 dark:text-white">
                 {integration.name}
               </h3>

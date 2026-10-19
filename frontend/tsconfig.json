@@ -5,23 +5,19 @@
     "strict": true,
     "jsx": "preserve",
     "incremental": true,
-    "plugins": [
-      {
-        "name": "next"
-      }
-    ],
-    "types": ["jest"],
-    "baseUrl": ".",
-    "paths": {
-      "@/*": ["./*"],
-      "@stellarveriphy/shared/*": ["../packages/shared/*"]
-    },
-    "allowJs": true,
-    "skipLibCheck": true,
     "noEmit": true,
     "esModuleInterop": true,
     "resolveJsonModule": true,
-    "isolatedModules": true
+    "isolatedModules": true,
+    "moduleResolution": "Bundler",
+    "allowJs": true,
+    "plugins": [{ "name": "next" }],
+    "baseUrl": ".",
+    "paths": {
+      "@/*": ["./*"],
+      "@stellarveriphy/shared": ["../packages/shared/index.ts"],
+      "@stellarveriphy/shared/*": ["../packages/shared/*"]
+    }
   },
   "include": ["**/*.ts", "**/*.tsx", "next-env.d.ts", ".next/types/**/*.ts"],
   "exclude": ["node_modules"]

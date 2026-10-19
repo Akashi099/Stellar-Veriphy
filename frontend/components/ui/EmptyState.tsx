@@ -1,8 +1,9 @@
 "use client";
 
 import Link from "next/link";
-import { ReactNode, useState, useEffect } from "react";
-import { EmptyCertificates, NoSearchResults, ErrorState } from "@/components/illustrations";
+import { ReactNode, useEffect, useState } from "react";
+
+import { EmptyCertificates, ErrorState, NoSearchResults } from "@/components/illustrations";
 
 type IllustrationType = "certificates" | "search-no-results" | "error";
 
@@ -12,7 +13,7 @@ interface Action {
   onClick?: () => void;
 }
 
-interface EmptyStateProps {
+export interface EmptyStateProps {
   illustration: IllustrationType;
   heading: string;
   body: string;

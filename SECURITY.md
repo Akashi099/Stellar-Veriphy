@@ -285,9 +285,13 @@ Detailed security implementation guides are in [`docs/security/`](./docs/securit
 | Document | Contents |
 |---|---|
 | [`docs/security/key-management.md`](./docs/security/key-management.md) | Key inventory, HSM requirements, rotation procedures, backup and recovery, key usage auditing |
+| [`docs/security/kms-architecture.md`](./docs/security/kms-architecture.md) | Artifact encryption key generation, wrapping, rotation, access control, and incident response |
+| [`docs/security/consent-model.md`](./docs/security/consent-model.md) | Provenance consent and permission model — roles, permission matrix, consent scopes, enforcement points |
+| [`docs/security/tee-attestation-service.md`](./docs/security/tee-attestation-service.md) | TEE attestation verification service — trust chain, validation steps, failure handling |
 | [`docs/security/smart-contract-audit-runbook.md`](./docs/security/smart-contract-audit-runbook.md) | Audit firm selection, scope definition, finding remediation, report publication, re-audit process |
 | [`docs/security/verification-service-security.md`](./docs/security/verification-service-security.md) | Rate limiting configuration, input validation schema, CSP setup, audit logging |
 | [`docs/security/security-headers.md`](./docs/security/security-headers.md) | HTTP header set, rationale per header, how to verify, policy change guidance |
+| [`docs/security/governance-framework.md`](./docs/security/governance-framework.md) | Autonomous governance — stakeholder roles, review paths, trust thresholds, emergency actions, audit trail |
 
 Related documents:
 - [`contracts/IMPLEMENTATION.md`](./contracts/IMPLEMENTATION.md) — storage conventions, cross-contract call patterns, error enum stability rules

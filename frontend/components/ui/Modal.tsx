@@ -1,11 +1,11 @@
 "use client";
 
-import { ReactNode,useEffect, useRef } from "react";
+import { ReactNode, useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
 
 import { cn } from "@/utils/cn";
 
-interface ModalProps {
+export interface ModalProps {
   isOpen: boolean;
   onClose: () => void;
   title?: string;

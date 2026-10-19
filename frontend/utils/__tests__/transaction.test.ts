@@ -3,7 +3,7 @@
  * Covers: fetchTransactionStatus
  */
 
-import { fetchTransactionStatus } from "../transaction";
+import { fetchTransactionStatus, pollTransactionStatus } from "../transaction";
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -66,5 +66,44 @@ describe("fetchTransactionStatus", () => {
     await fetchTransactionStatus("txhash999");
 
     expect(spy).toHaveBeenCalledWith(expect.stringContaining("txhash999"));
+  });
+});
+
+describe("pollTransactionStatus", () => {
+  it("polls until a delayed transaction is confirmed", async () => {
+    jest.useFakeTimers();
+    const onStatus = jest.fn();
+    const spy = jest
+      .spyOn(globalThis, "fetch")
+      .mockResolvedValueOnce({ ok: false, status: 404, json: async () => ({}) } as Response)
+      .mockResolvedValueOnce({ ok: true, status: 200, json: async () => ({ successful: true }) } as Response);
+
+    const result = pollTransactionStatus("delayed", { intervalMs: 1000, timeoutMs: 5000, onStatus });
+    await Promise.resolve();
+    await jest.advanceTimersByTimeAsync(1000);
+
+    await expect(result).resolves.toBe("CONFIRMED");
+    expect(spy).toHaveBeenCalledTimes(2);
+    expect(onStatus).toHaveBeenCalledWith("PENDING");
+    expect(onStatus).toHaveBeenCalledWith("CONFIRMED");
+    jest.useRealTimers();
+  });
+
+  it("returns TIMEOUT for a stuck pending transaction", async () => {
+    jest.useFakeTimers();
+    const onStatus = jest.fn();
+    jest.spyOn(globalThis, "fetch").mockResolvedValue({
+      ok: false,
+      status: 404,
+      json: async () => ({}),
+    } as Response);
+
+    const result = pollTransactionStatus("stuck", { intervalMs: 1000, timeoutMs: 2500, onStatus });
+    await Promise.resolve();
+    await jest.advanceTimersByTimeAsync(2500);
+
+    await expect(result).resolves.toBe("TIMEOUT");
+    expect(onStatus).toHaveBeenLastCalledWith("TIMEOUT");
+    jest.useRealTimers();
   });
 });

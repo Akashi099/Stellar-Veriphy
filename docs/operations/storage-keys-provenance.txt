@@ -1,0 +1,18 @@
+# DataKey variants for provenance — 2026-10-19T03:31:10Z
+Admin
+Anchors
+CertRollbacks
+Certificate
+Code
+CurrentOwner
+Endorsement
+EndorsementCount
+EndorsementIndex
+History
+ManifestSignature
+NextId
+RedactionPolicy
+RollbackCount
+RollbackRecord
+TagIndex
+ViewCount

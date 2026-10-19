@@ -33,7 +33,7 @@ export function ManifestStep() {
   const processFile = async (file: File) => {
     const isValidType = file.name.endsWith(".json") || file.name.endsWith(".xml");
     if (!isValidType) {
-      setError("Please upload a .json or .xml file");
+      setError("Manifest must be a .json or .xml file. Invalid file type detected.");
       return;
     }
 
@@ -77,22 +77,31 @@ export function ManifestStep() {
       <h2 className="text-2xl font-bold">Attach Manifest</h2>
 
       {!selectedFile ? (
-        <div
-          onDrop={handleDrop}
-          onDragOver={(e) => e.preventDefault()}
-          className="border-2 border-dashed border-gray-300 rounded-lg p-12 text-center hover:border-blue-500 transition cursor-pointer"
-        >
-          <input
-            type="file"
-            onChange={handleFileSelect}
-            accept=".json,.xml"
-            className="hidden"
-            id="manifest-input"
-          />
-          <label htmlFor="manifest-input" className="cursor-pointer">
-            <p className="text-lg font-semibold mb-2">Drag and drop your manifest here</p>
-            <p className="text-gray-600">or click to select a .json or .xml file</p>
-          </label>
+        <div className="space-y-4">
+          <div
+            onDrop={handleDrop}
+            onDragOver={(e) => e.preventDefault()}
+            className="border-2 border-dashed border-gray-300 rounded-lg p-12 text-center hover:border-blue-500 transition cursor-pointer"
+          >
+            <input
+              type="file"
+              onChange={handleFileSelect}
+              accept=".json,.xml"
+              className="hidden"
+              id="manifest-input"
+            />
+            <label htmlFor="manifest-input" className="cursor-pointer">
+              <p className="text-lg font-semibold mb-2">Drag and drop your manifest here</p>
+              <p className="text-gray-600">or click to select a .json or .xml file</p>
+            </label>
+          </div>
+          <button
+            type="button"
+            onClick={() => router.back()}
+            className="text-sm font-medium text-gray-600 hover:text-gray-900 transition"
+          >
+            ← Back
+          </button>
         </div>
       ) : (
         <div className="space-y-4">
@@ -133,12 +142,21 @@ export function ManifestStep() {
           {error && <p className="text-red-500 text-sm">{error}</p>}
 
           {hash && (
-            <button
-              onClick={handleContinue}
-              className="w-full bg-blue-500 text-white py-2 rounded-lg hover:bg-blue-600 transition"
-            >
-              Continue
-            </button>
+            <>
+              <button
+                type="button"
+                onClick={() => router.back()}
+                className="text-sm font-medium text-gray-600 hover:text-gray-900 transition"
+              >
+                ← Back
+              </button>
+              <button
+                onClick={handleContinue}
+                className="w-full bg-blue-500 text-white px-4 py-2 rounded-lg hover:bg-blue-600 transition"
+              >
+                Continue
+              </button>
+            </>
           )}
         </div>
       )}

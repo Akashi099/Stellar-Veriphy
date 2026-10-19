@@ -79,6 +79,42 @@ const tools: ToolCard[] = [
     badge: "#266",
     badgeColor: "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300",
   },
+  {
+    title: "Compliance Audit Trail",
+    description:
+      "Structured, tamper-evident record of legal and compliance actions tied to provenance events — GDPR/CCPA requests, retention milestones, content disputes, and policy changes.",
+    href: "/tools/compliance-audit",
+    icon: "⚖️",
+    badge: "#688",
+    badgeColor: "bg-teal-100 text-teal-700 dark:bg-teal-900/40 dark:text-teal-300",
+  },
+  {
+    title: "Verification History",
+    description:
+      "A local, browser-only timeline of certificates you've looked up or verified, with date filtering, export, and a privacy control to disable or clear tracking.",
+    href: "/verification-history",
+    icon: "🕘",
+    badge: "#465",
+    badgeColor: "bg-sky-100 text-sky-700 dark:bg-sky-900/40 dark:text-sky-300",
+  },
+  {
+    title: "App Settings & Backup",
+    description:
+      "Install StellarVeriphy as an app, manage push notifications and offline cache, and export/import an encrypted backup of your locally stored data.",
+    href: "/settings",
+    icon: "⚙️",
+    badge: "#466 / #467",
+    badgeColor: "bg-indigo-100 text-indigo-700 dark:bg-indigo-900/40 dark:text-indigo-300",
+  },
+  {
+    title: "Metadata Redaction",
+    description:
+      "Controlled redaction for sensitive manifest fields. Hide location, device, or file details from public view while keeping the on-chain proof fully intact.",
+    href: "/tools/manifest-redaction",
+    icon: "🕶️",
+    badge: "Privacy",
+    badgeColor: "bg-violet-100 text-violet-700 dark:bg-violet-900/40 dark:text-violet-300",
+  },
 ];
 
 export default function ToolsPage() {

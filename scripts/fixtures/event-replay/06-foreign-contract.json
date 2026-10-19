@@ -1,0 +1,33 @@
+{
+  "name": "foreign-contract",
+  "description": "The dataset mixes events from the provenance contract and an unrelated contract. Only the pinned contract is replayed.",
+  "contractId": "C_PROVENANCE",
+  "events": [
+    {
+      "id": "0000000600-0000000001",
+      "ledger": 600,
+      "ledgerClosedAt": "2026-10-06T10:00:00Z",
+      "contractId": "C_PROVENANCE",
+      "type": "contract",
+      "topic": ["minted"],
+      "value": 1,
+      "txHash": "tx-k",
+      "inSuccessfulContractCall": true
+    },
+    {
+      "id": "0000000600-0000000002",
+      "ledger": 600,
+      "ledgerClosedAt": "2026-10-06T10:00:00Z",
+      "contractId": "C_ORACLE",
+      "type": "contract",
+      "topic": ["submitted"],
+      "value": 3,
+      "txHash": "tx-l",
+      "inSuccessfulContractCall": true
+    }
+  ],
+  "expected": {
+    "eventCount": 1,
+    "eventNameCounts": { "minted": 1 }
+  }
+}

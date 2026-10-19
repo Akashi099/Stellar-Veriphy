@@ -1,0 +1,33 @@
+{
+  "name": "duplicate-identical",
+  "description": "The same event arrives twice, as happens when an RPC page overlaps a backup export. It must be applied once.",
+  "contractId": "C_PROVENANCE",
+  "events": [
+    {
+      "id": "0000000200-0000000001",
+      "ledger": 200,
+      "ledgerClosedAt": "2026-10-02T10:00:00Z",
+      "contractId": "C_PROVENANCE",
+      "type": "contract",
+      "topic": ["minted"],
+      "value": 7,
+      "txHash": "tx-e",
+      "inSuccessfulContractCall": true
+    },
+    {
+      "id": "0000000200-0000000001",
+      "ledger": 200,
+      "ledgerClosedAt": "2026-10-02T10:00:00Z",
+      "contractId": "C_PROVENANCE",
+      "type": "contract",
+      "topic": ["minted"],
+      "value": 7,
+      "txHash": "tx-e",
+      "inSuccessfulContractCall": true
+    }
+  ],
+  "expected": {
+    "eventCount": 1,
+    "eventIds": ["0000000200-0000000001"]
+  }
+}

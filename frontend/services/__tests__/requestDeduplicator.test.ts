@@ -6,9 +6,9 @@
  */
 
 import {
-  RequestDeduplicator,
   createDedupFunction,
   globalDeduplicator,
+  RequestDeduplicator,
 } from "../requestDeduplicator";
 
 describe("RequestDeduplicator", () => {
@@ -38,10 +38,7 @@ describe("RequestDeduplicator", () => {
 
       // Simulate a slow request
       fetchFn.mockImplementation(
-        () =>
-          new Promise((resolve) =>
-            setTimeout(() => resolve("shared-data"), 50),
-          ),
+        () => new Promise((resolve) => setTimeout(() => resolve("shared-data"), 50))
       );
 
       // Start two requests simultaneously
@@ -71,9 +68,7 @@ describe("RequestDeduplicator", () => {
 
   describe("pending time expiration", () => {
     it("makes a new request after pending time expires", async () => {
-      const fetchFn = jest.fn()
-        .mockResolvedValueOnce("data-1")
-        .mockResolvedValueOnce("data-2");
+      const fetchFn = jest.fn().mockResolvedValueOnce("data-1").mockResolvedValueOnce("data-2");
 
       // First request
       const result1 = await deduplicator.deduplicate("key-1", fetchFn);
@@ -136,9 +131,7 @@ describe("RequestDeduplicator", () => {
     it("clears pending request after error", async () => {
       const fetchFn = jest.fn().mockRejectedValue(new Error("failed"));
 
-      await expect(
-        deduplicator.deduplicate("key-1", fetchFn),
-      ).rejects.toThrow();
+      await expect(deduplicator.deduplicate("key-1", fetchFn)).rejects.toThrow();
 
       // Wait for cleanup
       jest.runAllTimers();
@@ -176,10 +169,7 @@ describe("RequestDeduplicator", () => {
   describe("management operations", () => {
     it("reports pending request count", async () => {
       const fetchFn = jest.fn(
-        () =>
-          new Promise((resolve) =>
-            setTimeout(() => resolve("data"), 100),
-          ),
+        () => new Promise((resolve) => setTimeout(() => resolve("data"), 100))
       );
 
       expect(deduplicator.getPendingCount()).toBe(0);
@@ -201,10 +191,7 @@ describe("RequestDeduplicator", () => {
 
     it("returns pending keys", async () => {
       const fetchFn = jest.fn(
-        () =>
-          new Promise((resolve) =>
-            setTimeout(() => resolve("data"), 100),
-          ),
+        () => new Promise((resolve) => setTimeout(() => resolve("data"), 100))
       );
 
       deduplicator.deduplicate("cert-123", fetchFn);
@@ -218,10 +205,7 @@ describe("RequestDeduplicator", () => {
 
     it("clear() removes all pending requests", async () => {
       const fetchFn = jest.fn(
-        () =>
-          new Promise((resolve) =>
-            setTimeout(() => resolve("data"), 100),
-          ),
+        () => new Promise((resolve) => setTimeout(() => resolve("data"), 100))
       );
 
       deduplicator.deduplicate("key-1", fetchFn);
@@ -234,10 +218,7 @@ describe("RequestDeduplicator", () => {
 
     it("clearKey() removes specific pending request", async () => {
       const fetchFn = jest.fn(
-        () =>
-          new Promise((resolve) =>
-            setTimeout(() => resolve("data"), 100),
-          ),
+        () => new Promise((resolve) => setTimeout(() => resolve("data"), 100))
       );
 
       deduplicator.deduplicate("key-1", fetchFn);
@@ -285,14 +266,11 @@ describe("RequestDeduplicator", () => {
   describe("real-world scenarios", () => {
     it("handles many concurrent requests for same key", async () => {
       const fetchFn = jest.fn(
-        () =>
-          new Promise((resolve) =>
-            setTimeout(() => resolve("shared"), 50),
-          ),
+        () => new Promise((resolve) => setTimeout(() => resolve("shared"), 50))
       );
 
       const promises = Array.from({ length: 10 }, () =>
-        deduplicator.deduplicate("same-key", fetchFn),
+        deduplicator.deduplicate("same-key", fetchFn)
       );
 
       expect(fetchFn).toHaveBeenCalledTimes(1);
@@ -304,10 +282,7 @@ describe("RequestDeduplicator", () => {
 
     it("handles interleaved requests", async () => {
       const fetchFn = jest.fn(
-        () =>
-          new Promise((resolve) =>
-            setTimeout(() => resolve("data"), 50),
-          ),
+        () => new Promise((resolve) => setTimeout(() => resolve("data"), 50))
       );
 
       const p1 = deduplicator.deduplicate("key-1", fetchFn);
@@ -328,8 +303,7 @@ describe("RequestDeduplicator", () => {
 describe("createDedupFunction", () => {
   it("creates a wrapper that deduplicates by key", async () => {
     const originalFn = jest.fn(
-      (id: string) =>
-        new Promise((resolve) => setTimeout(() => resolve(`data-${id}`), 50)),
+      (id: string) => new Promise((resolve) => setTimeout(() => resolve(`data-${id}`), 50))
     );
 
     const keyGen = (id: string) => `cert-${id}`;
@@ -353,10 +327,7 @@ describe("createDedupFunction", () => {
   it("uses global deduplicator by default", async () => {
     const originalFn = jest.fn().mockResolvedValue("data");
 
-    const dedupFn = createDedupFunction(
-      originalFn,
-      () => "unique-key",
-    );
+    const dedupFn = createDedupFunction(originalFn, () => "unique-key");
 
     await dedupFn();
     const result = await dedupFn();
@@ -370,21 +341,14 @@ describe("createDedupFunction", () => {
     const customDedup = new RequestDeduplicator({ maxPendingTime: 50 });
     const originalFn = jest.fn().mockResolvedValue("data");
 
-    const dedupFn = createDedupFunction(
-      originalFn,
-      () => "key",
-      customDedup,
-    );
+    const dedupFn = createDedupFunction(originalFn, () => "key", customDedup);
 
     await dedupFn();
     expect(originalFn).toHaveBeenCalledTimes(1);
   });
 
   it("passes function arguments correctly", async () => {
-    const originalFn = jest.fn(
-      (a: number, b: string) =>
-        Promise.resolve(`${a}-${b}`),
-    );
+    const originalFn = jest.fn((a: number, b: string) => Promise.resolve(`${a}-${b}`));
 
     const keyGen = (a: number, b: string) => `${a}:${b}`;
     const dedupFn = createDedupFunction(originalFn, keyGen);
@@ -417,14 +381,8 @@ describe("globalDeduplicator", () => {
   it("can be used across multiple modules", async () => {
     const fetchFn = jest.fn().mockResolvedValue("shared");
 
-    const result1 = await globalDeduplicator.deduplicate(
-      "global-key",
-      fetchFn,
-    );
-    const result2 = await globalDeduplicator.deduplicate(
-      "global-key",
-      fetchFn,
-    );
+    const result1 = await globalDeduplicator.deduplicate("global-key", fetchFn);
+    const result2 = await globalDeduplicator.deduplicate("global-key", fetchFn);
 
     expect(result1).toBe("shared");
     expect(result2).toBe("shared");
