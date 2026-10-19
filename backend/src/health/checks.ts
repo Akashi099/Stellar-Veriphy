@@ -1,5 +1,8 @@
 import type { Db } from "mongodb";
-import { config } from "../config.js";
+import { config, externalApiPolicy } from "../config.js";
+import { ExternalApiClient, ExternalApiError } from "../lib/http.js";
+
+export { safeUrl } from "../lib/url.js";
 
 export type HealthState = "up" | "degraded" | "down";
 
@@ -25,6 +28,7 @@ export class HealthCheckError extends Error {
 
 export function failureReason(err: unknown): FailureReason {
   if (err instanceof HealthCheckError) return err.reason;
+  if (err instanceof ExternalApiError) return err.meta.reason === "aborted" ? "timeout" : err.meta.reason;
   if (err instanceof Error) {
     if (err.name === "AbortError" || err.name === "TimeoutError") return "timeout";
     if (err.name === "TypeError" && /fetch failed/i.test(err.message)) return "connection";
@@ -53,36 +57,38 @@ export interface DependencyCheck extends DependencyProbe {
   critical: boolean;
 }
 
-/** Strips credentials and query strings so URLs are safe to log. */
-export function safeUrl(raw: string): string {
-  try {
-    const url = new URL(raw);
-    url.username = "";
-    url.password = "";
-    url.search = "";
-    return url.toString();
-  } catch {
-    return "<invalid url>";
-  }
-}
-
 function join(base: string, path: string): string {
   return base.replace(/\/+$/, "") + path;
 }
 
-async function fetchJson<T>(url: string, signal: AbortSignal, body?: unknown): Promise<T> {
-  const res = await fetch(url, {
+const probeClients = new Map<string, ExternalApiClient>();
+
+/**
+ * Probes go through the shared external API client (#788) for consistent timeouts, error
+ * metadata and sv_external_api_* metrics. Retries are left to HealthMonitor (HEALTH_CHECK_RETRIES),
+ * so the client itself never retries here.
+ */
+function probeClient(service: string): ExternalApiClient {
+  let client = probeClients.get(service);
+  if (!client) {
+    const policy = externalApiPolicy(service);
+    client = new ExternalApiClient(service, {
+      ...policy,
+      timeoutMs: Math.min(policy.timeoutMs, config.health.timeoutMs),
+      totalTimeoutMs: config.health.timeoutMs,
+      retries: 0,
+    });
+    probeClients.set(service, client);
+  }
+  return client;
+}
+
+async function fetchJson<T>(service: string, url: string, signal: AbortSignal, body?: unknown): Promise<T> {
+  return probeClient(service).json<T>(url, {
     method: body === undefined ? "GET" : "POST",
     signal,
-    headers: { accept: "application/json", ...(body === undefined ? {} : { "content-type": "application/json" }) },
     body: body === undefined ? undefined : JSON.stringify(body),
   });
-  if (!res.ok) throw new HealthCheckError(`HTTP ${res.status} from ${safeUrl(url)}`, "http_error");
-  try {
-    return (await res.json()) as T;
-  } catch (err) {
-    throw new HealthCheckError(`Non-JSON response from ${safeUrl(url)}`, "invalid_response", { cause: err });
-  }
 }
 
 // --- MongoDB -------------------------------------------------------------------
@@ -122,7 +128,7 @@ export function horizonCheck(horizonUrl: string, passphrase: string, maxLedgerAg
       "STELLAR_HORIZON_URL at a fallback Horizon instance and restart. A passphrase mismatch means the URL " +
       "points at the wrong network.",
     async probe(signal) {
-      const root = await fetchJson<HorizonRoot>(join(horizonUrl, "/"), signal);
+      const root = await fetchJson<HorizonRoot>("horizon", join(horizonUrl, "/"), signal);
       if (typeof root.history_latest_ledger !== "number") {
         throw new HealthCheckError("Horizon root response is missing ledger fields", "invalid_response");
       }
@@ -159,7 +165,7 @@ interface JsonRpcResponse<T> {
 }
 
 async function rpc<T>(url: string, method: string, signal: AbortSignal): Promise<T> {
-  const res = await fetchJson<JsonRpcResponse<T>>(url, signal, { jsonrpc: "2.0", id: 1, method });
+  const res = await fetchJson<JsonRpcResponse<T>>("soroban_rpc", url, signal, { jsonrpc: "2.0", id: 1, method });
   if (res.error) throw new HealthCheckError(`${method} failed: ${res.error.message} (${res.error.code})`, "unhealthy");
   if (res.result === undefined) throw new HealthCheckError(`${method} returned no result`, "invalid_response");
   return res.result;
@@ -204,7 +210,7 @@ export function ipfsCheck(apiUrl: string): DependencyProbe {
       "while it is down; indexing jobs retry automatically once it recovers.",
     async probe(signal) {
       // Kubo's RPC API only accepts POST.
-      const version = await fetchJson<{ Version?: string }>(join(apiUrl, "/api/v0/version"), signal, {});
+      const version = await fetchJson<{ Version?: string }>("ipfs", join(apiUrl, "/api/v0/version"), signal, {});
       return { status: "up", details: { version: version.Version } };
     },
   };
@@ -217,9 +223,7 @@ export function httpHealthCheck(name: string, url: string, remediation: string):
     name,
     remediation,
     async probe(signal) {
-      const res = await fetch(url, { signal, headers: { accept: "application/json" } });
-      if (!res.ok) throw new HealthCheckError(`HTTP ${res.status} from ${safeUrl(url)}`, "http_error");
-      const text = await res.text();
+      const { text } = await probeClient(name).request(url, { signal, headers: { accept: "application/json" } });
       let body: { status?: unknown } | undefined;
       try {
         body = JSON.parse(text) as { status?: unknown };
