@@ -11,6 +11,7 @@ Verification sessions and job records are temporary working state. A scheduled c
 | `purge_session_archive` | `verification_sessions_archive` | archived more than `RETENTION_ARCHIVE_DAYS` (90d) ago | delete |
 | `purge_succeeded_jobs` | `jobs` with status `succeeded` | finished more than `RETENTION_SUCCEEDED_JOB_DAYS` (7d) ago | delete |
 | `purge_dead_jobs` | `jobs` with status `dead` | finished more than `RETENTION_DEAD_JOB_DAYS` (30d) ago | delete |
+| `purge_orphaned_media` | files under `MEDIA_STORAGE_DIR` | no record references the file, and it is older than `ORPHAN_MEDIA_MIN_AGE_HOURS` (48h) | delete file (see [Orphaned media](#orphaned-media)) |
 
 "Activity" means `lastActivityAt`. The app updates it on every interaction with a session (`SessionRepository.touch`).
 
@@ -66,7 +67,41 @@ db.verification_sessions_archive.deleteOne({ _id: doc._id });
 
 ## Temporary uploads
 
-Archived sessions keep `tempUploadRef`. Removing the referenced blob from the storage layer is left to the storage service's own lifecycle policy. Configure it with a lifetime longer than `RETENTION_IDLE_SESSION_HOURS`, so a blob never disappears while its session can still be resumed.
+Archived sessions keep `tempUploadRef`, so their upload survives as long as the session can be restored. Once the archive entry is purged after `RETENTION_ARCHIVE_DAYS`, nothing references the file any more, and the orphaned media task removes it.
+
+## Orphaned media
+
+`purge_orphaned_media` (`backend/src/maintenance/orphans.ts`) deletes media files that no record or upload state points to. It runs as the last retention task, on the same schedule and under the same lock. It is active only when `MEDIA_STORAGE_DIR` is set and `ORPHAN_MEDIA_CLEANUP_ENABLED` is not `false`.
+
+**A file is kept when any of these is true:**
+
+- `verifications.storageRef` references it. This is certified media and is never removed.
+- `verification_sessions.tempUploadRef` references it, whatever state the session is in, including `open` and `submitted`.
+- `verification_sessions_archive.tempUploadRef` references it, so it can still be restored.
+- It was modified within the last `ORPHAN_MEDIA_MIN_AGE_HOURS` (48h). This covers the gap between a file being written and its record being saved.
+
+References match `local://<path>`, `<path>` and `/<path>`. References for another storage backend (for example `ipfs://…`) never match a local file, so they don't protect one, and the task never deletes outside `MEDIA_STORAGE_DIR`.
+
+**Safety:**
+
+- **Safety ceiling.** If more than `ORPHAN_MEDIA_MAX_DELETE_PERCENT` (25%) of scanned files look orphaned, the run deletes nothing. It logs `orphaned media cleanup aborted by safety limit` and the task reports a failure. This usually means `MEDIA_STORAGE_DIR` and `MONGODB_DB` belong to different environments. If the backlog is real, raise the limit for one run.
+- **Re-checked at delete time.** References are checked again just before deleting. A file that gained a record during the scan is kept (counted as `rescued` in the log).
+- **Bounded.** Each run scans at most `RETENTION_BATCH_SIZE × RETENTION_MAX_BATCHES_PER_RUN` files and sets `truncated: true` when there are more.
+- **Dry run.** `pnpm --filter backend retention:dry-run` or `POST /admin/maintenance/cleanup?dryRun=true` reports `scanned`, `matched` (orphans) and `skippedActive` (referenced) without deleting anything.
+
+**Logs** (`component: "orphan-media"`):
+
+- `orphaned media scan started`: the scope (`storage`, `minAgeHours`, `maxDeletePercent`, `dryRun`).
+- `orphaned media cleanup completed` / `orphaned media dry run`: `scanned`, `referenced`, `tooRecent`, `orphaned`, `orphanBytes`, `rescued`, `deleted`, `failed`, `deletedBytes`, `truncated`, and up to 50 `sampleKeys`.
+- `failed to delete orphaned media` (warn): per file. The file is retried on the next run.
+- `orphaned media deleted` (debug): per file.
+
+| Variable | Default | |
+|---|---|---|
+| `MEDIA_STORAGE_DIR` | unset | Root of the media store. Cleanup is inactive when this is unset. |
+| `ORPHAN_MEDIA_CLEANUP_ENABLED` | `true` | Set to `false` to switch off the task |
+| `ORPHAN_MEDIA_MIN_AGE_HOURS` | `48` | Grace period for new files |
+| `ORPHAN_MEDIA_MAX_DELETE_PERCENT` | `25` | Safety ceiling per run |
 
 ## Monitoring
 
@@ -76,6 +111,8 @@ Archived sessions keep `tempUploadRef`. Removing the referenced blob from the st
 | `sv_cleanup_records_total{task,action}` | Records `archived` / `deleted` |
 | `sv_cleanup_duration_seconds{task}` | Task duration |
 | `sv_cleanup_last_success_timestamp_seconds{task}` | Last successful run |
+| `sv_orphan_media_objects_total{storage,outcome}` | Orphaned files `deleted` / `failed` |
+| `sv_orphan_media_deleted_bytes_total{storage}` | Storage reclaimed |
 
 Logs use `component: "retention"`, with `retention task completed`, `retention task failed`, and `retention backlog exceeds per-run limit`. Alerts are in group `retention` of [`infra/prometheus/alerts.yml`](../../infra/prometheus/alerts.yml).
 

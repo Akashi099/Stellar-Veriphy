@@ -1,4 +1,7 @@
 import type { Db, Filter } from "mongodb";
+import type { Config } from "../config.js";
+import { TtlCache } from "../lib/cache.js";
+import type { Logger } from "../lib/logger.js";
 import { Collections, type VerificationDoc, type VerificationStatus } from "./collections.js";
 
 const MAX_PAGE_SIZE = 100;
@@ -63,5 +66,81 @@ export class VerificationRepository {
   /** Index: certId_unique */
   findByCertId(certId: string) {
     return this.col.findOne({ certId });
+  }
+}
+
+type StatusResult = NonNullable<Awaited<ReturnType<VerificationRepository["getStatus"]>>>;
+type VerificationResult = NonNullable<Awaited<ReturnType<VerificationRepository["findLatestByContentHash"]>>>;
+
+/** Statuses that never change again, so their status/certificate documents are safe to cache longer. */
+const TERMINAL_STATUSES: readonly VerificationStatus[] = ["certified", "failed"];
+
+export interface PublicVerificationCaches {
+  status: TtlCache<StatusResult>;
+  contentHash: TtlCache<VerificationResult>;
+  certId: TtlCache<VerificationResult>;
+}
+
+export function createPublicVerificationCaches(opts: Config["cache"], log: Logger): PublicVerificationCaches {
+  const base = { maxEntries: opts.maxEntries, negativeTtlMs: opts.negativeTtlMs };
+  return {
+    status: new TtlCache({ ...base, name: "verification_status", ttlMs: opts.statusTtlMs }, log),
+    contentHash: new TtlCache({ ...base, name: "verification_content_hash", ttlMs: opts.contentHashTtlMs }, log),
+    certId: new TtlCache({ ...base, name: "verification_cert_id", ttlMs: opts.statusTtlMs }, log),
+  };
+}
+
+/**
+ * Cached front for the public (unauthenticated) verification reads (#779). Invalidation rules are
+ * documented in docs/operations/public-read-cache.md:
+ *
+ * - status / certId: only terminal (certified/failed) records are cached, so a cached entry can never
+ *   hide a later state change. Pending/processing lookups always reach MongoDB.
+ * - contentHash: cached for a short TTL because re-verifying content creates a newer record.
+ * - "not found" results are cached for PUBLIC_CACHE_NEGATIVE_TTL_MS only.
+ *
+ * Code that writes a verification must call `invalidate(doc)` so this instance drops it at once.
+ */
+export class CachedVerificationReads {
+  constructor(
+    private readonly repo: VerificationRepository,
+    private readonly caches: PublicVerificationCaches,
+  ) {}
+
+  getStatus(jobId: string) {
+    return this.caches.status.getOrLoad(jobId, () => this.repo.getStatus(jobId), (s) => TERMINAL_STATUSES.includes(s.status));
+  }
+
+  findLatestByContentHash(contentHash: string) {
+    const key = contentHash.toLowerCase().replace(/^sha256:/, "");
+    return this.caches.contentHash.getOrLoad(key, () => this.repo.findLatestByContentHash(contentHash));
+  }
+
+  findByCertId(certId: string) {
+    return this.caches.certId.getOrLoad(certId, () => this.repo.findByCertId(certId), (v) => TERMINAL_STATUSES.includes(v.status));
+  }
+
+  /** Creator history is paginated and changes with every new verification, so it is not cached. */
+  listByCreator(...args: Parameters<VerificationRepository["listByCreator"]>) {
+    return this.repo.listByCreator(...args);
+  }
+
+  /** Drops every cached entry that could describe `doc`. */
+  invalidate(doc: Pick<VerificationDoc, "jobId" | "contentHash" | "certId">): void {
+    this.caches.status.invalidate(doc.jobId);
+    this.caches.contentHash.invalidate(doc.contentHash.toLowerCase().replace(/^sha256:/, ""));
+    if (doc.certId) this.caches.certId.invalidate(doc.certId);
+  }
+
+  clear(): Record<string, number> {
+    return {
+      status: this.caches.status.clear(),
+      contentHash: this.caches.contentHash.clear(),
+      certId: this.caches.certId.clear(),
+    };
+  }
+
+  stats(): Record<string, number> {
+    return { status: this.caches.status.size, contentHash: this.caches.contentHash.size, certId: this.caches.certId.size };
   }
 }

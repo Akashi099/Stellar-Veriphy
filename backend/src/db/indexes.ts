@@ -42,6 +42,11 @@ export const INDEXES: Record<string, IndexSpec[]> = {
       partialFilterExpression: { certId: { $exists: true } },
       serves: "VerificationRepository.findByCertId — certificate lookup; partial so uncertified docs cost nothing",
     },
+    {
+      name: "storageRef",
+      key: { storageRef: 1 },
+      serves: "OrphanMediaCleaner — is this stored media file referenced by a verification?",
+    },
   ],
 
   [Collections.sessions]: [
@@ -67,6 +72,12 @@ export const INDEXES: Record<string, IndexSpec[]> = {
       key: { state: 1, lastActivityAt: 1 },
       serves: "RetentionCleaner — find stale sessions by state and idle time",
     },
+    {
+      name: "tempUploadRef",
+      key: { tempUploadRef: 1 },
+      partialFilterExpression: { tempUploadRef: { $exists: true } },
+      serves: "OrphanMediaCleaner — is this stored media file a session's temporary upload?",
+    },
   ],
 
   [Collections.sessionsArchive]: [
@@ -79,6 +90,12 @@ export const INDEXES: Record<string, IndexSpec[]> = {
       name: "sessionId",
       key: { sessionId: 1 },
       serves: "Operator lookup / restore of an archived session",
+    },
+    {
+      name: "tempUploadRef",
+      key: { tempUploadRef: 1 },
+      partialFilterExpression: { tempUploadRef: { $exists: true } },
+      serves: "OrphanMediaCleaner — keep uploads of archived sessions while they can still be restored",
     },
   ],
 

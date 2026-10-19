@@ -10,6 +10,7 @@ import {
   type VerificationSessionDoc,
   type VerificationStatus,
 } from "../db/collections.js";
+import type { OrphanMediaCleaner } from "./orphans.js";
 import { assertRetentionDeletable } from "./protection.js";
 
 export type RetentionPolicy = Config["retention"];
@@ -25,6 +26,8 @@ export interface CleanupTaskReport {
   skippedActive: number;
   /** True when the per-run batch limit was hit; the remainder is handled next run. */
   truncated: boolean;
+  /** Orphaned media only: storage objects examined this run. */
+  scanned?: number;
   durationMs: number;
   error?: string;
 }
@@ -53,6 +56,8 @@ export class RetentionCleaner {
     private readonly db: Db,
     private readonly policy: RetentionPolicy,
     private readonly log: Logger,
+    /** Set when MEDIA_STORAGE_DIR is configured and orphan cleanup is enabled (#782). */
+    private readonly orphans?: OrphanMediaCleaner,
   ) {}
 
   async run({ dryRun = false }: { dryRun?: boolean } = {}): Promise<CleanupTaskReport[]> {
@@ -92,6 +97,24 @@ export class RetentionCleaner {
         () => this.purge(Collections.jobs, { status: "dead", finishedAt: { $lt: new Date(now - p.deadJobDays * DAY_MS) } }, dryRun),
       ],
     ];
+    const orphans = this.orphans;
+    if (orphans) {
+      // Runs after the session tasks, so uploads of just-archived sessions are still protected by the archive.
+      tasks.push([
+        "purge_orphaned_media",
+        async () => {
+          const result = await orphans.run({ dryRun });
+          return {
+            ...(dryRun ? { matched: result.orphaned.length } : {}),
+            archived: 0,
+            deleted: result.deleted,
+            skippedActive: result.referenced,
+            truncated: result.truncated,
+            scanned: result.scanned,
+          };
+        },
+      ]);
+    }
 
     const reports: CleanupTaskReport[] = [];
     for (const [task, execute] of tasks) {

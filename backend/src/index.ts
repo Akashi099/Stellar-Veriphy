@@ -2,7 +2,7 @@ import { config, externalApiPolicy } from "./config.js";
 import type { QueueName } from "./db/collections.js";
 import { ensureIndexes } from "./db/indexes.js";
 import { connectMongo } from "./db/mongo.js";
-import { VerificationRepository } from "./db/verifications.js";
+import { CachedVerificationReads, VerificationRepository, createPublicVerificationCaches } from "./db/verifications.js";
 import { buildDependencyChecks } from "./health/checks.js";
 import { HealthMonitor } from "./health/monitor.js";
 import { buildJobHandlers } from "./jobs/handlers.js";
@@ -12,6 +12,7 @@ import { Worker } from "./jobs/worker.js";
 import { ExternalApiClient } from "./lib/http.js";
 import { logger } from "./lib/logger.js";
 import { RetentionCleaner } from "./maintenance/cleanup.js";
+import { createOrphanMediaCleaner } from "./maintenance/orphans.js";
 import { MaintenanceMode } from "./maintenance/mode.js";
 import { CleanupScheduler } from "./maintenance/scheduler.js";
 import { createHttpServer } from "./server.js";
@@ -61,7 +62,8 @@ async function main(): Promise<void> {
   const queueMonitor = new QueueMonitor(queue, config.jobs, log.child({ component: "queue-monitor" }));
   queueMonitor.start();
 
-  const cleaner = new RetentionCleaner(db, config.retention, log.child({ component: "retention" }));
+  const orphans = createOrphanMediaCleaner(db, log.child({ component: "orphan-media" }));
+  const cleaner = new RetentionCleaner(db, config.retention, log.child({ component: "retention" }), orphans);
   const cleanup = new CleanupScheduler(
     cleaner,
     db,
@@ -72,10 +74,16 @@ async function main(): Promise<void> {
   if (config.retention.enabled) cleanup.start();
   else log.warn("retention cleanup disabled (RETENTION_CLEANUP_ENABLED=false)");
 
+  const verifications = new CachedVerificationReads(
+    new VerificationRepository(db),
+    createPublicVerificationCaches(config.cache, log.child({ component: "cache" })),
+  );
+
   const server = createHttpServer({
     health,
     queue,
     cleanup,
+    verifications,
     verifications: new VerificationRepository(db),
     maintenance,
     webhooks,

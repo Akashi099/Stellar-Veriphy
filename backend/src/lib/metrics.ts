@@ -126,6 +126,20 @@ export const jobsStalled = new Counter({
   registers,
 });
 
+export const jobsResumed = new Counter({
+  name: "sv_jobs_resumed_total",
+  help: "Job attempts that resumed from a checkpoint saved by an earlier attempt instead of starting over",
+  labelNames: ["queue", "type"] as const,
+  registers,
+});
+
+export const jobCheckpoints = new Counter({
+  name: "sv_job_checkpoints_total",
+  help: "Checkpoints saved by long-running job handlers",
+  labelNames: ["queue", "type"] as const,
+  registers,
+});
+
 export const jobDuration = new Histogram({
   name: "sv_job_duration_seconds",
   help: "Job attempt processing time by outcome",
@@ -201,6 +215,42 @@ export const cleanupLastSuccess = new Gauge({
   registers,
 });
 
+// --- Public read cache (#779) ------------------------------------------------
+
+export const cacheRequests = new Counter({
+  name: "sv_cache_requests_total",
+  help: "Public read cache lookups by outcome: hit, negative_hit, miss, coalesced or bypass (cache disabled)",
+  labelNames: ["cache", "outcome"] as const,
+  registers,
+});
+
+export const cacheEvictions = new Counter({
+  name: "sv_cache_evictions_total",
+  help: "Entries removed from a public read cache before expiry, by reason: capacity, invalidated or cleared",
+  labelNames: ["cache", "reason"] as const,
+  registers,
+});
+
+export const cacheEntries = new Gauge({
+  name: "sv_cache_entries",
+  help: "Entries currently held by a public read cache (per instance)",
+  labelNames: ["cache"] as const,
+  registers,
+});
+
+// --- Orphaned media cleanup (#782) -------------------------------------------
+
+export const orphanMediaObjects = new Counter({
+  name: "sv_orphan_media_objects_total",
+  help: "Orphaned media files processed by cleanup, by outcome: deleted or failed",
+  labelNames: ["storage", "outcome"] as const,
+  registers,
+});
+
+export const orphanMediaBytes = new Counter({
+  name: "sv_orphan_media_deleted_bytes_total",
+  help: "Bytes reclaimed by deleting orphaned media files",
+  labelNames: ["storage"] as const,
 // --- Maintenance mode (#787) -------------------------------------------------
 
 export const maintenanceMode = new Gauge({

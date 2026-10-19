@@ -15,6 +15,7 @@
     "./utils/digest": "./utils/digest.ts",
     "./validation/manifest": "./validation/manifest.ts",
     "./validation/manifestSchema": "./validation/manifestSchema.ts",
+    "./validation/manifestSanitize": "./validation/manifestSanitize.ts",
     "./validation/hash": "./validation/hash.ts",
     "./validation/stellar": "./validation/stellar.ts",
     "./validation/upload": "./validation/upload.ts",

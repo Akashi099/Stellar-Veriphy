@@ -2,7 +2,7 @@ import { timingSafeEqual } from "node:crypto";
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from "node:http";
 import { ObjectId } from "mongodb";
 import { config } from "./config.js";
-import type { VerificationRepository } from "./db/verifications.js";
+import type { CachedVerificationReads } from "./db/verifications.js";
 import type { HealthMonitor } from "./health/monitor.js";
 import type { JobQueue } from "./jobs/queue.js";
 import type { Logger } from "./lib/logger.js";
@@ -15,6 +15,7 @@ export interface ServerDeps {
   health: HealthMonitor;
   queue: JobQueue;
   cleanup: CleanupScheduler;
+  verifications: CachedVerificationReads;
   verifications: VerificationRepository;
   maintenance: MaintenanceMode;
   webhooks: WebhookService;
@@ -33,6 +34,7 @@ interface Route {
 
 const STELLAR_ACCOUNT = /^G[A-Z2-7]{55}$/;
 const CONTENT_HASH = /^(sha256:)?[a-f0-9]{64}$/i;
+const CERT_ID = /^[A-Za-z0-9_-]{1,128}$/;
 const MAX_BODY_BYTES = 64 * 1024;
 /** Requests with these methods are served during maintenance; everything else gets 503. */
 const MAINTENANCE_SAFE_METHODS = new Set(["GET", "HEAD", "OPTIONS"]);
@@ -163,12 +165,14 @@ export function createHttpServer({ health, queue, cleanup, verifications, mainte
       method: "POST",
       pattern: /^\/admin\/jobs\/(?<id>[^/]+)\/retry$/,
       admin: true,
-      handler: async (req, res, { id }) => {
+      handler: async (req, res, { id }, url) => {
         const objectId = parseObjectId(id);
         if (!objectId) return send(res, 404, { error: "Job not found" });
-        const requeued = await queue.retryDead(objectId, req.socket.remoteAddress ?? "unknown");
+        // Resumes from the last checkpoint unless ?fresh=true (#781).
+        const fresh = ["1", "true"].includes(url.searchParams.get("fresh") ?? "");
+        const requeued = await queue.retryDead(objectId, req.socket.remoteAddress ?? "unknown", { fresh });
         if (!requeued) return send(res, 409, { error: "Job is not in the dead state" });
-        send(res, 202, { requeued: true });
+        send(res, 202, { requeued: true, fresh });
       },
     },
 
@@ -188,6 +192,49 @@ export function createHttpServer({ health, queue, cleanup, verifications, mainte
       },
     },
 
+    // --- Public read cache (#779) -----------------------------------------------
+    {
+      method: "GET",
+      pattern: /^\/admin\/cache$/,
+      admin: true,
+      handler: async (_req, res) => send(res, 200, { entries: verifications.stats() }),
+    },
+    {
+      method: "DELETE",
+      pattern: /^\/admin\/cache$/,
+      admin: true,
+      handler: async (req, res) => {
+        const cleared = verifications.clear();
+        log.info("public read cache cleared by operator", { cleared, requestedBy: req.socket.remoteAddress ?? "unknown" });
+        send(res, 200, { cleared });
+      },
+    },
+
+    // --- Verification lookups (#773, cached by #779) ----------------------------
+    {
+      method: "GET",
+      pattern: /^\/api\/verifications\/(?<jobId>[^/]+)\/progress$/,
+      handler: async (_req, res, { jobId }) => {
+        // Not cached: progress changes while the job runs (#781).
+        const job = await queue.getProgress(jobId);
+        if (!job) return send(res, 404, { error: "No processing job for this verification" });
+        send(res, 200, {
+          state: job.status,
+          stage: job.progress?.stage ?? null,
+          percent: job.progress?.percent ?? null,
+          completed: job.progress?.completed ?? null,
+          total: job.progress?.total ?? null,
+          progressUpdatedAt: job.progress?.updatedAt ?? null,
+          attempt: job.attempts,
+          maxAttempts: job.maxAttempts,
+          resumed: (job.resumedCount ?? 0) > 0,
+          nextAttemptAt: job.status === "queued" ? job.runAt : null,
+          startedAt: job.startedAt ?? null,
+          finishedAt: job.finishedAt ?? null,
+          lastErrorCode: job.lastError?.code ?? null,
+        });
+      },
+    },
     // --- Maintenance mode (#787) -----------------------------------------------
     {
       method: "GET",
@@ -319,6 +366,16 @@ export function createHttpServer({ health, queue, cleanup, verifications, mainte
           return send(res, 200, { items, nextCursor: last ? last.createdAt.toISOString() : null });
         }
         send(res, 400, { error: "Provide contentHash or creator" });
+      },
+    },
+    {
+      method: "GET",
+      pattern: /^\/api\/certificates\/(?<certId>[^/]+)$/,
+      handler: async (_req, res, { certId }) => {
+        if (!CERT_ID.test(certId)) return send(res, 400, { error: "Invalid certId" });
+        const verification = await verifications.findByCertId(certId);
+        if (!verification) return send(res, 404, { error: "Certificate not found" });
+        send(res, 200, verification);
       },
     },
   ];

@@ -93,6 +93,13 @@ export const config = {
     monitorIntervalMs: int("JOB_MONITOR_INTERVAL_MS", 15_000),
   },
 
+  cache: {
+    maxEntries: int("PUBLIC_CACHE_MAX_ENTRIES", 10_000),
+    /** Terminal verification status and certificate lookups never change, so they can live longer. */
+    statusTtlMs: int("PUBLIC_CACHE_STATUS_TTL_MS", 300_000),
+    /** "Latest verification for this content" can change when the content is re-verified. */
+    contentHashTtlMs: int("PUBLIC_CACHE_CONTENT_HASH_TTL_MS", 30_000),
+    negativeTtlMs: int("PUBLIC_CACHE_NEGATIVE_TTL_MS", 5_000),
   webhooks: {
     /** Comma-separated receiver URLs; every published event is delivered to each. */
     endpoints: list("WEBHOOK_ENDPOINTS", []),
@@ -122,6 +129,16 @@ export const config = {
     archiveDays: int("RETENTION_ARCHIVE_DAYS", 90),
     succeededJobDays: int("RETENTION_SUCCEEDED_JOB_DAYS", 7),
     deadJobDays: int("RETENTION_DEAD_JOB_DAYS", 30),
+  },
+
+  /** Orphaned media cleanup (#782). Runs as a retention task when MEDIA_STORAGE_DIR is set. */
+  orphanMedia: {
+    enabled: bool("ORPHAN_MEDIA_CLEANUP_ENABLED", true),
+    storageDir: env("MEDIA_STORAGE_DIR"),
+    /** Files newer than this are never deleted: their record may not be written yet. */
+    minAgeHours: int("ORPHAN_MEDIA_MIN_AGE_HOURS", 48),
+    /** Abort without deleting if more than this share of scanned files look orphaned. */
+    maxDeletePercent: int("ORPHAN_MEDIA_MAX_DELETE_PERCENT", 25),
   },
 };
 

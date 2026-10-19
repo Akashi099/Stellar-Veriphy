@@ -6,6 +6,26 @@ All indexes are declared in `backend/src/db/indexes.ts`. That file is the single
 
 ### `verifications`
 
+| Query | Repository method | Index | Notes |
+|---|---|---|---|
+| Status poll by `jobId` (`GET /api/verifications/:jobId`, README's `/api/verify/status/:jobId`) | `getStatus` | `jobId_unique { jobId: 1 }` | The hottest path. Unique, which also enforces one record per job. Uses a projection so only status fields are returned. |
+| Latest verification for a piece of content | `findLatestByContentHash` | `contentHash_createdAt { contentHash: 1, createdAt: -1 }` | The sort is satisfied by the index, so there's no in-memory sort. |
+| Creator history, newest first | `listByCreator` | `creator_createdAt { creator: 1, createdAt: -1 }` | Keyset pagination (`before=<createdAt>`), see below. |
+| Requests stuck in a status | `findStale` | `status_updatedAt { status: 1, updatedAt: 1 }` | Also serves the retention safety check (`jobId $in` + `status $in` uses `jobId_unique`). |
+| Lookup by certificate | `findByCertId` | `certId_unique { certId: 1 }`, partial on `certId` existing | Uncertified records aren't indexed, which keeps the index small. |
+| Is a media file referenced? (`storageRef $in`) | `OrphanMediaCleaner` | `storageRef { storageRef: 1 }` | Orphaned media cleanup, see [data-retention.md](data-retention.md#orphaned-media). |
+
+### `verification_sessions` and archive
+
+| Query | Index |
+|---|---|
+| `touch` / point lookup by `sessionId` | `sessionId_unique` |
+| Resume a creator's latest open session | `creator_state_lastActivityAt { creator, state, lastActivityAt: -1 }` |
+| Close the session when its verification finishes | `verificationJobId` (partial) |
+| Retention: stale sessions by state and idle time | `state_lastActivityAt { state, lastActivityAt }` |
+| Retention: purge old archive entries | archive `archivedAt` |
+| Operator lookup and restore | archive `sessionId` |
+| Orphaned media: is a file a (possibly archived) session's temporary upload? | `tempUploadRef` on sessions and archive, partial on `tempUploadRef` existing |
 | Query                                                                                          | Repository method         | Index                                                       | Notes                                                                                                                   |
 | ---------------------------------------------------------------------------------------------- | ------------------------- | ----------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------- |
 | Status poll by `jobId` (`GET /api/verifications/:jobId`, README's `/api/verify/status/:jobId`) | `getStatus`               | `jobId_unique { jobId: 1 }`                                 | The hottest path. Unique, which also enforces one record per job. Uses a projection so only status fields are returned. |

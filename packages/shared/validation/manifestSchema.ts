@@ -1,4 +1,5 @@
 import { rejectUnknownFields } from "./fields";
+import { findUnsafeManifestContent } from "./manifestSanitize";
 import { FieldError, ValidationResult, isPlainObject } from "./result";
 import { checkStellarPublicKey } from "./stellar";
 
@@ -81,6 +82,10 @@ export function validateManifestSchema(
       ],
     };
   }
+
+  // Stored manifests must never carry unsafe content, so check it before the schema rules.
+  const unsafe = findUnsafeManifestContent(input, { path: options.path });
+  if (unsafe.length > 0) return { ok: false, errors: unsafe };
 
   const allowed = version === "v2" ? V2_FIELDS : V1_FIELDS;
   rejectUnknownFields(input, allowed, errors, options.path);
