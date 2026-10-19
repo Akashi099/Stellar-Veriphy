@@ -84,6 +84,17 @@ export const config = {
     monitorIntervalMs: int("JOB_MONITOR_INTERVAL_MS", 15_000),
   },
 
+  maintenance: {
+    /** Forces maintenance on regardless of the stored flag (break-glass; needs a restart to change). */
+    forceEnabled: bool("MAINTENANCE_MODE", false),
+    defaultMessage: str(
+      "MAINTENANCE_MESSAGE",
+      "StellarVeriphy is undergoing scheduled maintenance. Existing verifications can still be viewed; new submissions are paused.",
+    ),
+    refreshMs: int("MAINTENANCE_REFRESH_MS", 5_000),
+    retryAfterSeconds: int("MAINTENANCE_RETRY_AFTER_SECONDS", 300),
+  },
+
   retention: {
     enabled: bool("RETENTION_CLEANUP_ENABLED", true),
     intervalMinutes: int("RETENTION_INTERVAL_MINUTES", 60),

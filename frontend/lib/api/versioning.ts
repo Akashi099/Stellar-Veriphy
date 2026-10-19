@@ -26,7 +26,7 @@ export const LATEST_API_VERSION: ApiVersion = "1";
 // previous default has been deprecated for at least one release cycle.
 export const DEFAULT_API_VERSION: ApiVersion = "1";
 
-export const UNVERSIONED_API_PATHS = new Set(["/api/health"]);
+export const UNVERSIONED_API_PATHS = new Set(["/api/health", "/api/maintenance"]);
 
 export function isSupportedVersion(value: string): value is ApiVersion {
   return Object.prototype.hasOwnProperty.call(API_VERSIONS, value);

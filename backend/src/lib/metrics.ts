@@ -176,3 +176,19 @@ export const cleanupLastSuccess = new Gauge({
   labelNames: ["task"] as const,
   registers,
 });
+
+// --- Maintenance mode (#787) -------------------------------------------------
+
+export const maintenanceMode = new Gauge({
+  name: "sv_maintenance_mode",
+  help: "1 while maintenance mode is on (as seen by this instance), else 0",
+  labelNames: ["source"] as const,
+  registers,
+});
+
+export const maintenanceRejected = new Counter({
+  name: "sv_maintenance_rejected_requests_total",
+  help: "Requests rejected with 503 because maintenance mode is on",
+  labelNames: ["method"] as const,
+  registers,
+});

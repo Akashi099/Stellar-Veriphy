@@ -11,6 +11,7 @@ import { JobQueue } from "./jobs/queue.js";
 import { Worker } from "./jobs/worker.js";
 import { logger } from "./lib/logger.js";
 import { RetentionCleaner } from "./maintenance/cleanup.js";
+import { MaintenanceMode } from "./maintenance/mode.js";
 import { CleanupScheduler } from "./maintenance/scheduler.js";
 import { createHttpServer } from "./server.js";
 
@@ -25,12 +26,23 @@ async function main(): Promise<void> {
   const health = new HealthMonitor(buildDependencyChecks(db), config.health, log.child({ component: "health" }));
   health.start();
 
+  const maintenance = new MaintenanceMode(db, config.maintenance, log.child({ component: "maintenance" }));
+  await maintenance.start();
+
   const queue = new JobQueue(db, config.jobs, log.child({ component: "queue" }));
   const workers = Object.entries(jobHandlers)
     .filter(([, handlers]) => handlers && Object.keys(handlers).length > 0)
     .map(
       ([name, handlers]) =>
-        new Worker(queue, name as QueueName, handlers!, config.jobs, config.instanceId, log.child({ component: "worker", queue: name })),
+        new Worker(
+          queue,
+          name as QueueName,
+          handlers!,
+          config.jobs,
+          config.instanceId,
+          log.child({ component: "worker", queue: name }),
+          () => maintenance.jobsPaused(),
+        ),
     );
   workers.forEach((w) => w.start());
 
@@ -53,6 +65,7 @@ async function main(): Promise<void> {
     queue,
     cleanup,
     verifications: new VerificationRepository(db),
+    maintenance,
     log: log.child({ component: "http" }),
   });
   server.listen(config.port, () => log.info("backend listening", { port: config.port }));
@@ -71,6 +84,7 @@ async function main(): Promise<void> {
     cleanup.stop();
     queueMonitor.stop();
     health.stop();
+    maintenance.stop();
     await Promise.all(workers.map((w) => w.stop()));
     await client.close();
     log.info("shutdown complete");

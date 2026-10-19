@@ -6,6 +6,7 @@ export const Collections = {
   sessionsArchive: "verification_sessions_archive",
   jobs: "jobs",
   locks: "locks",
+  settings: "settings",
 } as const;
 
 // --- Verifications -----------------------------------------------------------
@@ -116,4 +117,21 @@ export interface LockDoc {
   owner: string;
   acquiredAt: Date;
   lockedUntil: Date;
+}
+
+// --- Runtime settings --------------------------------------------------------
+
+/** Operator-controlled maintenance flag (#787). Stored as settings/_id="maintenance". */
+export interface MaintenanceDoc {
+  _id: "maintenance";
+  enabled: boolean;
+  /** Shown to users; falls back to MAINTENANCE_MESSAGE when unset. */
+  message?: string;
+  /** Expected end of the window; drives Retry-After and the banner countdown. */
+  endsAt?: Date;
+  /** Also stop workers from claiming new jobs (in-flight jobs finish normally). */
+  pauseJobs: boolean;
+  startedAt?: Date;
+  updatedAt: Date;
+  updatedBy: string;
 }
