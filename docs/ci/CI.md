@@ -101,3 +101,7 @@ These were verified against a clean checkout of `upstream/main` (no diff
 from this branch), so this PR isn't the cause and fixing them is out of
 scope here — flagging them so the red CI on this PR isn't mistaken for a
 regression it introduced.
+
+## Deployment smoke tests
+
+`.github/workflows/deploy-smoke.yml` runs `scripts/ci/smoke-test.sh` on every PR and push to `main` (and manually against a staging URL). It checks deploy script syntax and guards, migration validity, compose config, and optionally an HTTP probe. Each failure prints a remediation hint.
