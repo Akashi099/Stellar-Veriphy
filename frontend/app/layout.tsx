@@ -9,6 +9,7 @@ import { WizardProvider } from "@/app/context/WizardContext";
 import { ConsentBanner } from "@/components/ConsentBanner";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { KeyboardShortcutsProvider } from "@/components/KeyboardShortcutsProvider";
+import { MaintenanceBanner } from "@/components/MaintenanceBanner";
 import { NotificationProvider } from "@/components/notifications";
 import { OnboardingFlow } from "@/components/onboarding/OnboardingFlow";
 import { PWAInstallPrompt } from "@/components/PWAInstallPrompt";
@@ -100,13 +101,13 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                     <HelpProvider>
                       <KeyboardShortcutsProvider>
                         <ToastProvider>
+                          {/* #787 — site-wide notice while maintenance mode is on */}
+                          <MaintenanceBanner />
                           <SiteHeader />
                           {/* #438 — top-level boundary: catches errors in any provider or page */}
                           <ErrorBoundary section="Application">
                             {/* #438 — boundary around the page content */}
-                            <ErrorBoundary section="Page">
-                              {children}
-                            </ErrorBoundary>
+                            <ErrorBoundary section="Page">{children}</ErrorBoundary>
                           </ErrorBoundary>
                           <ScrollToTop />
                           <RouteScrollRestoration />

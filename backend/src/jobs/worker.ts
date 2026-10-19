@@ -47,6 +47,8 @@ export class Worker {
     private readonly opts: WorkerOptions,
     private readonly instanceId: string,
     private readonly log: Logger,
+    /** While true, slots stop claiming new jobs (maintenance mode, #787); in-flight jobs finish. */
+    private readonly isPaused: () => boolean = () => false,
   ) {}
 
   start(): void {
@@ -67,6 +69,10 @@ export class Worker {
   private async loop(workerId: string): Promise<void> {
     let claimFailures = 0;
     while (!this.stopping) {
+      if (this.isPaused()) {
+        await sleep(this.opts.pollIntervalMs, this.idle.signal);
+        continue;
+      }
       let job: WithId<JobDoc> | null;
       try {
         job = await this.queue.claim(this.queueName, workerId);

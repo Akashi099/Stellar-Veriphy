@@ -6,6 +6,8 @@ export const Collections = {
   sessionsArchive: "verification_sessions_archive",
   jobs: "jobs",
   locks: "locks",
+  settings: "settings",
+  webhookDeliveries: "webhook_deliveries",
 } as const;
 
 // --- Verifications -----------------------------------------------------------
@@ -116,4 +118,65 @@ export interface LockDoc {
   owner: string;
   acquiredAt: Date;
   lockedUntil: Date;
+}
+
+// --- Runtime settings --------------------------------------------------------
+
+/** Operator-controlled maintenance flag (#787). Stored as settings/_id="maintenance". */
+export interface MaintenanceDoc {
+  _id: "maintenance";
+  enabled: boolean;
+  /** Shown to users; falls back to MAINTENANCE_MESSAGE when unset. */
+  message?: string;
+  /** Expected end of the window; drives Retry-After and the banner countdown. */
+  endsAt?: Date;
+  /** Also stop workers from claiming new jobs (in-flight jobs finish normally). */
+  pauseJobs: boolean;
+  startedAt?: Date;
+  updatedAt: Date;
+  updatedBy: string;
+}
+
+// --- Webhook deliveries (#789) -------------------------------------------------
+
+/**
+ * pending   – waiting for its first attempt or a retry (the backing job is queued or running)
+ * delivered – the endpoint answered 2xx; never sent again
+ * failed    – permanent failure (attempts exhausted or a non-retryable response); needs an operator
+ */
+export type WebhookDeliveryStatus = "pending" | "delivered" | "failed";
+
+export interface WebhookAttemptEntry {
+  attempt: number;
+  at: Date;
+  durationMs: number;
+  /** HTTP status, when the endpoint answered. */
+  httpStatus?: number;
+  outcome: "delivered" | "retry" | "failed";
+  errorCode?: string;
+  error?: string;
+}
+
+/** One event sent to one endpoint. Unique per (event, endpoint) via idempotencyKey. */
+export interface WebhookDeliveryDoc {
+  _id?: ObjectId;
+  /** sha256(endpoint + eventId); sent as the Idempotency-Key header. */
+  idempotencyKey: string;
+  eventId: string;
+  eventType: string;
+  endpoint: string;
+  /** Exact JSON body sent on every attempt, so retries are byte-identical. */
+  body: string;
+  status: WebhookDeliveryStatus;
+  attempts: number;
+  maxAttempts: number;
+  /** Most recent attempts, newest last (capped). */
+  attemptHistory: WebhookAttemptEntry[];
+  lastError?: { code: string; message: string; httpStatus?: number; at: Date };
+  jobId?: ObjectId;
+  manualRedeliveries?: number;
+  createdAt: Date;
+  updatedAt: Date;
+  deliveredAt?: Date;
+  failedAt?: Date;
 }

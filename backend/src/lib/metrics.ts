@@ -48,6 +48,30 @@ export const dependencyLastSuccess = new Gauge({
   registers,
 });
 
+// --- External API calls (#788) ----------------------------------------------
+
+export const externalApiRequests = new Counter({
+  name: "sv_external_api_requests_total",
+  help: "Attempts against third-party APIs by outcome: success, http_error, timeout, connection, aborted",
+  labelNames: ["service", "method", "outcome"] as const,
+  registers,
+});
+
+export const externalApiDuration = new Histogram({
+  name: "sv_external_api_request_duration_seconds",
+  help: "Duration of a single attempt against a third-party API",
+  labelNames: ["service", "outcome"] as const,
+  buckets: [0.05, 0.1, 0.25, 0.5, 1, 2.5, 5, 10, 20, 30],
+  registers,
+});
+
+export const externalApiRetries = new Counter({
+  name: "sv_external_api_retries_total",
+  help: "Retries scheduled for third-party API calls, by the failure that triggered them",
+  labelNames: ["service", "reason"] as const,
+  registers,
+});
+
 // --- Database (#773) ---------------------------------------------------------
 
 export const dbCommandDuration = new Histogram({
@@ -174,5 +198,45 @@ export const cleanupLastSuccess = new Gauge({
   name: "sv_cleanup_last_success_timestamp_seconds",
   help: "Unix time each retention task last completed successfully",
   labelNames: ["task"] as const,
+  registers,
+});
+
+// --- Maintenance mode (#787) -------------------------------------------------
+
+export const maintenanceMode = new Gauge({
+  name: "sv_maintenance_mode",
+  help: "1 while maintenance mode is on (as seen by this instance), else 0",
+  labelNames: ["source"] as const,
+  registers,
+});
+
+export const maintenanceRejected = new Counter({
+  name: "sv_maintenance_rejected_requests_total",
+  help: "Requests rejected with 503 because maintenance mode is on",
+  labelNames: ["method"] as const,
+  registers,
+});
+
+// --- Webhook deliveries (#789) -----------------------------------------------
+
+export const webhookDeliveries = new Counter({
+  name: "sv_webhook_deliveries_total",
+  help: "Webhook delivery attempts by outcome: delivered, retry, failed (permanent), duplicate (publish deduplicated), skipped (already delivered)",
+  labelNames: ["outcome"] as const,
+  registers,
+});
+
+export const webhookDeliveryDuration = new Histogram({
+  name: "sv_webhook_delivery_duration_seconds",
+  help: "Duration of one webhook delivery attempt",
+  labelNames: ["outcome"] as const,
+  buckets: [0.05, 0.1, 0.25, 0.5, 1, 2.5, 5, 10, 30],
+  registers,
+});
+
+export const webhookDeliveriesInState = new Gauge({
+  name: "sv_webhook_deliveries",
+  help: "Webhook deliveries currently in each state (sampled when operators list deliveries)",
+  labelNames: ["status"] as const,
   registers,
 });
