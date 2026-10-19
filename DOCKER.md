@@ -12,6 +12,7 @@ This guide explains how to use Docker for development and deployment of the Stel
 - [Development with Docker](#development-with-docker)
 - [Docker Compose](#docker-compose)
 - [Environment Variables](#environment-variables)
+- [Startup Diagnostics](#startup-diagnostics)
 - [Troubleshooting](#troubleshooting)
 - [Best Practices](#best-practices)
 
@@ -443,6 +444,83 @@ services:
 echo "NEXT_PUBLIC_NETWORK=testnet" > .env
 docker compose up
 ```
+
+---
+
+## Startup Diagnostics
+
+The production image starts through `docker/entrypoint.sh`. Before the app server starts, the entrypoint checks the configuration and logs what it found. Every line is prefixed with `[startup]`:
+
+```
+2026-10-19T10:00:00Z [startup] Stellar-Veriphy container starting
+2026-10-19T10:00:00Z [startup] node=v20.18.0 user=appuser pid=1
+2026-10-19T10:00:00Z [startup] NODE_ENV=production PORT=3000 HOSTNAME=0.0.0.0
+2026-10-19T10:00:00Z [startup] NEXT_PUBLIC_NETWORK=testnet
+2026-10-19T10:00:00Z [startup] NEXT_PUBLIC_TESTNET_RPC_URL=https://soroban-testnet.stellar.org
+2026-10-19T10:00:00Z [startup] WARN: NEXT_PUBLIC_ORACLE_CONTRACT_ID is not set
+2026-10-19T10:00:00Z [startup] data dir /app/frontend/.data is writable
+2026-10-19T10:00:00Z [startup] pre-flight checks passed; starting app (readiness: GET /api/health/ready)
+```
+
+A fatal problem stops the container right away with a `FATAL:` line and a `Remediation:` line. The container does not keep restarting with an unclear error.
+
+| Condition                                                                                    | Severity | Fix                                                                      |
+| -------------------------------------------------------------------------------------------- | -------- | ------------------------------------------------------------------------ |
+| `NEXT_PUBLIC_NETWORK` missing or not `testnet`/`mainnet`/`futurenet`                         | FATAL    | Set the variable                                                         |
+| Data directory (`VERIPHY_DATA_DIR`, default `/app/frontend/.data`) not writable by `appuser` | FATAL    | Mount a volume owned by `appuser`, or point `VERIPHY_DATA_DIR` elsewhere |
+| `.next` build output missing                                                                 | FATAL    | Rebuild the image with `--no-cache`                                      |
+| Only the legacy `NEXT_PUBLIC_STELLAR_NETWORK` is set                                         | WARN     | Rename it to `NEXT_PUBLIC_NETWORK`                                       |
+| RPC URL for the active network missing                                                       | WARN     | Set `NEXT_PUBLIC_<NETWORK>_RPC_URL`                                      |
+| Contract IDs missing                                                                         | WARN     | Set `NEXT_PUBLIC_{ORACLE,PROVENANCE,REGISTRY}_CONTRACT_ID`               |
+
+### Health endpoints
+
+| Endpoint                      | Purpose                                                         | Status codes                          |
+| ----------------------------- | --------------------------------------------------------------- | ------------------------------------- |
+| `GET /api/health`             | Liveness. The process is serving requests                       | `200`                                 |
+| `GET /api/health/ready`       | Readiness. Runs the checks below and returns a report           | `200` ready/degraded, `503` not ready |
+| `GET /api/health/ready?rpc=0` | Readiness without the outbound RPC call (used by `HEALTHCHECK`) | same                                  |
+
+Readiness checks:
+
+| Check            | Critical | Fails when                                                                                            |
+| ---------------- | -------- | ----------------------------------------------------------------------------------------------------- |
+| `network_config` | yes      | network variable missing or unsupported                                                               |
+| `data_dir`       | yes      | the data directory cannot be created or written                                                       |
+| `soroban_rpc`    | no       | the RPC URL is missing, unreachable within `HEALTH_RPC_TIMEOUT_MS` (default 3000), or returns non-2xx |
+
+A failing non-critical check reports `degraded` with HTTP 200, so a slow RPC provider does not take the container out of rotation. Each failing check logs a `readiness.check_failed` JSON line with a `remediation` hint.
+
+The Docker `HEALTHCHECK` (and both compose files) run `docker/healthcheck.mjs`. It prints the failing checks, so `docker inspect` shows why the container is unhealthy:
+
+```bash
+docker inspect --format '{{range .State.Health.Log}}{{.Output}}{{end}}' stellarveriphy-app
+# not_ready HTTP 503: data_dir=fail (/app/frontend/.data is not writable: EACCES ...)
+```
+
+### Validating health locally and in staging
+
+```bash
+# Local
+docker compose up -d app
+scripts/check-container-health.sh stellarveriphy-app
+
+# Staging stack (frontend waits for postgres to be healthy before starting)
+docker compose -f docker-compose.staging.yml up -d
+scripts/check-container-health.sh stellar-veriphy-staging-frontend 180
+
+# Without Docker (dev server)
+curl -s http://localhost:3000/api/health/ready | jq
+```
+
+`check-container-health.sh` waits for the container to report `healthy`. If it does not, it prints the last probe outputs, the full readiness report and the `[startup]` log lines, then exits non-zero, so it can also gate CI or deploy scripts.
+
+### Diagnosing a failed start
+
+1. `docker ps -a`: did the container exit (entrypoint FATAL) or is it running but `unhealthy`?
+2. Exited: `docker logs <name> | grep '\[startup\]'`. The `FATAL`/`Remediation` lines name the cause.
+3. Unhealthy: `docker inspect` health log (above), or `curl /api/health/ready` for the full report.
+4. Stuck in `starting` past 40s: the server is not listening yet. Check `docker logs` for Next.js build/runtime errors.
 
 ---
 

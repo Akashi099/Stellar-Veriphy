@@ -20,8 +20,8 @@ This document specifies the test plan and patterns; it does not itself add the J
 As of this writing, `packages/shared/utils/` contains one file, [`hash.ts`](../packages/shared/utils/hash.ts), exporting two functions:
 
 ```ts
-export function sha256(data: string): string
-export function buildManifestHash(manifest: object): string
+export function sha256(data: string): string;
+export function buildManifestHash(manifest: object): string;
 ```
 
 Any new file added under `utils/` must ship with a co-located `*.test.ts` before merge — see [Test Layout](#2-test-layout).
@@ -53,9 +53,7 @@ module.exports = {
 describe("sha256", () => {
   it("returns the known SHA-256 hex digest for a fixed input", () => {
     const result = sha256("hello");
-    expect(result).toBe(
-      "2cf24dba5fb0a30e26e83b2ac5b9e29e1b161e5c1fa7425e73043362938b9824"
-    );
+    expect(result).toBe("2cf24dba5fb0a30e26e83b2ac5b9e29e1b161e5c1fa7425e73043362938b9824");
   });
 });
 ```
@@ -118,3 +116,12 @@ Add a `test:shared` script to [`packages/shared/package.json`](../packages/share
 ```
 
 Wire this into CI (and optionally into the Husky pre-push hook alongside `lint-staged`) once the suite exists, so utility regressions are caught before merge.
+
+## 6. Load Testing
+
+Load tests live in `load-tests/` and run with k6. They are not part of `pnpm test`.
+
+- Overview and commands: [LOAD_TESTING.md](../LOAD_TESTING.md)
+- Upload-heavy scenario, bottlenecks and recommended thresholds: [testing/upload-load-baseline.md](testing/upload-load-baseline.md)
+
+Run `pnpm test:load:uploads:smoke` before merging changes to `frontend/lib/server/` storage or the upload routes.
