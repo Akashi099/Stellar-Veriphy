@@ -35,3 +35,4 @@ export * from "./registry-governance";
 export * from "./governance";
 export * from "./tee-attestation";
 export * from "./verifier-reputation";
+export * from "./contracts/api";

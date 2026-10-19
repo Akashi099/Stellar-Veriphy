@@ -1,0 +1,37 @@
+name: Visual regression
+
+on:
+  pull_request:
+    paths: ["frontend/**", "packages/shared/**"]
+  workflow_dispatch:
+    inputs:
+      update:
+        description: "Regenerate baseline snapshots"
+        type: boolean
+        default: false
+
+jobs:
+  visual:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm --filter frontend exec playwright install --with-deps chromium
+      - name: Visual snapshots + verification flow
+        run: pnpm --filter frontend exec playwright test e2e/visual-regression.spec.ts e2e/record-verification.spec.ts --project=chromium ${{ inputs.update && '--update-snapshots' || '' }}
+        env:
+          CI: true
+      - if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: visual-regression-report
+          path: |
+            frontend/playwright-report
+            frontend/test-results
+          retention-days: 7
