@@ -48,6 +48,10 @@ retryable === false  → don't retry; alert the user:
 | `INVALID_JSON` | 400 | no |
 | `UNSUPPORTED_API_VERSION` | 400 | no |
 | `UNAUTHENTICATED` | 401 | no |
+| `SESSION_INVALID` | 401 | no |
+| `SESSION_EXPIRED` | 401 | no |
+| `SESSION_REVOKED` | 401 | no |
+| `SESSION_REFRESH_SUPERSEDED` | 409 | yes |
 | `FORBIDDEN` | 403 | no |
 | `NOT_FOUND` | 404 | no |
 | `CONFLICT` | 409 | no |

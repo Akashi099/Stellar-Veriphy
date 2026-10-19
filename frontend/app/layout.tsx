@@ -21,6 +21,7 @@ import { RouteScrollRestoration } from "@/components/ui/RouteScrollRestoration";
 import { TutorialOverlay } from "@/components/ui/TutorialOverlay";
 // #442 — import centralised constants instead of duplicating them here
 import { SITE_DESCRIPTION, SITE_NAME, SITE_URL } from "@/config/app";
+import { AuthSessionProvider } from "@/context/AuthSessionContext";
 import { HelpProvider } from "@/context/HelpContext";
 import { WalletProvider } from "@/context/WalletContext";
 import { CacheInvalidationProvider } from "@/context/CacheInvalidationContext";
@@ -93,6 +94,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           <CacheInvalidationProvider>
             <ThemeProvider>
               <WalletProvider>
+                <AuthSessionProvider>
                 <NotificationProvider>
                   <WizardProvider>
                     <HelpProvider>
@@ -119,6 +121,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                     </HelpProvider>
                   </WizardProvider>
                 </NotificationProvider>
+                </AuthSessionProvider>
               </WalletProvider>
             </ThemeProvider>
           </CacheInvalidationProvider>
