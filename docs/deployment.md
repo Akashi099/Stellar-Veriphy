@@ -73,13 +73,15 @@ This prints a contract ID (`C...`). **Save it** — you'll need it to invoke the
 
 ## Contract initialization
 
-Unlike many Soroban contract patterns, none of `oracle`, `provenance`, or `registry` currently expose an `initialize` function to set an admin or other one-time config at deploy time — there's nothing to call before the contract is usable. Once deployed, each contract's public methods are immediately callable:
+Each contract has a one-time `init` call that must run before it is usable (provenance also accepts the older `initialize` alias):
 
-- `oracle`: `submit(storage_ref, manifest_hash, requester)`, `get(id)`
-- `provenance`: `mint(storage_ref, manifest_hash, attestation_hash, creator)`, `get(id)`
-- `registry`: `register(admin, code_hash)`, `is_approved(code_hash)`
+- `oracle`: `init(registry, provenance, admin)`
+- `provenance`: `init(oracle)`
+- `registry`: `init(admin, provenance)`, then `add_tee_hash(code_hash)` for each approved enclave build
 
-**Security note:** `registry.register` takes an `admin: Address` parameter and calls `admin.require_auth()`, but the contract never stores an admin and never checks that the caller _is_ a previously-designated admin — it only confirms that whoever signs the call is who they claim to be. In its current form, **any account can call `register` and mark a code hash as approved.** This is fine for local/testnet experimentation but is a real gap to close (e.g. storing an admin address at deploy time and checking it) before deploying `registry` anywhere its output is trusted for real verification decisions. Track this as a prerequisite to a mainnet deployment, not something to work around at deploy time.
+Common read methods after setup: `oracle.get_request(id)`, `provenance.get_certificate(id)`, `registry.is_tee_hash_approved(code_hash)`.
+
+**Security note:** the registry's legacy `register(admin, code_hash)` / `is_approved(code_hash)` pair is deprecated. `register` only checks that the signer is whoever they claim to be, not that they are the stored registry admin, so **any account can call it**. The oracle never reads what it writes. Use `add_tee_hash`, which requires the stored admin. See [naming conventions](contracts/naming-conventions.md) for every deprecated name and its replacement.
 
 ## Verification process
 

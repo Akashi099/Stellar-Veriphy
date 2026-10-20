@@ -503,6 +503,9 @@ pub struct ProvenanceContract;
 
 #[contractimpl]
 impl ProvenanceContract {
+    /// Deprecated (#791): panics when the certificate is missing. Use
+    /// `get_certificate`, which returns `ProvenanceError::CertificateNotFound`
+    /// instead. Kept so existing callers keep working.
     pub fn get(env: Env, id: u64) -> ProvenanceCert {
         env.storage().persistent().get(&id).unwrap()
     }
@@ -658,7 +661,14 @@ fn creates_cycle(env: &Env, start_id: u64, target_id: u64) -> bool {
 
 #[contractimpl]
 impl ProvenanceContract {
+    /// #791 — Canonical one-time setup, named like `init` on the oracle and
+    /// registry contracts. Stores the oracle address authorised to mint.
+    pub fn init(env: Env, oracle: Address) {
+        Self::initialize(env, oracle)
+    }
+
     /// One-time setup — stores the oracle address authorised to mint.
+    /// Alias of `init` (#791), kept for existing deploy scripts.
     pub fn initialize(env: Env, oracle: Address) {
         let key = symbol_short!("ORACLE");
         if env.storage().persistent().has(&key) {
@@ -2695,3 +2705,7 @@ impl ProvenanceContract {
 
 #[cfg(test)]
 mod smoke_tests;
+
+// #793 — cost benchmark for common provenance calls (see docs/benchmarks/README.md)
+#[cfg(test)]
+mod benchmark;

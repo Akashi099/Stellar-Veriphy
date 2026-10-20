@@ -1,12 +1,13 @@
 #!/usr/bin/env node
 
 /**
- * Runs the oracle contract cost benchmark and renders the performance report (#807).
+ * Runs the contract cost benchmarks and renders the performance report (#807, #793).
  *
  * Usage:
- *   pnpm bench:contracts                       # run, write results and report
- *   pnpm bench:contracts --update-baseline     # also save these numbers as the baseline
- *   pnpm bench:contracts --from-results f.json # skip cargo, render an existing results file
+ *   pnpm bench:contracts                          # run every contract, write results and report
+ *   pnpm bench:contracts --contracts oracle,registry  # run a subset (others are not measured)
+ *   pnpm bench:contracts --update-baseline        # also save these numbers as the baseline
+ *   pnpm bench:contracts --from-results f.json    # skip cargo, render an existing results file
  *
  * Outputs:
  *   docs/benchmarks/results/latest.json    raw numbers from the last run (committed)
@@ -15,7 +16,7 @@
  */
 
 import { spawnSync } from "node:child_process";
-import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -33,6 +34,17 @@ const updateBaseline = args.includes("--update-baseline");
 const fromIdx = args.indexOf("--from-results");
 const fromResults = fromIdx === -1 ? null : args[fromIdx + 1];
 
+/** Contracts with a `benchmark_most_used_calls` test in `contracts/<name>/src/benchmark.rs`. */
+const ALL_CONTRACTS = ["oracle", "provenance", "registry"];
+const contractsIdx = args.indexOf("--contracts");
+const contracts =
+  contractsIdx === -1 ? ALL_CONTRACTS : args[contractsIdx + 1].split(",").map((c) => c.trim());
+for (const c of contracts) {
+  if (!ALL_CONTRACTS.includes(c)) {
+    throw new Error(`unknown contract "${c}" (expected one of ${ALL_CONTRACTS.join(", ")})`);
+  }
+}
+
 function readJsonIfExists(path) {
   try {
     return JSON.parse(readFileSync(path, "utf8"));
@@ -42,15 +54,15 @@ function readJsonIfExists(path) {
   }
 }
 
-function runCargoBenchmark() {
-  const outFile = join(resultsDir, "latest.json");
-  mkdirSync(resultsDir, { recursive: true });
+// Runs one contract's benchmark and returns its samples.
+function runCargoBenchmark(contract) {
+  const outFile = join(resultsDir, `.${contract}.partial.json`);
   const result = spawnSync(
     "cargo",
     [
       "test",
       "--manifest-path",
-      "contracts/oracle/Cargo.toml",
+      `contracts/${contract}/Cargo.toml`,
       "benchmark_most_used_calls",
       "--",
       "--nocapture",
@@ -59,8 +71,13 @@ function runCargoBenchmark() {
     { cwd: root, stdio: "inherit", env: { ...process.env, BENCH_OUTPUT: outFile } }
   );
   if (result.status !== 0) {
-    throw new Error(`cargo benchmark failed with exit code ${result.status ?? "unknown"}`);
+    throw new Error(
+      `cargo benchmark for ${contract} failed with exit code ${result.status ?? "unknown"}`
+    );
   }
+  const samples = JSON.parse(readFileSync(outFile, "utf8"));
+  rmSync(outFile, { force: true });
+  return samples;
 }
 
 function currentCommit() {
@@ -69,10 +86,12 @@ function currentCommit() {
 }
 
 function main() {
+  mkdirSync(resultsDir, { recursive: true });
   if (fromResults) {
     writeFileSync(latestPath, readFileSync(resolve(fromResults), "utf8"));
   } else {
-    runCargoBenchmark();
+    const merged = contracts.flatMap((c) => runCargoBenchmark(c));
+    writeFileSync(latestPath, JSON.stringify(merged, null, 2) + "\n");
   }
 
   const results = parseResults(JSON.parse(readFileSync(latestPath, "utf8")));

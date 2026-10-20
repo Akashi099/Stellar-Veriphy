@@ -3,9 +3,12 @@ import assert from "node:assert/strict";
 
 import {
   compareWithBaseline,
+  costTier,
+  estimateComputeFeeStroops,
   findImprovementOpportunities,
   parseResults,
   renderReport,
+  summarizeFlows,
 } from "../lib/contract-benchmark.mjs";
 
 const sample = [
@@ -80,9 +83,9 @@ test("renderReport includes results, regressions and opportunities", () => {
     meta: { generatedAt: "2026-10-19T00:00:00.000Z", commit: "abc1234", environment: "test" },
   });
   assert.match(md, /^# Contract performance benchmark/);
-  assert.match(md, /\| `get_request` \| 1,000 \| 100 \| 500 \| \+100\.0% \| regression \|/);
+  assert.match(md, /\| `get_request` \| 1,000 \| 100 \| 3 \| 500 \| \+100\.0% \| regression \|/);
   assert.match(md, /`get_request` grew \+100\.0% CPU versus baseline/);
-  assert.match(md, /1\. `submit_request:normal`: 5,000 CPU instructions/);
+  assert.match(md, /1\. `submit_request:normal` \(\*\*high\*\*\): 5,000 CPU instructions/);
   assert.match(md, /\*\*Commit:\*\* abc1234/);
 });
 
@@ -90,4 +93,41 @@ test("renderReport explains when there is no baseline yet", () => {
   const md = renderReport({ results: sample });
   assert.match(md, /none recorded yet/);
   assert.match(md, /No operation exceeded the regression threshold/);
+});
+
+test("estimateComputeFeeStroops rounds up at the configured rate", () => {
+  assert.equal(estimateComputeFeeStroops(10_000), 25);
+  assert.equal(estimateComputeFeeStroops(10_001), 26);
+  assert.equal(estimateComputeFeeStroops(0), 0);
+  assert.equal(estimateComputeFeeStroops(20_000, 10), 20);
+});
+
+test("costTier ranks shares of total CPU", () => {
+  assert.equal(costTier(0.5), "high");
+  assert.equal(costTier(0.25), "high");
+  assert.equal(costTier(0.1), "medium");
+  assert.equal(costTier(0.05), "low");
+});
+
+test("summarizeFlows sums steps and flags flows with unmeasured steps", () => {
+  const flows = [
+    { name: "read", description: "", steps: ["get_request", "cancel_request"] },
+    { name: "broken", description: "", steps: ["get_request", "not_measured"] },
+  ];
+  const [read, broken] = summarizeFlows(sample, flows);
+  assert.equal(read.cpuInstructions, 3000);
+  assert.equal(read.memoryBytes, 400);
+  assert.equal(read.feeStroops, 8);
+  assert.deepEqual(read.missing, []);
+  assert.equal(broken.cpuInstructions, null);
+  assert.deepEqual(broken.missing, ["not_measured"]);
+});
+
+test("renderReport includes the common flows table", () => {
+  const md = renderReport({
+    results: sample,
+    flows: [{ name: "Status check", description: "", steps: ["get_request"] }],
+  });
+  assert.match(md, /## Common flows/);
+  assert.match(md, /\| Status check \| `get_request` \| 1,000 \| 100 \| 3 \|/);
 });

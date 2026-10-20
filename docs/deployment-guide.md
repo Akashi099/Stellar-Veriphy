@@ -68,14 +68,20 @@ Record each `contract_id` returned by the CLI — the frontend and any oracle wo
 
 ### 2.3 Initialize
 
-Register the oracle's TEE code hash with the registry contract so `is_approved` checks pass:
+Initialize the registry, then register the oracle's TEE code hash so the oracle's `is_tee_hash_approved` check passes. The legacy `register` / `is_approved` pair is deprecated (see [naming conventions](contracts/naming-conventions.md)) and is not read by the oracle.
 
 ```bash
 stellar contract invoke \
   --id <REGISTRY_CONTRACT_ID> \
   --source deployer \
   --network testnet \
-  -- register --admin <ADMIN_PUBLIC_KEY> --code_hash <TEE_CODE_HASH_HEX>
+  -- init --admin <ADMIN_PUBLIC_KEY> --provenance <PROVENANCE_CONTRACT_ID>
+
+stellar contract invoke \
+  --id <REGISTRY_CONTRACT_ID> \
+  --source deployer \
+  --network testnet \
+  -- add_tee_hash --code_hash <TEE_CODE_HASH_HEX>
 ```
 
 ## 3. Frontend Environment Variables
@@ -132,9 +138,9 @@ Before calling a deployment done, confirm:
    stellar contract invoke \
      --id <REGISTRY_CONTRACT_ID> \
      --network testnet \
-     -- is_approved --code_hash <TEE_CODE_HASH_HEX>
+     -- is_tee_hash_approved --code_hash <TEE_CODE_HASH_HEX>
    ```
-3. **End-to-end smoke test** — submit a verification request through the oracle contract with a test manifest and confirm a `submitted` event is emitted and the request is retrievable via `get`.
+3. **End-to-end smoke test** — submit a verification request through the oracle contract with a test manifest and confirm a `submitted` event is emitted and the request is retrievable via `get_request`.
 4. **Frontend smoke test** — load the deployed app, walk through the creator upload flow at `/creator/upload-content`, and confirm no console errors referencing missing env vars or unreachable RPC endpoints.
 
 ## 7. Rollback Procedures

@@ -19,9 +19,12 @@ get_dispute_evidence
 get_disputes_by_provider
 get_last_archival_ledger
 get_next_available_provider
+get_policy_governance
+get_policy_version
 get_provider_list
 get_provider_metrics
 get_provider_pricing
+get_provider_sla
 get_provider_stake
 get_provider_trust_score
 get_reputation_score
@@ -47,6 +50,7 @@ remove_provider
 remove_request_comment
 resolve_dispute
 revoke_delegate
+set_policy_governance
 set_provider_pricing
 set_provider_sla
 slash_stake
