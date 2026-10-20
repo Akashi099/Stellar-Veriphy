@@ -1,17 +1,35 @@
 # Contract performance benchmark
 
-This benchmark measures the cost of the most-used oracle contract calls so we can plan optimization work from data instead of guesses (#807).
+This benchmark measures the cost of the most-used oracle, provenance and registry contract calls so we can plan optimization work from data instead of guesses (#807, #793).
 
 ## What is measured
 
-`contracts/oracle/src/benchmark.rs` runs each call on a fresh Soroban environment and reads the budget counters:
+`contracts/<contract>/src/benchmark.rs` runs each call on a fresh Soroban environment and reads the budget counters. Operation names are prefixed with the contract:
 
-| Operation               | Why it is in the set                                  |
-| ----------------------- | ----------------------------------------------------- |
-| `submit_request:normal` | The main write path every verification goes through   |
-| `submit_request:high`   | Priority path; checks that priority does not add cost |
-| `get_request`           | The read path used by status checks                   |
-| `cancel_request`        | Storage update on an existing request                 |
+| Operation                            | Why it is in the set                                  |
+| ------------------------------------ | ----------------------------------------------------- |
+| `oracle.submit_request:normal`       | The main write path every verification goes through   |
+| `oracle.submit_request:high`         | Priority path; checks that priority does not add cost |
+| `oracle.get_request`                 | The read path used by status checks                   |
+| `oracle.cancel_request`              | Storage update on an existing request                 |
+| `oracle.add_provider`                | Provider onboarding                                   |
+| `oracle.get_next_available_provider` | Provider selection; cost grows with the provider list |
+| `oracle.update_ttl_config`           | Verification policy change (#792)                     |
+| `provenance.mint`                    | Certificate issue, once per verified asset            |
+| `provenance.mint_batch:5`            | Batch issue; compare per-item cost with `mint`        |
+| `provenance.get_certificate`         | The read path used by status checks                   |
+| `provenance.transfer_certificate`    | Ownership change                                      |
+| `provenance.revoke_certificate`      | Moderation and legal path                             |
+| `provenance.set_verification_level`  | Badge level update by the oracle                      |
+| `provenance.add_tag`                 | Index write on an existing certificate                |
+| `registry.add_tee_hash`              | Enclave build approval                                |
+| `registry.is_tee_hash_approved`      | Checked on every attestation                          |
+| `registry.add_provider`              | Provider key approval                                 |
+| `registry.is_provider`               | Checked on every attestation                          |
+| `registry.is_provider_authorized`    | Provider check including the blacklist                |
+| `registry.rotate_tee_hash`           | Enclave rotation                                      |
+
+The report also adds these calls up into **common flows** (see `COMMON_FLOWS` in `scripts/lib/contract-benchmark.mjs`) and converts CPU instructions into an **estimated compute fee** in stroops. See [Benchmarked common flows](../gas-costs.md#benchmarked-common-flows) for how to use the numbers.
 
 For each operation the benchmark records **CPU instructions** and **memory bytes**. Soroban's budget model counts these deterministically, so a given SDK version produces the same numbers on every run. A change in the numbers means the contract or the SDK changed.
 
@@ -19,6 +37,7 @@ For each operation the benchmark records **CPU instructions** and **memory bytes
 
 ```bash
 pnpm bench:contracts                      # run the benchmark and write the report
+pnpm bench:contracts --contracts oracle   # run a subset of contracts
 pnpm bench:contracts --update-baseline    # also store these numbers as the new baseline
 pnpm bench:contracts --from-results <f>   # render an existing results file without running cargo
 ```
@@ -57,5 +76,6 @@ pnpm test:bench-tools
 
 ## Adding an operation
 
-1. Add a `measure(&env, "<name>", || { ... })` call in `benchmark_most_used_calls` in `contracts/oracle/src/benchmark.rs`. Create any request it needs outside the closure so only the target call is measured.
-2. Run `pnpm bench:contracts --update-baseline` and commit the three files.
+1. Add a `measure(&env, "<contract>.<name>", || { ... })` call in `benchmark_most_used_calls` in `contracts/<contract>/src/benchmark.rs`. Create any state it needs outside the closure so only the target call is measured.
+2. If the call is part of a user-facing flow, add it to `COMMON_FLOWS` in `scripts/lib/contract-benchmark.mjs`.
+3. Run `pnpm bench:contracts --update-baseline` and commit the three files.

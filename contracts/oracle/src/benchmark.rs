@@ -1,5 +1,5 @@
 #![cfg(test)]
-//! Cost benchmark for the most-used oracle calls (#807).
+//! Cost benchmark for the most-used oracle calls (#807, extended in #793).
 //!
 //! Each call is measured with soroban's budget counters (CPU instructions and memory bytes) on a
 //! fresh environment, so repeated runs on the same SDK version produce identical numbers. That
@@ -64,22 +64,33 @@ fn benchmark_most_used_calls() {
 
     let mut samples = Vec::new();
 
-    samples.push(measure(&env, "submit_request:normal", || {
+    samples.push(measure(&env, "oracle.submit_request:normal", || {
         client.submit_request(&bytes, &bytes, &requester, &Priority::Normal);
     }));
-    samples.push(measure(&env, "submit_request:high", || {
+    samples.push(measure(&env, "oracle.submit_request:high", || {
         client.submit_request(&bytes, &bytes, &requester, &Priority::High);
     }));
 
     // Requests created outside the measured closures so get/cancel are measured in isolation.
     let read_id = client.submit_request(&bytes, &bytes, &requester, &Priority::Normal);
-    samples.push(measure(&env, "get_request", || {
+    samples.push(measure(&env, "oracle.get_request", || {
         client.get_request(&read_id);
     }));
 
     let cancel_id = client.submit_request(&bytes, &bytes, &requester, &Priority::Normal);
-    samples.push(measure(&env, "cancel_request", || {
+    samples.push(measure(&env, "oracle.cancel_request", || {
         client.cancel_request(&cancel_id);
+    }));
+
+    let provider = Address::generate(&env);
+    samples.push(measure(&env, "oracle.add_provider", || {
+        client.add_provider(&provider);
+    }));
+    samples.push(measure(&env, "oracle.get_next_available_provider", || {
+        client.get_next_available_provider();
+    }));
+    samples.push(measure(&env, "oracle.update_ttl_config", || {
+        client.update_ttl_config(&120u32, &240u32, &60u32);
     }));
 
     let json = to_json(&samples);

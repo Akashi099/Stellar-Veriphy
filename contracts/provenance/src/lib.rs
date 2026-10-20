@@ -2705,3 +2705,7 @@ impl ProvenanceContract {
 
 #[cfg(test)]
 mod smoke_tests;
+
+// #793 — cost benchmark for common provenance calls (see docs/benchmarks/README.md)
+#[cfg(test)]
+mod benchmark;
