@@ -10,6 +10,7 @@ import {
   type ModerationQueueSummary,
 } from "@stellarveriphy/shared";
 import { NextRequest, NextResponse } from "next/server";
+import { guardAdminRoute } from "@/lib/server/admin-guard";
 import { legacyValidationError } from "@/lib/server/http";
 import { recordModerationAudit } from "@/lib/server/moderation-audit";
 import { logOperationalEvent, requestIdFrom } from "@/lib/server/observability";
@@ -53,6 +54,9 @@ function buildSummary(queue: ModerationQueueItem[]): ModerationQueueSummary {
 export async function GET(
   request: NextRequest,
 ): Promise<NextResponse<ApiResponse<{ items: ModerationQueueItem[]; summary: ModerationQueueSummary }>>> {
+  const denied = await guardAdminRoute(request);
+  if (denied) return denied;
+
   const { searchParams } = new URL(request.url);
   const pageParams = parsePaginationParams(searchParams);
   if (!pageParams.ok) return legacyValidationError(pageParams.errors);
@@ -84,6 +88,9 @@ export async function GET(
 export async function POST(
   request: NextRequest,
 ): Promise<NextResponse<ApiResponse<ModerationQueueItem>>> {
+  const denied = await guardAdminRoute(request);
+  if (denied) return denied;
+
   const requestId = requestIdFrom(request);
 
   let body: unknown;

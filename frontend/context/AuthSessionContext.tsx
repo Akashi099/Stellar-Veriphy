@@ -43,10 +43,16 @@ interface IssuedSession {
   refreshToken: string;
 }
 
+export type AuthRole = AuthSessionInfo["role"];
+
 export interface AuthSessionValue {
   status: AuthSessionStatus;
   session: AuthSessionInfo | null;
   error: ApiClientError | null;
+  // Role of the current actor, or null when there is no usable session.
+  role: AuthRole | null;
+  isAuthenticated: boolean;
+  isAdmin: boolean;
   login: (credential: string) => Promise<void>;
   logout: () => Promise<void>;
   refresh: () => Promise<void>;
@@ -226,9 +232,23 @@ export function AuthSessionProvider({ children }: { children: ReactNode }) {
     return tokens.current?.accessToken ?? null;
   }, [refresh]);
 
+  const isAuthenticated = status === "active" || status === "refreshing";
+  const role = isAuthenticated ? (session?.role ?? null) : null;
+
   const value = useMemo<AuthSessionValue>(
-    () => ({ status, session, error, login, logout, refresh, getAccessToken }),
-    [status, session, error, login, logout, refresh, getAccessToken],
+    () => ({
+      status,
+      session,
+      error,
+      role,
+      isAuthenticated,
+      isAdmin: role === "admin",
+      login,
+      logout,
+      refresh,
+      getAccessToken,
+    }),
+    [status, session, error, role, isAuthenticated, login, logout, refresh, getAccessToken],
   );
 
   return <AuthSessionContext.Provider value={value}>{children}</AuthSessionContext.Provider>;

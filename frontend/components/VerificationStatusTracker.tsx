@@ -40,6 +40,7 @@ import type { VerificationPhase,VerificationStatus } from "@/services/verificati
 import { PHASE_LABEL } from "@/services/verificationStatusService";
 import { useVerificationStatus } from "@/src/hooks/useVerificationStatus";
 import { formatDateTime } from "@/utils/formatDateTime";
+import { ApiError, describeError } from "@/lib/errors";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -276,6 +277,7 @@ export const VerificationStatusTracker = forwardRef<
 ) {
   const [toasts, dispatchToast] = useReducer(toastReducer, []);
   const toastTimeouts = useRef<Map<number, ReturnType<typeof setTimeout>>>(new Map());
+  const [serviceError, setServiceError] = useState<string | null>(null);
 
   const pushToast = useCallback((message: string, variant: PhaseVariant) => {
     dispatchToast({ type: "push", payload: { message, variant } });
@@ -309,15 +311,29 @@ export const VerificationStatusTracker = forwardRef<
     requestId,
     horizonUrl,
     onStatusChange(s) {
+      setServiceError(null);
       pushToast(s.message, PHASE_VARIANT[s.phase]);
     },
     onComplete(s) {
       onComplete?.(s);
     },
     onError(err) {
+      // When the verification service is unreachable (network failure or 5xx),
+      // stop polling and surface a recoverable fallback instead of spinning.
+      if (err instanceof ApiError && err.isServiceUnavailable()) {
+        stop();
+        setServiceError(describeError(err));
+        pushToast("Verification service is temporarily unavailable.", "warning");
+        return;
+      }
       pushToast(`Polling error: ${err.message}`, "error");
     },
   });
+
+  const retry = useCallback(() => {
+    setServiceError(null);
+    start(jobId, { txHash, requestId, horizonUrl });
+  }, [start, jobId, txHash, requestId, horizonUrl]);
 
   // Expose start/stop via ref
   useImperativeHandle(
@@ -408,9 +424,9 @@ export const VerificationStatusTracker = forwardRef<
               View on Explorer ↗
             </a>
           )}
-          {!isPolling && !status?.terminal && (
+          {!isPolling && !status?.terminal && !serviceError && (
             <button
-              onClick={() => start(jobId, { txHash, requestId, horizonUrl })}
+              onClick={retry}
               className="text-xs px-3 py-1.5 rounded-lg bg-blue-700 hover:bg-blue-600 text-white transition-colors"
             >
               Retry
@@ -426,8 +442,28 @@ export const VerificationStatusTracker = forwardRef<
           )}
         </div>
 
+        {/* Service-unavailable fallback: shown when the verification API is down */}
+        {serviceError && (
+          <div
+            role="alert"
+            className="text-xs text-amber-300 bg-amber-900/20 border border-amber-800 rounded-lg px-3 py-2 space-y-2"
+          >
+            <p>{serviceError}</p>
+            <p className="text-amber-200/80">
+              The verification service is temporarily unavailable. Your request is still
+              being processed — you can retry now or check back shortly.
+            </p>
+            <button
+              onClick={retry}
+              className="text-xs px-3 py-1.5 rounded-lg bg-amber-700 hover:bg-amber-600 text-white transition-colors"
+            >
+              Retry
+            </button>
+          </div>
+        )}
+
         {/* Connection failure fallback message */}
-        {currentPhase === "failed" && (
+        {!serviceError && currentPhase === "failed" && (
           <p className="text-xs text-red-400 bg-red-900/20 border border-red-800 rounded-lg px-3 py-2">
             Could not reach the network. Check your connection and click Retry.
           </p>

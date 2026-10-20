@@ -1,6 +1,7 @@
 "use client";
 
 import { type DependencyList, useCallback, useEffect, useRef, useState } from "react";
+import { ApiError, describeError } from "@/lib/api";
 
 /**
  * useRetryable — #763
@@ -44,5 +45,23 @@ export function useRetryable<T>(loader: () => Promise<T>, deps: DependencyList, 
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, deps);
 
-  return { data, setData, error, loading, retry: run };
+  const reset = useCallback(() => {
+    setError(null);
+  }, []);
+
+  const isUnavailable = isServiceUnavailableError(error);
+
+  return { data, setData, error, loading, retry: run, reset, isUnavailable };
+}
+
+/**
+ * Returns true when the given error represents a temporarily unavailable
+ * verification/service backend, so callers can render a fallback message
+ * instead of a broken UI or an endless spinner.
+ */
+export function isServiceUnavailableError(error: unknown): boolean {
+  if (!error) return false;
+  if (error instanceof ApiError) return error.isServiceUnavailable;
+  const described = describeError(error);
+  return described.isServiceUnavailable;
 }

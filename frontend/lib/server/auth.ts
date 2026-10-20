@@ -1,5 +1,5 @@
 import { createHash, timingSafeEqual } from "node:crypto";
-import type { NextRequest } from "next/server";
+import { NextResponse, type NextRequest } from "next/server";
 import { ApiError } from "@/lib/api/errors";
 import { authenticateAccessToken, isSessionToken } from "./auth-sessions";
 
@@ -78,4 +78,46 @@ export function requireActor(req: NextRequest, allowedRoles?: readonly Role[]): 
   if (!actor) throw new ApiError("UNAUTHENTICATED");
   if (allowedRoles && !allowedRoles.includes(actor.role)) throw new ApiError("FORBIDDEN");
   return actor;
+}
+
+// Throws FORBIDDEN when the actor's role is not in `roles`. Centralizes role
+// checks so every sensitive screen/route denies access the same way.
+export function assertRole(actor: Actor, roles: readonly Role[]): Actor {
+  if (!roles.includes(actor.role)) throw new ApiError("FORBIDDEN");
+  return actor;
+}
+
+// Convenience guard for admin-only surfaces.
+export function requireAdmin(req: NextRequest): Actor {
+  return assertRole(requireActor(req), ["admin"]);
+}
+
+export type GuardResult =
+  | { ok: true; actor: Actor }
+  | { ok: false; response: NextResponse };
+
+// Route-handler guard: resolves the actor and enforces `roles`, returning a
+// standard 401/403 JSON response instead of throwing so handlers can simply
+// `if (!guard.ok) return guard.response;`.
+export function guardRoute(req: NextRequest, roles: readonly Role[]): GuardResult {
+  try {
+    return { ok: true, actor: assertRole(requireActor(req), roles) };
+  } catch (error) {
+    if (error instanceof ApiError) {
+      const status = error.code === "FORBIDDEN" ? 403 : 401;
+      return {
+        ok: false,
+        response: NextResponse.json(
+          { error: { code: error.code, message: error.message } },
+          { status },
+        ),
+      };
+    }
+    throw error;
+  }
+}
+
+// Admin-only variant of guardRoute for sensitive admin route handlers.
+export function guardAdminRoute(req: NextRequest): GuardResult {
+  return guardRoute(req, ["admin"]);
 }

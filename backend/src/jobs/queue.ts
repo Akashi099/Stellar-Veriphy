@@ -39,6 +39,44 @@ export interface EnqueueOptions {
   timeoutMs?: number;
 }
 
+/** Selective reindex request (#854): refresh verification/provenance data for specific records. */
+export interface ReindexRequest {
+  /** Record ids (e.g. asset or provenance document ids) to reindex. */
+  ids?: string[];
+  /** Content hashes to reindex when ids are unknown. */
+  hashes?: string[];
+  /** Optional scope hint, e.g. "verification" or "provenance". */
+  scope?: string;
+  /** Operator or system that requested the reindex, for audit trails. */
+  requestedBy?: string;
+}
+
+export interface ReindexEnqueueOptions {
+  /** Correlation id shared by every chunk; generated when omitted. */
+  correlationId?: string;
+  /** Max ids/hashes per job. Defaults to REINDEX_CHUNK_SIZE. */
+  chunkSize?: number;
+  /** Per-attempt timeout applied to each chunk job. */
+  timeoutMs?: number;
+  /** Max attempts applied to each chunk job. */
+  maxAttempts?: number;
+  /** Delay before the first chunk becomes claimable. */
+  runAt?: Date;
+}
+
+export interface ReindexEnqueueResult {
+  correlationId: string;
+  jobIds: ObjectId[];
+  /** Total number of ids/hashes accepted for reindexing. */
+  total: number;
+  /** Number of chunk jobs created. */
+  chunks: number;
+}
+
+const REINDEX_CHUNK_SIZE = 100;
+const REINDEX_MAX_ITEMS = 10_000;
+=======
+
 export type FailOutcome = "retried" | "dead" | "lost";
 
 /** Fields returned by operator views; excludes payload and full stack traces. */
@@ -126,6 +164,59 @@ export class JobQueue {
     jobsEnqueued.inc({ queue, type });
     this.log.debug("job enqueued", { jobId: insertedId, queue, type, correlationId: opts.correlationId, runAt: doc.runAt });
     return insertedId;
+  }
+
+  /**
+   * Operator action (#854): enqueue selective reindex jobs. The requested ids/hashes are split into
+   * chunks so a single job never exceeds the handler's batch limits, and every chunk shares one
+   * correlation id so callers can poll progress via `getProgress`/`findByCorrelationId`.
+   */
+  async enqueueReindex(request: ReindexRequest, opts: ReindexEnqueueOptions = {}): Promise<ReindexEnqueueResult> {
+    const ids = dedupe(request.ids ?? []);
+    const hashes = dedupe(request.hashes ?? []);
+    const total = ids.length + hashes.length;
+    if (total === 0) {
+      throw new Error("reindex request must include at least one id or hash");
+    }
+    if (total > REINDEX_MAX_ITEMS) {
+      throw new Error(`reindex request exceeds the ${REINDEX_MAX_ITEMS} item limit (got ${total})`);
+    }
+
+    const chunkSize = Math.max(1, opts.chunkSize ?? REINDEX_CHUNK_SIZE);
+    const correlationId = opts.correlationId ?? `reindex-${new ObjectId().toHexString()}`;
+    const runAt = opts.runAt ?? new Date();
+
+    const jobIds: ObjectId[] = [];
+    for (const chunk of chunkItems(ids, chunkSize)) {
+      jobIds.push(
+        await this.enqueue(
+          "maintenance",
+          "reindex",
+          { ids: chunk, scope: request.scope, requestedBy: request.requestedBy },
+          { correlationId, runAt, timeoutMs: opts.timeoutMs, maxAttempts: opts.maxAttempts },
+        ),
+      );
+    }
+    for (const chunk of chunkItems(hashes, chunkSize)) {
+      jobIds.push(
+        await this.enqueue(
+          "maintenance",
+          "reindex",
+          { hashes: chunk, scope: request.scope, requestedBy: request.requestedBy },
+          { correlationId, runAt, timeoutMs: opts.timeoutMs, maxAttempts: opts.maxAttempts },
+        ),
+      );
+    }
+
+    this.log.info("reindex jobs enqueued", {
+      correlationId,
+      requestedBy: request.requestedBy,
+      scope: request.scope,
+      total,
+      chunks: jobIds.length,
+      jobIds: jobIds.map((id) => id.toHexString()),
+    });
+    return { correlationId, jobIds, total, chunks: jobIds.length };
   }
 
   /** Atomically claims the oldest ready job on `queue`. Index: queue_status_runAt. */
@@ -437,4 +528,14 @@ export class JobQueue {
       ...extra,
     };
   }
+}
+
+function dedupe(values: string[]): string[] {
+  return [...new Set(values.filter((v) => typeof v === "string" && v.length > 0))];
+}
+
+function chunkItems<T>(items: T[], size: number): T[][] {
+  const chunks: T[][] = [];
+  for (let i = 0; i < items.length; i += size) chunks.push(items.slice(i, i + size));
+  return chunks;
 }

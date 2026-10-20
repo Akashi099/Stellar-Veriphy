@@ -65,8 +65,28 @@ export interface ArchivedSessionDoc extends VerificationSessionDoc {
 
 // --- Jobs --------------------------------------------------------------------
 
-export const QUEUE_NAMES = ["verification", "indexing", "notification"] as const;
+export const QUEUE_NAMES = ["verification", "indexing", "notification", "reindex"] as const;
 export type QueueName = (typeof QUEUE_NAMES)[number];
+
+// --- Reindexing (#854) -------------------------------------------------------
+
+/**
+ * Selective reindex request for verification / provenance data (#854).
+ * Exactly one of `verificationIds` or `contentHashes` must be provided.
+ */
+export interface ReindexJobPayload {
+  /** Verification jobIds to refresh. */
+  verificationIds?: string[];
+  /** Content hashes whose verification/provenance records should be refreshed. */
+  contentHashes?: string[];
+  /** Operator (or service) that requested the reindex; recorded for auditing. */
+  requestedBy: string;
+  /** How many records to process per batch; defaults to REINDEX_DEFAULT_BATCH_SIZE. */
+  batchSize?: number;
+}
+
+export const REINDEX_DEFAULT_BATCH_SIZE = 100;
+export const REINDEX_MAX_BATCH_SIZE = 1000;
 
 /**
  * queued    – waiting for a worker (ready when runAt <= now, otherwise delayed for retry backoff)

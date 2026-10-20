@@ -251,6 +251,44 @@ export const orphanMediaBytes = new Counter({
   name: "sv_orphan_media_deleted_bytes_total",
   help: "Bytes reclaimed by deleting orphaned media files",
   labelNames: ["storage"] as const,
+// --- Service-level timeouts and slow responses (#853) -----------------------
+//
+// Every HTTP request is timed and recorded in sv_http_request_duration_seconds
+// (labels: method, route, status). Two thresholds drive the alerting counters:
+//
+//   HTTP_SLOW_REQUEST_MS      (default 1000) - requests slower than this are
+//                             counted in sv_http_slow_requests_total and are
+//                             the primary signal for endpoints needing tuning.
+//   HTTP_REQUEST_TIMEOUT_MS   (default 30000) - requests exceeding this are
+//                             aborted and counted in sv_http_request_timeouts_total.
+//
+// Operators: group sv_http_slow_requests_total by (method, route) to find the
+// worst offenders, then compare with the p95/p99 of
+// sv_http_request_duration_seconds for the same route before adjusting either
+// threshold. Both thresholds are reviewed alongside the service SLOs.
+
+export const httpRequestDuration = new Histogram({
+  name: "sv_http_request_duration_seconds",
+  help: "End-to-end duration of HTTP requests by method, route and status code",
+  labelNames: ["method", "route", "status"] as const,
+  buckets: [0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1, 2.5, 5, 10, 30, 60],
+  registers,
+});
+
+export const httpSlowRequests = new Counter({
+  name: "sv_http_slow_requests_total",
+  help: "HTTP requests slower than HTTP_SLOW_REQUEST_MS, by method and route",
+  labelNames: ["method", "route"] as const,
+  registers,
+});
+
+export const httpRequestTimeouts = new Counter({
+  name: "sv_http_request_timeouts_total",
+  help: "HTTP requests aborted after exceeding HTTP_REQUEST_TIMEOUT_MS, by method and route",
+  labelNames: ["method", "route"] as const,
+  registers,
+});
+
 // --- Maintenance mode (#787) -------------------------------------------------
 
 export const maintenanceMode = new Gauge({

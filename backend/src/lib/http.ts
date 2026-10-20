@@ -1,6 +1,12 @@
 import { safeUrl } from "./url.js";
 import type { Logger } from "./logger.js";
-import { externalApiDuration, externalApiRequests, externalApiRetries } from "./metrics.js";
+import {
+  externalApiDuration,
+  externalApiRequests,
+  externalApiRetries,
+  externalApiSlowResponses,
+  externalApiTimeouts,
+} from "./metrics.js";
 import { backoffDelay, sleep } from "./retry.js";
 
 /**
@@ -13,6 +19,13 @@ import { backoffDelay, sleep } from "./retry.js";
 
 /** Hard ceiling on configured retries so a bad env value can't create a retry storm. */
 export const MAX_RETRIES = 5;
+
+/**
+ * Default slow-response threshold (ms) for a single external API attempt. Attempts that succeed
+ * but exceed this are counted in `external_api_slow_responses_total` so slow endpoints surface in
+ * dashboards before they start timing out. Overridable per client via `slowThresholdMs`.
+ */
+export const DEFAULT_SLOW_THRESHOLD_MS = 2_000;
 
 /** Statuses worth retrying: the request may succeed unchanged if sent again. */
 const RETRYABLE_STATUSES = new Set([408, 425, 429, 500, 502, 503, 504]);
@@ -30,6 +43,11 @@ export interface ExternalApiPolicy {
   retryMaxDelayMs: number;
   /** Overall budget for all attempts and backoff; no retry starts once it would be exceeded. */
   totalTimeoutMs: number;
+  /**
+   * Attempts slower than this (ms) are counted as slow responses. Defaults to
+   * DEFAULT_SLOW_THRESHOLD_MS. Should be below `timeoutMs` so slow calls are visible before timeouts.
+   */
+  slowThresholdMs?: number;
 }
 
 export interface ExternalApiErrorMeta {
@@ -107,7 +125,11 @@ export class ExternalApiClient {
     policy: ExternalApiPolicy,
     private readonly log?: Logger,
   ) {
-    this.policy = { ...policy, retries: Math.min(Math.max(0, policy.retries), MAX_RETRIES) };
+    this.policy = {
+      ...policy,
+      retries: Math.min(Math.max(0, policy.retries), MAX_RETRIES),
+      slowThresholdMs: policy.slowThresholdMs ?? DEFAULT_SLOW_THRESHOLD_MS,
+    };
   }
 
   /** Sends a request and returns the 2xx response with its body fully read as text. */
@@ -136,7 +158,7 @@ export class ExternalApiClient {
         const res = await fetch(url, { ...fetchInit, method, signal });
         const text = await res.text();
         if (res.ok) {
-          this.observe(method, "success", attemptStarted);
+          this.observe(method, "success", attemptStarted, policy);
           return { status: res.status, headers: res.headers, text, attempts: attempt };
         }
         failure = {
@@ -148,7 +170,7 @@ export class ExternalApiClient {
       } catch (err) {
         failure = classify(err, timeoutSignal.aborted, callerSignal?.aborted === true);
       }
-      this.observe(method, failure.reason, attemptStarted);
+      this.observe(method, failure.reason, attemptStarted, policy);
 
       const retryableFailure =
         failure.reason === "timeout" ||
@@ -228,8 +250,20 @@ export class ExternalApiClient {
     }
   }
 
-  private observe(method: string, outcome: string, attemptStarted: number): void {
+  private observe(method: string, outcome: string, attemptStarted: number, policy: ExternalApiPolicy): void {
+    const durationMs = performance.now() - attemptStarted;
     externalApiRequests.inc({ service: this.service, method, outcome });
-    externalApiDuration.observe({ service: this.service, outcome }, (performance.now() - attemptStarted) / 1000);
+    externalApiDuration.observe({ service: this.service, outcome }, durationMs / 1000);
+    if (outcome === "timeout") {
+      externalApiTimeouts.inc({ service: this.service, method });
+    } else if (outcome === "success" && durationMs > (policy.slowThresholdMs ?? DEFAULT_SLOW_THRESHOLD_MS)) {
+      externalApiSlowResponses.inc({ service: this.service, method });
+      this.log?.warn("external api call exceeded slow threshold", {
+        service: this.service,
+        method,
+        durationMs: Math.round(durationMs),
+        slowThresholdMs: policy.slowThresholdMs ?? DEFAULT_SLOW_THRESHOLD_MS,
+      });
+    }
   }
 }

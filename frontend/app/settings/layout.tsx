@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 import type { Metadata } from "next";
+import { AdminGuard } from "@/context/AdminGuard";
 
 const TITLE = "Settings";
 const DESCRIPTION =
@@ -13,5 +14,5 @@ export const metadata: Metadata = {
 };
 
 export default function SettingsLayout({ children }: { children: ReactNode }) {
-  return children;
+  return <AdminGuard>{children}</AdminGuard>;
 }

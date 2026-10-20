@@ -1,4 +1,3 @@
-import type { UploadMetadata, UploadRecord, VerificationJobView } from "@stellarveriphy/shared";
 import type {
   FieldError,
   UploadMetadata,
@@ -12,6 +11,22 @@ import { resolveApiEndpoint } from "@/config";
 import { ApiError, apiErrorFromResponse, createRequestId, networkError } from "@/lib/apiErrors";
 
 export { ApiError };
+
+/**
+ * Statuses that indicate the verification service is temporarily unavailable
+ * (as opposed to a validation error or a permanent failure).
+ */
+const VERIFICATION_UNAVAILABLE_STATUSES = new Set([0, 502, 503, 504]);
+
+/**
+ * Returns true when an error represents a temporary verification-service outage
+ * (network failure or 502/503/504). Screens can use this to render a fallback
+ * panel with retry/recovery actions instead of a spinner or broken state.
+ */
+export function isVerificationUnavailable(error: unknown): error is ApiError {
+  if (!(error instanceof ApiError)) return false;
+  return VERIFICATION_UNAVAILABLE_STATUSES.has(error.status);
+}
 
 export interface RetryUpdate {
   attempt: number;
@@ -76,8 +91,14 @@ async function request<T>(pathOrUrl: string, init?: RequestOptions): Promise<T> 
       status === 429 && retryAfterSeconds
         ? `Too many requests. Please wait ${retryAfterSeconds} seconds before trying again.`
         : undefined;
+    const unavailableMessage = VERIFICATION_UNAVAILABLE_STATUSES.has(status)
+      ? status === 0
+        ? "Could not reach the verification service. Check your connection and try again."
+        : "The verification service is temporarily unavailable. Please try again in a moment."
+      : undefined;
     lastError = new ApiError(
       rateLimitMessage ??
+        unavailableMessage ??
         body?.message ??
         body?.error ??
         (status === 0 ? "Could not reach the server. Check your connection and try again." : `Request failed (${status}).`),

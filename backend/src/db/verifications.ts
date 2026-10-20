@@ -67,6 +67,45 @@ export class VerificationRepository {
   findByCertId(certId: string) {
     return this.col.findOne({ certId });
   }
+
+  /** Index: jobId_unique — bulk load for selective reindexing. */
+  findByIds(jobIds: string[], limit = MAX_PAGE_SIZE) {
+    if (jobIds.length === 0) return Promise.resolve([]);
+    return this.col
+      .find({ jobId: { $in: jobIds.slice(0, limit) } })
+      .limit(Math.min(Math.max(limit, 1), MAX_PAGE_SIZE))
+      .toArray();
+  }
+
+  /** Index: contentHash_createdAt — bulk load for selective reindexing. */
+  findByContentHashes(contentHashes: string[], limit = MAX_PAGE_SIZE) {
+    if (contentHashes.length === 0) return Promise.resolve([]);
+    return this.col
+      .find({ contentHash: { $in: contentHashes.slice(0, limit) } })
+      .limit(Math.min(Math.max(limit, 1), MAX_PAGE_SIZE))
+      .toArray();
+  }
+
+  /**
+   * Index: jobId_unique. Rewrites the verification/provenance fields for one record during a
+   * reindex. Only the supplied fields are touched; `updatedAt` is always bumped. Returns the
+   * updated document, or null when the record no longer exists.
+   */
+  refresh(
+    jobId: string,
+    fields: Partial<Pick<VerificationDoc, "status" | "certId" | "txHash" | "error" | "completedAt">>,
+  ) {
+    const $set: Record<string, unknown> = { updatedAt: new Date() };
+    for (const key of ["status", "certId", "txHash", "error", "completedAt"] as const) {
+      if (fields[key] !== undefined) $set[key] = fields[key];
+    }
+    return this.col.findOneAndUpdate({ jobId }, { $set }, { returnDocument: "after" });
+  }
+
+  /** Convenience wrapper for status-only refreshes. */
+  updateStatus(jobId: string, status: VerificationStatus, extra: { certId?: string; txHash?: string; error?: string } = {}) {
+    return this.refresh(jobId, { status, ...extra });
+  }
 }
 
 type StatusResult = NonNullable<Awaited<ReturnType<VerificationRepository["getStatus"]>>>;

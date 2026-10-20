@@ -4,6 +4,7 @@ import React from "react";
 
 import { RetryableError } from "@/components/ui/RetryableError";
 import { captureException } from "@/lib/error-tracking/client";
+import { describeError } from "@/lib/errors/describeError";
 
 interface ErrorBoundaryProps {
   children: React.ReactNode;
@@ -43,15 +44,19 @@ export class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoun
 
   render() {
     if (this.state.hasError) {
+      if (this.props.fallback) {
+        return this.props.fallback;
+      }
+
+      const described = describeError(this.state.error);
+
       return (
-        this.props.fallback || (
-          <RetryableError
-            error={this.state.error}
-            title="Something went wrong"
-            fallbackMessage="We've logged this error and will look into it."
-            onRetry={this.reset}
-          />
-        )
+        <RetryableError
+          error={this.state.error}
+          title={described.title}
+          fallbackMessage={described.message}
+          onRetry={this.reset}
+        />
       );
     }
 

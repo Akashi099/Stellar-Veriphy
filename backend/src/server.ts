@@ -6,7 +6,13 @@ import type { CachedVerificationReads } from "./db/verifications.js";
 import type { HealthMonitor } from "./health/monitor.js";
 import type { JobQueue } from "./jobs/queue.js";
 import type { Logger } from "./lib/logger.js";
-import { maintenanceRejected, registry } from "./lib/metrics.js";
+import {
+  maintenanceRejected,
+  registry,
+  requestDuration,
+  requestTimeouts,
+  slowResponses,
+} from "./lib/metrics.js";
 import type { MaintenanceMode } from "./maintenance/mode.js";
 import { CleanupAlreadyRunningError, type CleanupScheduler } from "./maintenance/scheduler.js";
 import type { WebhookService } from "./webhooks/service.js";
@@ -38,6 +44,16 @@ const CERT_ID = /^[A-Za-z0-9_-]{1,128}$/;
 const MAX_BODY_BYTES = 64 * 1024;
 /** Requests with these methods are served during maintenance; everything else gets 503. */
 const MAINTENANCE_SAFE_METHODS = new Set(["GET", "HEAD", "OPTIONS"]);
+/**
+ * Service-level timeout thresholds (#853). Requests slower than SLOW_REQUEST_MS are counted as
+ * slow responses; requests slower than REQUEST_TIMEOUT_MS are additionally counted as timeouts.
+ * Both are documented in docs/operations and reviewed alongside the dashboards.
+ */
+const SLOW_REQUEST_MS = config.http.slowRequestMs;
+const REQUEST_TIMEOUT_MS = config.http.requestTimeoutMs;
+/** Reindex scopes accepted by POST /api/admin/reindex (#854). */
+const REINDEX_SCOPES = new Set(["contentHashes", "verificationIds"]);
+const MAX_REINDEX_TARGETS = 500;
 
 class BadRequestError extends Error {}
 
@@ -332,6 +348,65 @@ export function createHttpServer({ health, queue, cleanup, verifications, mainte
       },
     },
 
+    // --- Selective reindexing (#854) --------------------------------------------
+    {
+      method: "POST",
+      pattern: /^\/api\/admin\/reindex$/,
+      admin: true,
+      handler: async (req, res) => {
+        const body = await readJson(req);
+        const scope = body.scope;
+        if (typeof scope !== "string" || !REINDEX_SCOPES.has(scope)) {
+          return send(res, 400, { error: "scope must be one of contentHashes, verificationIds" });
+        }
+        const targets = body.targets;
+        if (!Array.isArray(targets) || targets.length === 0) {
+          return send(res, 400, { error: "targets must be a non-empty array" });
+        }
+        if (targets.length > MAX_REINDEX_TARGETS) {
+          return send(res, 400, { error: `targets must contain at most ${MAX_REINDEX_TARGETS} entries` });
+        }
+        const pattern = scope === "contentHashes" ? CONTENT_HASH : /^[A-Za-z0-9_-]{1,128}$/;
+        const invalid = targets.filter((t) => typeof t !== "string" || !pattern.test(t));
+        if (invalid.length > 0) {
+          return send(res, 400, { error: `invalid ${scope} entries`, invalid: invalid.slice(0, 10) });
+        }
+        const requestedBy = req.socket.remoteAddress ?? "unknown";
+        const job = await queue.enqueueReindex({
+          scope: scope as "contentHashes" | "verificationIds",
+          targets: targets as string[],
+          requestedBy,
+        });
+        log.info("reindex requested by operator", { jobId: job.id.toHexString(), scope, count: targets.length, requestedBy });
+        send(res, 202, {
+          jobId: job.id.toHexString(),
+          status: job.status,
+          progress: job.progress ?? null,
+          scope,
+          count: targets.length,
+        });
+      },
+    },
+    {
+      method: "GET",
+      pattern: /^\/api\/admin\/reindex\/(?<id>[^/]+)$/,
+      admin: true,
+      handler: async (_req, res, { id }) => {
+        const objectId = parseObjectId(id);
+        const job = objectId && (await queue.getJob(objectId));
+        if (!job) return send(res, 404, { error: "Reindex job not found" });
+        send(res, 200, {
+          jobId: job.id.toHexString(),
+          status: job.status,
+          progress: job.progress ?? null,
+          attempts: job.attempts,
+          lastErrorCode: job.lastError?.code ?? null,
+          startedAt: job.startedAt ?? null,
+          finishedAt: job.finishedAt ?? null,
+        });
+      },
+    },
+
     // --- Verification lookups (#773) ---------------------------------------------
     {
       method: "GET",
@@ -403,6 +478,8 @@ export function createHttpServer({ health, queue, cleanup, verifications, mainte
     }
 
     const params = { ...(route.pattern.exec(url.pathname)?.groups ?? {}) };
+    // Route label for metrics: the pattern source, so cardinality stays bounded (#853).
+    const routeLabel = `${route.method} ${route.pattern.source}`;
     route
       .handler(req, res, params, url)
       .catch((err) => {
@@ -414,12 +491,20 @@ export function createHttpServer({ health, queue, cleanup, verifications, mainte
         if (!res.headersSent) send(res, 500, { error: "Internal server error" });
       })
       .finally(() => {
+        const durationMs = performance.now() - started;
+        requestDuration.observe({ method: req.method ?? "unknown", route: routeLabel }, durationMs / 1000);
+        if (durationMs >= REQUEST_TIMEOUT_MS) {
+          requestTimeouts.inc({ method: req.method ?? "unknown", route: routeLabel });
+          log.warn("request exceeded timeout threshold", { method: req.method, path: url.pathname, durationMs: Math.round(durationMs) });
+        } else if (durationMs >= SLOW_REQUEST_MS) {
+          slowResponses.inc({ method: req.method ?? "unknown", route: routeLabel });
+        }
         if (!url.pathname.startsWith("/health") && url.pathname !== "/metrics") {
           log.debug("request", {
             method: req.method,
             path: url.pathname,
             status: res.statusCode,
-            durationMs: Math.round(performance.now() - started),
+            durationMs: Math.round(durationMs),
           });
         }
       });

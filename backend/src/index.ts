@@ -74,8 +74,9 @@ async function main(): Promise<void> {
   if (config.retention.enabled) cleanup.start();
   else log.warn("retention cleanup disabled (RETENTION_CLEANUP_ENABLED=false)");
 
+  const verificationRepository = new VerificationRepository(db);
   const verifications = new CachedVerificationReads(
-    new VerificationRepository(db),
+    verificationRepository,
     createPublicVerificationCaches(config.cache, log.child({ component: "cache" })),
   );
 
@@ -84,9 +85,10 @@ async function main(): Promise<void> {
     queue,
     cleanup,
     verifications,
-    verifications: new VerificationRepository(db),
+    verifications: verificationRepository,
     maintenance,
     webhooks,
+    timeouts: config.httpTimeouts,
     log: log.child({ component: "http" }),
   });
   server.listen(config.port, () => log.info("backend listening", { port: config.port }));

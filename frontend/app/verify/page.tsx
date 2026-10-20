@@ -6,6 +6,7 @@ import { HashComparison } from "@/components/HashComparison";
 import { WizardPageShell } from "@/src/features/verification/components/WizardPageShell";
 import { useWizardStore } from "@/src/features/verification/store/wizard.store";
 import type { ManifestData } from "@/src/features/verification/types/wizard.types";
+import { useRetryableVerification } from "@/src/features/verification/hooks/useRetryableVerification";
 import { hashFile } from "@/utils/hashing";
 
 function HashComparisonView() {
@@ -65,13 +66,21 @@ function VerifyPageContent() {
   const [mediaError, setMediaError] = useState("");
   const [manifestError, setManifestError] = useState("");
 
+  const { submit, retry, isUnavailable, error, isRetrying } = useRetryableVerification();
+
   const config = STEP_CONFIGS[Math.min(currentStep, STEP_CONFIGS.length - 1)]!;
 
   const handleSubmit = async () => {
     setIsSubmitting(true);
     try {
-      // TODO: Implement actual submission logic
-      await new Promise((resolve) => setTimeout(resolve, 1000));
+      await submit({
+        mode,
+        contentHash,
+        manifestHash,
+        encryptionEnabled,
+      });
+    } catch {
+      // Error state is surfaced via the hook; ensure the spinner is cleared below.
     } finally {
       setIsSubmitting(false);
     }
@@ -290,6 +299,47 @@ function VerifyPageContent() {
         return null;
     }
   };
+
+  if (isUnavailable) {
+    return (
+      <main className="mx-auto max-w-2xl px-4 py-10 sm:px-6">
+        <div
+          role="alert"
+          className="space-y-4 rounded-lg border border-amber-300 bg-amber-50 p-6 dark:border-amber-700 dark:bg-amber-950"
+        >
+          <h1 className="text-lg font-semibold text-amber-900 dark:text-amber-100">
+            Verification service temporarily unavailable
+          </h1>
+          <p className="text-sm text-amber-900 dark:text-amber-200">
+            We couldn&apos;t reach the verification service right now. Your files and hashes are
+            still safe — nothing was lost. Please try again in a moment.
+          </p>
+          {error && (
+            <p className="break-words text-xs text-amber-800 dark:text-amber-300">{error}</p>
+          )}
+          <div className="flex flex-wrap gap-3">
+            <button
+              type="button"
+              onClick={() => void retry()}
+              disabled={isRetrying}
+              className="min-h-11 rounded bg-amber-600 px-4 py-2 text-sm font-medium text-white hover:bg-amber-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-500 disabled:opacity-60"
+            >
+              {isRetrying ? "Retrying…" : "Retry"}
+            </button>
+            <a
+              href="/dashboard"
+              className="min-h-11 rounded border border-amber-600 px-4 py-2 text-sm font-medium text-amber-900 hover:bg-amber-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-500 dark:text-amber-100 dark:hover:bg-amber-900"
+            >
+              Return to dashboard
+            </a>
+          </div>
+          <p className="text-xs text-amber-800 dark:text-amber-300">
+            If the problem persists, please try again later.
+          </p>
+        </div>
+      </main>
+    );
+  }
 
   return (
     <WizardPageShell
