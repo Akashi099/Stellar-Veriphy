@@ -33,6 +33,16 @@
 //! The contract administrator can pause all new request submissions via the
 //! circuit-breaker flag.  In-flight requests are not affected.
 //!
+//! ## Verification policy governance (#792)
+//!
+//! Verification policy — request TTLs, the expiration warning threshold and
+//! provider SLA targets — is changed only by the *policy authority*: the
+//! address set with [`set_policy_governance`], or the admin while none is set.
+//! Every change bumps [`get_policy_version`] and emits a `policy_changed`
+//! event. The pause circuit breaker stays with the admin so incidents can be
+//! handled without waiting on governance. See
+//! `docs/security/verification-policy-governance.md`.
+//!
 //! ## Storage model
 //!
 //! | Key pattern | Storage type | Lifetime |
@@ -189,6 +199,10 @@ pub enum Error {
     /// Occurs in `submit_request_as_delegate` if `delegate` doesn't match the
     /// principal's stored delegate (or none was ever authorized).
     NotAuthorizedDelegate = 22,
+
+    /// #792 — Verification policy governance is already held by this address.
+    /// Occurs in `set_policy_governance` when handing governance to the current holder.
+    PolicyGovernanceUnchanged = 23,
 }
 
 // ---------------------------------------------------------------------------
@@ -211,6 +225,10 @@ pub enum DataKey {
     RequestTTL,
     ExpirationWarningLedgers,
     NextDisputeId,
+    /// #792 — address allowed to change verification policy; admin when unset.
+    PolicyGovernance,
+    /// #792 — incremented on every verification policy change.
+    PolicyVersion,
     // ── per-provider (persistent storage) ────────────────────────────────
     Provider(Address),
     ProviderList,
@@ -1290,6 +1308,74 @@ impl OracleContract {
         results
     }
 
+    // -----------------------------------------------------------------------
+    // #792 – Verification policy governance
+    // -----------------------------------------------------------------------
+
+    /// Resolve and authenticate the address allowed to change verification
+    /// policy: the governance address when one is set, otherwise the admin.
+    fn require_policy_authority(env: &Env) -> Result<Address, Error> {
+        let admin: Address = env
+            .storage()
+            .instance()
+            .get(&DataKey::Admin)
+            .ok_or(Error::NotInitialized)?;
+        let authority: Address = env
+            .storage()
+            .instance()
+            .get(&DataKey::PolicyGovernance)
+            .unwrap_or(admin);
+        authority.require_auth();
+        Ok(authority)
+    }
+
+    /// Bump the policy version and emit `policy_changed(policy) -> (version, authority)`.
+    fn record_policy_change(env: &Env, policy: &str, authority: Address) {
+        let version = Self::get_policy_version(env.clone()).saturating_add(1);
+        env.storage()
+            .instance()
+            .set(&DataKey::PolicyVersion, &version);
+        env.events().publish(
+            (
+                Symbol::new(env, "policy_changed"),
+                Symbol::new(env, policy),
+            ),
+            (version, authority),
+        );
+    }
+
+    /// Hand verification policy control to `governance` (e.g. a multisig or
+    /// governance contract). The first hand-off is authorised by the admin;
+    /// after that only the current governance address can pass it on, so the
+    /// admin cannot take policy control back unilaterally.
+    pub fn set_policy_governance(env: Env, governance: Address) -> Result<(), Error> {
+        let authority = Self::require_policy_authority(&env)?;
+        if authority == governance {
+            return Err(Error::PolicyGovernanceUnchanged);
+        }
+        env.storage()
+            .instance()
+            .set(&DataKey::PolicyGovernance, &governance);
+        env.events().publish(
+            (Symbol::new(&env, "policy_gov_set"),),
+            (authority, governance),
+        );
+        Ok(())
+    }
+
+    /// The governance address controlling verification policy, if one is set.
+    pub fn get_policy_governance(env: Env) -> Option<Address> {
+        env.storage().instance().get(&DataKey::PolicyGovernance)
+    }
+
+    /// Number of verification policy changes applied since `init`.
+    pub fn get_policy_version(env: Env) -> u32 {
+        env.storage()
+            .instance()
+            .get(&DataKey::PolicyVersion)
+            .unwrap_or(0)
+    }
+
     pub fn get_ttl_config(env: Env) -> TTLConfig {
         env.storage()
             .instance()
@@ -1307,12 +1393,7 @@ impl OracleContract {
         high_priority_ttl: u32,
         low_priority_ttl: u32,
     ) -> Result<(), Error> {
-        let admin: Address = env
-            .storage()
-            .instance()
-            .get(&DataKey::Admin)
-            .ok_or(Error::NotInitialized)?;
-        admin.require_auth();
+        let authority = Self::require_policy_authority(&env)?;
         if default_ttl == 0 || high_priority_ttl == 0 || low_priority_ttl == 0 {
             return Err(Error::InvalidState);
         }
@@ -1324,6 +1405,7 @@ impl OracleContract {
                 low_priority_ttl,
             },
         );
+        Self::record_policy_change(&env, "request_ttl", authority);
         Ok(())
     }
 
@@ -1335,18 +1417,14 @@ impl OracleContract {
     }
 
     pub fn update_warning_threshold(env: Env, ledgers: u32) -> Result<(), Error> {
-        let admin: Address = env
-            .storage()
-            .instance()
-            .get(&DataKey::Admin)
-            .ok_or(Error::NotInitialized)?;
-        admin.require_auth();
+        let authority = Self::require_policy_authority(&env)?;
         if ledgers == 0 {
             return Err(Error::InvalidState);
         }
         env.storage()
             .instance()
             .set(&DataKey::ExpirationWarningLedgers, &ledgers);
+        Self::record_policy_change(&env, "warning_threshold", authority);
         Ok(())
     }
 
@@ -1659,12 +1737,7 @@ impl OracleContract {
         target_uptime_percentage: u32,
         target_success_rate: u32,
     ) -> Result<(), Error> {
-        let admin: Address = env
-            .storage()
-            .instance()
-            .get(&DataKey::Admin)
-            .ok_or(Error::NotInitialized)?;
-        admin.require_auth();
+        let authority = Self::require_policy_authority(&env)?;
 
         let existing: ProviderSLA = env
             .storage()
@@ -1691,6 +1764,7 @@ impl OracleContract {
         env.storage()
             .persistent()
             .set(&DataKey::ProviderSLA(provider), &updated);
+        Self::record_policy_change(&env, "provider_sla", authority);
         Ok(())
     }
 

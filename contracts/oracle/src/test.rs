@@ -652,6 +652,89 @@ fn test_update_warning_threshold_invalid() {
     assert_eq!(err, Error::InvalidState);
 }
 
+// ---------------------------------------------------------------------------
+// #792 verification policy governance
+// ---------------------------------------------------------------------------
+
+#[test]
+fn test_policy_authority_defaults_to_admin() {
+    let env = make_env();
+    env.mock_all_auths();
+    let (cid, admin, _) = setup_oracle(&env);
+    let client = OracleContractClient::new(&env, &cid);
+    assert!(client.get_policy_governance().is_none());
+    assert_eq!(client.get_policy_version(), 0);
+    client.update_warning_threshold(&30u32);
+    assert_eq!(env.auths()[0].0, admin);
+    assert_eq!(client.get_policy_version(), 1);
+}
+
+#[test]
+fn test_policy_changes_require_governance_once_set() {
+    let env = make_env();
+    env.mock_all_auths();
+    let (cid, admin, _) = setup_oracle(&env);
+    let client = OracleContractClient::new(&env, &cid);
+    let governance = Address::generate(&env);
+    client.set_policy_governance(&governance);
+    assert_eq!(env.auths()[0].0, admin);
+    assert_eq!(client.get_policy_governance(), Some(governance.clone()));
+
+    client.update_ttl_config(&120u32, &240u32, &60u32);
+    assert_eq!(env.auths()[0].0, governance);
+    client.update_warning_threshold(&40u32);
+    assert_eq!(env.auths()[0].0, governance);
+    assert_eq!(client.get_policy_version(), 2);
+}
+
+#[test]
+fn test_policy_change_rejects_admin_after_handoff() {
+    let env = make_env();
+    env.mock_all_auths();
+    let (cid, admin, _) = setup_oracle(&env);
+    let client = OracleContractClient::new(&env, &cid);
+    let governance = Address::generate(&env);
+    client.set_policy_governance(&governance);
+    // Only the admin signs; governance has not, so the change must fail.
+    let res = client
+        .mock_auths(&[soroban_sdk::testutils::MockAuth {
+            address: &admin,
+            invoke: &soroban_sdk::testutils::MockAuthInvoke {
+                contract: &cid,
+                fn_name: "update_warning_threshold",
+                args: soroban_sdk::IntoVal::into_val(&(50u32,), &env),
+                sub_invokes: &[],
+            },
+        }])
+        .try_update_warning_threshold(&50u32);
+    assert!(res.is_err());
+    assert_eq!(client.get_warning_threshold(), 20u32);
+    assert_eq!(client.get_policy_version(), 0);
+}
+
+#[test]
+fn test_set_policy_governance_rejects_current_holder() {
+    let env = make_env();
+    env.mock_all_auths();
+    let (cid, admin, _) = setup_oracle(&env);
+    let client = OracleContractClient::new(&env, &cid);
+    let err = client
+        .try_set_policy_governance(&admin)
+        .unwrap_err()
+        .unwrap();
+    assert_eq!(err, Error::PolicyGovernanceUnchanged);
+}
+
+#[test]
+fn test_invalid_policy_change_does_not_bump_version() {
+    let env = make_env();
+    env.mock_all_auths();
+    let (cid, ..) = setup_oracle(&env);
+    let client = OracleContractClient::new(&env, &cid);
+    assert!(client.try_update_ttl_config(&0u32, &1u32, &1u32).is_err());
+    assert_eq!(client.get_policy_version(), 0);
+}
+
 #[test]
 fn test_check_expiration_warning_emits_event() {
     let env = make_env();
