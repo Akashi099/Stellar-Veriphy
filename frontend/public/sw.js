@@ -5,10 +5,16 @@
  * for the StellarVeriphy PWA.
  */
 
-const CACHE_VERSION = 'v1.0.0';
-const STATIC_CACHE = `stellarveriphy-static-${CACHE_VERSION}`;
-const DYNAMIC_CACHE = `stellarveriphy-dynamic-${CACHE_VERSION}`;
-const IMAGE_CACHE = `stellarveriphy-images-${CACHE_VERSION}`;
+// Build ID is injected at build time; fall back to a stable version string.
+const BUILD_ID = (typeof self !== 'undefined' && self.__BUILD_ID__) || 'v1.0.0';
+const CACHE_PREFIX = 'stellarveriphy';
+const STATIC_CACHE = `${CACHE_PREFIX}-static-${BUILD_ID}`;
+const DYNAMIC_CACHE = `${CACHE_PREFIX}-dynamic-${BUILD_ID}`;
+const IMAGE_CACHE = `${CACHE_PREFIX}-images-${BUILD_ID}`;
+const CURRENT_CACHES = [STATIC_CACHE, DYNAMIC_CACHE, IMAGE_CACHE];
+
+// Public pages that are safe to serve stale-while-revalidate.
+const PUBLIC_PAGE_PATHS = ['/', '/offline', '/verify', '/explore'];
 
 // Static assets to cache on install
 const STATIC_ASSETS = [
@@ -33,36 +39,42 @@ async function limitCacheSize(cacheName, maxSize) {
     }
 }
 
-// Install event - cache static assets
+// Install event - cache static assets.
+// NOTE: We intentionally do NOT call skipWaiting() here. Waiting lets the
+// page prompt the user and send SKIP_WAITING when they are ready, keeping
+// existing sessions stable during the update.
 self.addEventListener('install', (event) => {
-    console.log('[SW] Installing service worker...');
+    console.log('[SW] Installing service worker...', BUILD_ID);
 
     event.waitUntil(
         caches.open(STATIC_CACHE)
             .then((cache) => {
                 console.log('[SW] Caching static assets');
-                return cache.addAll(STATIC_ASSETS);
+                // Use cache-busting reload so new asset versions are fetched.
+                return cache.addAll(STATIC_ASSETS.map((url) => new Request(url, { cache: 'reload' })));
             })
-            .then(() => self.skipWaiting())
     );
 });
 
-// Activate event - clean old caches
+// Activate event - clean old caches and claim clients.
 self.addEventListener('activate', (event) => {
-    console.log('[SW] Activating service worker...');
+    console.log('[SW] Activating service worker...', BUILD_ID);
 
     event.waitUntil(
         caches.keys()
             .then((cacheNames) => {
                 return Promise.all(
                     cacheNames
-                        .filter((name) => name !== STATIC_CACHE && name !== DYNAMIC_CACHE && name !== IMAGE_CACHE)
+                        .filter((name) => name.startsWith(`${CACHE_PREFIX}-`) && !CURRENT_CACHES.includes(name))
                         .map((name) => {
                             console.log('[SW] Deleting old cache:', name);
                             return caches.delete(name);
                         })
                 );
             })
+            // Only cache storage is touched here. We deliberately never clear
+            // localStorage/sessionStorage so auth tokens and active sessions
+            // survive the update.
             .then(() => self.clients.claim())
     );
 });
@@ -121,6 +133,12 @@ self.addEventListener('fetch', (event) => {
         return;
     }
 
+    // Handle public pages - stale-while-revalidate for predictable, safe updates
+    if (request.mode === 'navigate' && PUBLIC_PAGE_PATHS.includes(url.pathname)) {
+        event.respondWith(staleWhileRevalidate(request));
+        return;
+    }
+
     // Handle pages and assets - network first with cache fallback
     event.respondWith(
         fetch(request)
@@ -155,6 +173,38 @@ self.addEventListener('fetch', (event) => {
             })
     );
 });
+
+// Stale-while-revalidate: serve cached copy immediately, refresh in background.
+async function staleWhileRevalidate(request) {
+    const cache = await caches.open(DYNAMIC_CACHE);
+    const cached = await cache.match(request);
+
+    const networkFetch = fetch(request)
+        .then((response) => {
+            if (response && response.status === 200) {
+                cache.put(request, response.clone());
+                limitCacheSize(DYNAMIC_CACHE, MAX_DYNAMIC_CACHE_SIZE);
+            }
+            return response;
+        })
+        .catch(() => null);
+
+    if (cached) {
+        // Refresh in the background without blocking the response.
+        return cached;
+    }
+
+    const networkResponse = await networkFetch;
+    if (networkResponse) {
+        return networkResponse;
+    }
+
+    const offline = await caches.match('/offline');
+    return offline || new Response(
+        '<html><body><h1>Offline</h1><p>No internet connection available.</p></body></html>',
+        { headers: { 'Content-Type': 'text/html' } }
+    );
+}
 
 // Background sync event
 self.addEventListener('sync', (event) => {
@@ -236,7 +286,12 @@ self.addEventListener('message', (event) => {
     console.log('[SW] Message received:', event.data);
 
     if (event.data.type === 'SKIP_WAITING') {
+        // Triggered by the page after the user accepts the update prompt.
         self.skipWaiting();
+    }
+
+    if (event.data.type === 'GET_VERSION') {
+        event.ports[0]?.postMessage({ buildId: BUILD_ID });
     }
 
     if (event.data.type === 'CACHE_URLS') {
@@ -247,10 +302,14 @@ self.addEventListener('message', (event) => {
     }
 
     if (event.data.type === 'CLEAR_CACHE') {
+        // Only clear Cache Storage. Never touch localStorage/sessionStorage
+        // so authentication state and active sessions remain intact.
         event.waitUntil(
             caches.keys()
                 .then((cacheNames) => Promise.all(
-                    cacheNames.map((name) => caches.delete(name))
+                    cacheNames
+                        .filter((name) => name.startsWith(`${CACHE_PREFIX}-`))
+                        .map((name) => caches.delete(name))
                 ))
         );
     }

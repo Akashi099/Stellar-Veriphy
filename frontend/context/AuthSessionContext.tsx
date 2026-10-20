@@ -47,6 +47,10 @@ export interface AuthSessionValue {
   status: AuthSessionStatus;
   session: AuthSessionInfo | null;
   error: ApiClientError | null;
+  // True once the persisted session has been read and validated on mount.
+  hydrated: boolean;
+  // Set when the browser refused to persist or read the session (private mode, quota, corrupt data).
+  persistenceError: string | null;
   login: (credential: string) => Promise<void>;
   logout: () => Promise<void>;
   refresh: () => Promise<void>;
@@ -54,8 +58,11 @@ export interface AuthSessionValue {
   getAccessToken: () => Promise<string | null>;
 }
 
+// Must match the cookie/storage contract in lib/server/auth.ts so middleware and the client agree.
 const STORAGE_KEY = "sv_auth_session";
 const SUPERSEDED_SETTLE_MS = 300;
+const PERSISTENCE_ERROR_MESSAGE = "Your session could not be saved in this browser. You may be signed out after a reload.";
+const CORRUPT_SESSION_MESSAGE = "Your saved session could not be read and was cleared. Please sign in again.";
 
 // Pure transition rules for a failed refresh, exported so they can be unit tested.
 export function statusAfterRefreshError(error: unknown): AuthSessionStatus {
@@ -73,37 +80,84 @@ export function statusAfterRefreshError(error: unknown): AuthSessionStatus {
   }
 }
 
-function readStored(): IssuedSession | null {
+type ReadResult = { session: IssuedSession | null; error: string | null };
+
+function isIssuedSession(value: unknown): value is IssuedSession {
+  if (!value || typeof value !== "object") return false;
+  const candidate = value as Partial<IssuedSession>;
+  const session = candidate.session as Partial<AuthSessionInfo> | undefined;
+  return (
+    typeof candidate.accessToken === "string" &&
+    typeof candidate.refreshToken === "string" &&
+    !!session &&
+    typeof session.sessionId === "string" &&
+    typeof session.subject === "string" &&
+    typeof session.refreshExpiresAt === "string" &&
+    typeof session.refreshAfter === "string"
+  );
+}
+
+function readStored(): ReadResult {
+  if (typeof window === "undefined") return { session: null, error: null };
+  let raw: string | null;
   try {
-    const raw = window.localStorage.getItem(STORAGE_KEY);
-    return raw ? (JSON.parse(raw) as IssuedSession) : null;
+    raw = window.localStorage.getItem(STORAGE_KEY);
   } catch {
-    return null;
+    return { session: null, error: PERSISTENCE_ERROR_MESSAGE };
+  }
+  if (!raw) return { session: null, error: null };
+  try {
+    const parsed: unknown = JSON.parse(raw);
+    if (!isIssuedSession(parsed)) {
+      window.localStorage.removeItem(STORAGE_KEY);
+      return { session: null, error: CORRUPT_SESSION_MESSAGE };
+    }
+    return { session: parsed, error: null };
+  } catch {
+    try {
+      window.localStorage.removeItem(STORAGE_KEY);
+    } catch {
+      // Ignore: the corrupt value is unusable either way.
+    }
+    return { session: null, error: CORRUPT_SESSION_MESSAGE };
   }
 }
 
-function writeStored(value: IssuedSession | null) {
+function writeStored(value: IssuedSession | null): string | null {
+  if (typeof window === "undefined") return null;
   try {
     if (value) window.localStorage.setItem(STORAGE_KEY, JSON.stringify(value));
     else window.localStorage.removeItem(STORAGE_KEY);
+    return null;
   } catch {
-    // Storage unavailable (private mode); the session still works for this tab.
+    // Storage unavailable (private mode, quota); the session still works for this tab.
+    return PERSISTENCE_ERROR_MESSAGE;
   }
 }
 
 const AuthSessionContext = createContext<AuthSessionValue | null>(null);
 
 export function AuthSessionProvider({ children }: { children: ReactNode }) {
-  const [status, setStatus] = useState<AuthSessionStatus>("signed_out");
+  // Read the persisted session synchronously so the first render already reflects it (no flicker/reset).
+  const initial = useMemo(() => readStored(), []);
+  const initialValid = !!initial.session && Date.parse(initial.session.session.refreshExpiresAt) > Date.now();
+
+  const [status, setStatus] = useState<AuthSessionStatus>(() => {
+    if (initialValid) return "active";
+    if (initial.session) return "expired";
+    return "signed_out";
+  });
   const [error, setError] = useState<ApiClientError | null>(null);
-  const tokens = useRef<IssuedSession | null>(null);
-  const [session, setSession] = useState<AuthSessionInfo | null>(null);
+  const [persistenceError, setPersistenceError] = useState<string | null>(initial.error);
+  const tokens = useRef<IssuedSession | null>(initialValid ? initial.session : null);
+  const [session, setSession] = useState<AuthSessionInfo | null>(initialValid ? initial.session!.session : null);
+  const [hydrated, setHydrated] = useState(false);
   const inflight = useRef<Promise<void> | null>(null);
 
   const adopt = useCallback((issued: IssuedSession | null, persist = true) => {
     tokens.current = issued;
     setSession(issued?.session ?? null);
-    if (persist) writeStored(issued);
+    if (persist) setPersistenceError(writeStored(issued));
   }, []);
 
   const end = useCallback(
@@ -116,22 +170,36 @@ export function AuthSessionProvider({ children }: { children: ReactNode }) {
   );
 
   useEffect(() => {
+    // Validate the stored session once on mount; surface failures through the error field.
     const stored = readStored();
-    if (stored && Date.parse(stored.session.refreshExpiresAt) > Date.now()) {
-      adopt(stored, false);
+    if (stored.error) setPersistenceError(stored.error);
+    if (stored.session && Date.parse(stored.session.refreshExpiresAt) > Date.now()) {
+      adopt(stored.session, false);
       setStatus("active");
-    } else if (stored) {
+    } else if (stored.session) {
       end("expired", null);
+    } else if (initial.session) {
+      // The value we hydrated from is no longer valid (e.g. cleared by another tab).
+      end("signed_out", null);
     }
+    setHydrated(true);
 
     const onStorage = (event: StorageEvent) => {
       if (event.key !== STORAGE_KEY) return;
       const next = readStored();
-      adopt(next, false);
-      setStatus(next ? "active" : "signed_out");
+      if (next.error) setPersistenceError(next.error);
+      if (next.session && Date.parse(next.session.refreshExpiresAt) > Date.now()) {
+        adopt(next.session, false);
+        setError(null);
+        setStatus("active");
+      } else {
+        adopt(null, false);
+        setStatus("signed_out");
+      }
     };
     window.addEventListener("storage", onStorage);
     return () => window.removeEventListener("storage", onStorage);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [adopt, end]);
 
   const runRefresh = useCallback(async () => {
@@ -151,8 +219,9 @@ export function AuthSessionProvider({ children }: { children: ReactNode }) {
         // Another tab rotated the tokens; give its write a moment to land, then use them.
         await new Promise((resolve) => setTimeout(resolve, SUPERSEDED_SETTLE_MS));
         const stored = readStored();
-        if (stored && stored.refreshToken !== current.refreshToken) {
-          adopt(stored, false);
+        if (stored.error) setPersistenceError(stored.error);
+        if (stored.session && stored.session.refreshToken !== current.refreshToken) {
+          adopt(stored.session, false);
           setError(null);
           setStatus("active");
           return;
@@ -227,8 +296,8 @@ export function AuthSessionProvider({ children }: { children: ReactNode }) {
   }, [refresh]);
 
   const value = useMemo<AuthSessionValue>(
-    () => ({ status, session, error, login, logout, refresh, getAccessToken }),
-    [status, session, error, login, logout, refresh, getAccessToken],
+    () => ({ status, session, error, hydrated, persistenceError, login, logout, refresh, getAccessToken }),
+    [status, session, error, hydrated, persistenceError, login, logout, refresh, getAccessToken],
   );
 
   return <AuthSessionContext.Provider value={value}>{children}</AuthSessionContext.Provider>;
