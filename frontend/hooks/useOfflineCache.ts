@@ -28,6 +28,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { useEffect } from "react";
 
 import { CACHE_GC_TIME_MS } from "@/config/app";
+import { getCacheVersion } from "@/lib/pwa";
 
 // ---------------------------------------------------------------------------
 // Constants
@@ -37,11 +38,35 @@ import { CACHE_GC_TIME_MS } from "@/config/app";
 const CACHE_KEY_PREFIX = "sv_cache_";
 
 /**
+ * localStorage key used to record which cache version produced the
+ * currently persisted entries. When the app's cache version changes,
+ * all persisted entries are pruned so stale data is never rehydrated.
+ */
+const CACHE_VERSION_KEY = "sv_cache_version";
+
+/**
+ * Storage key prefixes that must never be pruned or overwritten by the
+ * offline cache. Auth/session data lives here and must survive cache
+ * invalidation so existing user sessions remain stable.
+ */
+const PROTECTED_KEY_PREFIXES: readonly string[] = ["sv_auth_session"];
+
+/**
  * How long (ms) a persisted entry is considered valid.
  * Defaults to the React Query GC time so both in-memory and on-disk
  * entries expire at the same cadence.
  */
 const DEFAULT_MAX_AGE_MS = CACHE_GC_TIME_MS;
+
+/**
+ * Returns `true` when the given storage key is protected and must not be
+ * touched by cache invalidation logic.
+ *
+ * @param key - The localStorage key to check.
+ */
+function isProtectedKey(key: string): boolean {
+  return PROTECTED_KEY_PREFIXES.some((prefix) => key.startsWith(prefix));
+}
 
 // ---------------------------------------------------------------------------
 // Serialisation helpers
@@ -107,6 +132,7 @@ function pruneStaleEntries(maxAgeMs: number): void {
     for (let i = 0; i < localStorage.length; i++) {
       const key = localStorage.key(i);
       if (!key?.startsWith(CACHE_KEY_PREFIX)) continue;
+      if (isProtectedKey(key)) continue;
 
       const entry = readEntry(key);
       if (!entry || new Date(entry.savedAt).getTime() < cutoff) {
@@ -117,6 +143,50 @@ function pruneStaleEntries(maxAgeMs: number): void {
     keysToRemove.forEach((k) => localStorage.removeItem(k));
   } catch {
     // Silently ignore errors.
+  }
+}
+
+/**
+ * Removes every persisted cache entry, leaving protected keys intact.
+ * Used when the cache version changes so stale data is never rehydrated.
+ */
+function clearPersistedEntries(): void {
+  try {
+    const keysToRemove: string[] = [];
+
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i);
+      if (!key?.startsWith(CACHE_KEY_PREFIX)) continue;
+      if (isProtectedKey(key)) continue;
+      keysToRemove.push(key);
+    }
+
+    keysToRemove.forEach((k) => localStorage.removeItem(k));
+  } catch {
+    // Silently ignore errors.
+  }
+}
+
+/**
+ * Ensures persisted entries match the current app cache version.
+ * When the version differs from the stored one, all persisted entries
+ * are pruned and the new version is recorded.
+ *
+ * @returns `true` if the cache was invalidated due to a version change.
+ */
+function syncCacheVersion(): boolean {
+  try {
+    const currentVersion = getCacheVersion();
+    const storedVersion = localStorage.getItem(CACHE_VERSION_KEY);
+
+    if (storedVersion === currentVersion) return false;
+
+    clearPersistedEntries();
+    localStorage.setItem(CACHE_VERSION_KEY, currentVersion);
+    return true;
+  } catch {
+    // If version tracking fails, fall back to TTL-based pruning only.
+    return false;
   }
 }
 
@@ -146,7 +216,9 @@ export function useOfflineCache(maxAgeMs = DEFAULT_MAX_AGE_MS) {
 
   // ---- Hydrate from storage on mount ------------------------------------
   useEffect(() => {
-    // Remove expired entries first
+    // Invalidate persisted entries if the app cache version changed,
+    // then remove any entries that exceeded their TTL.
+    syncCacheVersion();
     pruneStaleEntries(maxAgeMs);
 
     // Hydrate all matching entries into the React Query cache
@@ -155,6 +227,7 @@ export function useOfflineCache(maxAgeMs = DEFAULT_MAX_AGE_MS) {
     for (let i = 0; i < localStorage.length; i++) {
       const key = localStorage.key(i);
       if (!key?.startsWith(CACHE_KEY_PREFIX)) continue;
+      if (isProtectedKey(key)) continue;
 
       const entry = readEntry(key);
       if (!entry || new Date(entry.savedAt).getTime() < cutoff) continue;
@@ -186,7 +259,10 @@ export function useOfflineCache(maxAgeMs = DEFAULT_MAX_AGE_MS) {
       const data = event.query.state.data;
       if (data === undefined) return;
 
-      writeEntry(toStorageKey(queryKey), data);
+      const storageKey = toStorageKey(queryKey);
+      if (isProtectedKey(storageKey)) return;
+
+      writeEntry(storageKey, data);
     });
 
     return unsubscribe;

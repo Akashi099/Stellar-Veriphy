@@ -1,7 +1,76 @@
 import { logger } from "./logger";
 
+export const CACHE_VERSION = "v2";
+export const CACHE_VERSION_MESSAGE = "CACHE_VERSION";
+export const CACHE_INVALIDATED_EVENT = "pwa:cache-invalidated";
+export const UPDATE_AVAILABLE_EVENT = "pwa:update-available";
+
+const AUTH_STORAGE_PREFIXES = ["sb-", "supabase.auth", "auth"];
+
+export type PWACapability = "serviceWorker" | "caches" | "notifications" | "push" | "backgroundSync";
+
+export interface PWACapabilityStatus {
+  supported: boolean;
+  message: string;
+}
+
+export function isServiceWorkerSupported(): boolean {
+  return typeof window !== "undefined" && "serviceWorker" in navigator;
+}
+
+export function isCacheStorageSupported(): boolean {
+  return typeof window !== "undefined" && "caches" in window;
+}
+
+export function getCapabilityStatus(capability: PWACapability): PWACapabilityStatus {
+  switch (capability) {
+    case "serviceWorker":
+      return isServiceWorkerSupported()
+        ? { supported: true, message: "Offline support is available." }
+        : {
+            supported: false,
+            message:
+              "Your browser does not support service workers, so offline mode and background updates are unavailable. The app will still work while you are online.",
+          };
+    case "caches":
+      return isCacheStorageSupported()
+        ? { supported: true, message: "Offline caching is available." }
+        : {
+            supported: false,
+            message:
+              "Your browser does not support the Cache Storage API, so pages cannot be cached for offline use. The app will still work while you are online.",
+          };
+    case "notifications":
+      return typeof window !== "undefined" && "Notification" in window
+        ? { supported: true, message: "Notifications are available." }
+        : {
+            supported: false,
+            message:
+              "Your browser does not support notifications, so you will not receive alerts. All other features remain available.",
+          };
+    case "push":
+      return typeof window !== "undefined" && "PushManager" in window
+        ? { supported: true, message: "Push notifications are available." }
+        : {
+            supported: false,
+            message:
+              "Your browser does not support push notifications, so you will not receive background alerts. All other features remain available.",
+          };
+    case "backgroundSync":
+      return isServiceWorkerSupported()
+        ? { supported: true, message: "Background sync is available." }
+        : {
+            supported: false,
+            message:
+              "Your browser does not support background sync, so changes made offline may need to be re-submitted when you reconnect.",
+          };
+    default:
+      return { supported: false, message: "This feature is not supported in your browser." };
+  }
+}
+
 export async function registerServiceWorker(): Promise<ServiceWorkerRegistration | null> {
-  if (typeof window === "undefined" || !("serviceWorker" in navigator)) {
+  if (!isServiceWorkerSupported()) {
     logger.debug("Service Worker not supported");
     return null;
   }
@@ -22,7 +91,7 @@ export async function registerServiceWorker(): Promise<ServiceWorkerRegistration
 }
 
 export async function unregisterServiceWorker(): Promise<boolean> {
-  if (typeof window === "undefined" || !("serviceWorker" in navigator)) {
+  if (!isServiceWorkerSupported()) {
     return false;
   }
 
@@ -75,7 +144,7 @@ export async function subscribeToPushNotifications(
 }
 
 export async function unsubscribeFromPushNotifications(): Promise<boolean> {
-  if (typeof window === "undefined" || !("serviceWorker" in navigator)) {
+  if (!isServiceWorkerSupported()) {
     return false;
   }
 
@@ -104,7 +173,7 @@ export function addOfflineListener(callback: () => void): () => void {
 }
 
 export async function clearAllCaches(): Promise<void> {
-  if (typeof window === "undefined" || !("caches" in window)) {
+  if (!isCacheStorageSupported()) {
     return;
   }
 
@@ -112,8 +181,144 @@ export async function clearAllCaches(): Promise<void> {
   await Promise.all(keys.map((key) => caches.delete(key)));
 }
 
+export async function getCacheVersion(): Promise<string | null> {
+  if (!isCacheStorageSupported()) {
+    return null;
+  }
+
+  try {
+    const cache = await caches.open("app-cache");
+    const response = await cache.match("/cache-version.json");
+    if (!response) {
+      return null;
+    }
+    const data = (await response.json()) as { version?: string };
+    return data.version ?? null;
+  } catch (error) {
+    logger.error("Failed to read cache version:", { error });
+    return null;
+  }
+}
+
+export function isAuthStorageKey(key: string): boolean {
+  return AUTH_STORAGE_PREFIXES.some((prefix) => key.startsWith(prefix));
+}
+
+export function preserveAuthStorage(): Record<string, string> {
+  if (typeof window === "undefined") {
+    return {};
+  }
+
+  const preserved: Record<string, string> = {};
+  try {
+    for (let i = 0; i < localStorage.length; i += 1) {
+      const key = localStorage.key(i);
+      if (key && isAuthStorageKey(key)) {
+        const value = localStorage.getItem(key);
+        if (value !== null) {
+          preserved[key] = value;
+        }
+      }
+    }
+  } catch (error) {
+    logger.error("Failed to preserve auth storage:", { error });
+  }
+  return preserved;
+}
+
+export function restoreAuthStorage(preserved: Record<string, string>): void {
+  if (typeof window === "undefined") {
+    return;
+  }
+
+  try {
+    for (const [key, value] of Object.entries(preserved)) {
+      if (localStorage.getItem(key) === null) {
+        localStorage.setItem(key, value);
+      }
+    }
+  } catch (error) {
+    logger.error("Failed to restore auth storage:", { error });
+  }
+}
+
+export async function safeUpdate(): Promise<boolean> {
+  if (!isServiceWorkerSupported()) {
+    logger.debug("Safe update skipped: Service Worker not supported");
+    return false;
+  }
+
+  const preserved = preserveAuthStorage();
+
+  try {
+    const registration = await navigator.serviceWorker.ready;
+    await registration.update();
+
+    if (isCacheStorageSupported()) {
+      const keys = await caches.keys();
+      await Promise.all(
+        keys
+          .filter((key) => key !== "app-cache")
+          .map((key) => caches.delete(key))
+      );
+    }
+
+    restoreAuthStorage(preserved);
+    logger.info("Safe cache update completed");
+    return true;
+  } catch (error) {
+    restoreAuthStorage(preserved);
+    logger.error("Safe update failed:", { error });
+    return false;
+  }
+}
+
+export function onCacheInvalidated(callback: (version: string | null) => void): () => void {
+  if (typeof window === "undefined") {
+    return () => undefined;
+  }
+
+  const handler = (event: Event) => {
+    const detail = (event as CustomEvent<{ version?: string }>).detail;
+    callback(detail?.version ?? null);
+  };
+
+  window.addEventListener(CACHE_INVALIDATED_EVENT, handler);
+  return () => window.removeEventListener(CACHE_INVALIDATED_EVENT, handler);
+}
+
+export function onUpdateAvailable(callback: (version: string | null) => void): () => void {
+  if (typeof window === "undefined") {
+    return () => undefined;
+  }
+
+  const handler = (event: Event) => {
+    const detail = (event as CustomEvent<{ version?: string }>).detail;
+    callback(detail?.version ?? null);
+  };
+
+  window.addEventListener(UPDATE_AVAILABLE_EVENT, handler);
+  return () => window.removeEventListener(UPDATE_AVAILABLE_EVENT, handler);
+}
+
+export function notifyCacheInvalidated(version: string | null = CACHE_VERSION): void {
+  if (typeof window === "undefined") {
+    return;
+  }
+  window.dispatchEvent(
+    new CustomEvent(CACHE_INVALIDATED_EVENT, { detail: { version } })
+  );
+}
+
+export function notifyUpdateAvailable(version: string | null = CACHE_VERSION): void {
+  if (typeof window === "undefined") {
+    return;
+  }
+  window.dispatchEvent(new CustomEvent(UPDATE_AVAILABLE_EVENT, { detail: { version } }));
+}
+
 export async function getCacheSize(): Promise<number> {
-  if (typeof window === "undefined" || !("caches" in window)) {
+  if (!isCacheStorageSupported()) {
     return 0;
   }
 
@@ -168,7 +373,7 @@ export async function registerBackgroundSync(
   registration: ServiceWorkerRegistration,
   tag: string
 ): Promise<void> {
-  if (!("sync" in registration)) {
+  if (!isServiceWorkerSupported() || !("sync" in registration)) {
     logger.debug("Background Sync not supported");
     return;
   }
@@ -212,7 +417,7 @@ export function clearAppBadge(): void {
 function urlBase64ToArrayBuffer(base64String: string): ArrayBuffer {
   const padding = "=".repeat((4 - (base64String.length % 4)) % 4);
   const base64 = (base64String + padding).replace(/-/g, "+").replace(/_/g, "/");
-  const rawData = window.atob(base64);
+  const rawData = typeof window === "undefined" ? "" : window.atob(base64);
   const outputArray = new Uint8Array(rawData.length);
 
   for (let i = 0; i < rawData.length; i += 1) {

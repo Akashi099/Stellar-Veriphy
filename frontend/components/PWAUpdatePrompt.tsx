@@ -8,43 +8,79 @@
  */
 
 import { RefreshCw, X } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 export function PWAUpdatePrompt() {
   const [showPrompt, setShowPrompt] = useState(false);
   const [registration, setRegistration] = useState<ServiceWorkerRegistration | null>(null);
+  const [cacheVersion, setCacheVersion] = useState<string | null>(null);
+  // Only reload once the user has explicitly requested the update and the
+  // waiting worker has taken control. This avoids surprise reloads.
+  const reloadRequestedRef = useRef(false);
 
   useEffect(() => {
     if (typeof window === "undefined" || !("serviceWorker" in navigator)) {
       return;
     }
 
+    const handleStateChange = (reg: ServiceWorkerRegistration, worker: ServiceWorker) => {
+      if (worker.state === "installed" && navigator.serviceWorker.controller) {
+        // New version available and waiting to activate.
+        setRegistration(reg);
+        setShowPrompt(true);
+      }
+    };
+
+    const watchInstalling = (reg: ServiceWorkerRegistration) => {
+      const newWorker = reg.installing;
+      if (!newWorker) return;
+      newWorker.addEventListener("statechange", () => handleStateChange(reg, newWorker));
+    };
+
     // Listen for service worker updates
     navigator.serviceWorker.ready.then((reg) => {
-      reg.addEventListener("updatefound", () => {
-        const newWorker = reg.installing;
-        if (!newWorker) return;
+      // A worker may already be waiting (e.g. update found before mount).
+      if (reg.waiting && navigator.serviceWorker.controller) {
+        setRegistration(reg);
+        setShowPrompt(true);
+      }
 
-        newWorker.addEventListener("statechange", () => {
-          if (newWorker.state === "installed" && navigator.serviceWorker.controller) {
-            // New version available
-            setRegistration(reg);
-            setShowPrompt(true);
-          }
-        });
-      });
+      reg.addEventListener("updatefound", () => watchInstalling(reg));
     });
 
-    // Listen for controller change (when new SW takes over)
-    navigator.serviceWorker.addEventListener("controllerchange", () => {
-      window.location.reload();
-    });
+    // Capture the new cache version reported by the activating worker.
+    const handleMessage = (event: MessageEvent) => {
+      const data = event.data as { type?: string; cacheVersion?: string } | undefined;
+      if (data?.type === "CACHE_VERSION" && typeof data.cacheVersion === "string") {
+        setCacheVersion(data.cacheVersion);
+      }
+    };
+    navigator.serviceWorker.addEventListener("message", handleMessage);
+
+    // Listen for controller change (when new SW takes over). Only reload if the
+    // user requested the update; session state (cookies/localStorage) is left
+    // untouched so users stay logged in.
+    const handleControllerChange = () => {
+      if (reloadRequestedRef.current) {
+        reloadRequestedRef.current = false;
+        window.location.reload();
+      }
+    };
+    navigator.serviceWorker.addEventListener("controllerchange", handleControllerChange);
+
+    return () => {
+      navigator.serviceWorker.removeEventListener("message", handleMessage);
+      navigator.serviceWorker.removeEventListener("controllerchange", handleControllerChange);
+    };
   }, []);
 
   const handleUpdate = () => {
     if (!registration || !registration.waiting) return;
 
-    // Tell the waiting service worker to skip waiting
+    // Tell the waiting service worker to skip waiting and claim clients.
+    // The worker will activate and broadcast its cache version; we reload
+    // only after it takes control (see controllerchange handler above).
+    reloadRequestedRef.current = true;
     registration.waiting.postMessage({ type: "SKIP_WAITING" });
 
     setShowPrompt(false);
@@ -85,6 +121,10 @@ export function PWAUpdatePrompt() {
               A new version of StellarVeriphy is available. Update now to get the latest features
               and improvements.
             </p>
+
+            {cacheVersion && (
+              <p className="text-xs text-blue-200 mb-4 font-mono">Cache version: {cacheVersion}</p>
+            )}
 
             {/* Actions */}
             <div className="flex gap-2">

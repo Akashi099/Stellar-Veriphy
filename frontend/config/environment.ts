@@ -173,3 +173,196 @@ export function resolveApiEndpoint(path: string): string {
 
   return `${cleanBase}${cleanPath}`;
 }
+
+/**
+ * Browser Capability Detection
+ *
+ * Shared source of truth for detecting unsupported browser capabilities so the
+ * app can degrade gracefully (banner, PWA registration, error boundaries) instead
+ * of failing silently.
+ */
+
+export type BrowserCapability =
+  | "serviceWorker"
+  | "cryptoSubtle"
+  | "indexedDB"
+  | "broadcastChannel"
+  | "localStorage"
+  | "fetch"
+  | "webSockets"
+  | "notifications";
+
+export interface CapabilityCheck {
+  /** The capability being checked */
+  capability: BrowserCapability;
+  /** Whether the capability is available */
+  supported: boolean;
+  /** Human-readable name of the capability */
+  label: string;
+  /** Targeted, actionable guidance shown when the capability is missing */
+  guidance: string;
+}
+
+export interface CapabilityReport {
+  /** True when every required capability is available */
+  supported: boolean;
+  /** Capabilities that are missing in the current browser */
+  missing: CapabilityCheck[];
+  /** All capability checks performed */
+  checks: CapabilityCheck[];
+}
+
+const CAPABILITY_META: Record<BrowserCapability, { label: string; guidance: string }> = {
+  serviceWorker: {
+    label: "Service Workers",
+    guidance:
+      "Offline support and background sync are unavailable. Use a modern browser (Chrome, Edge, Firefox, or Safari) to enable them.",
+  },
+  cryptoSubtle: {
+    label: "Web Crypto (crypto.subtle)",
+    guidance:
+      "Secure cryptography is unavailable. Access the app over HTTPS in a modern browser to enable signing and encryption.",
+  },
+  indexedDB: {
+    label: "IndexedDB",
+    guidance:
+      "Local data storage is unavailable. Disable private/incognito mode or use a browser that supports IndexedDB.",
+  },
+  broadcastChannel: {
+    label: "BroadcastChannel",
+    guidance:
+      "Cross-tab synchronization is unavailable. Some real-time updates may not appear across multiple tabs.",
+  },
+  localStorage: {
+    label: "Local Storage",
+    guidance:
+      "Preferences cannot be saved. Enable site storage or exit private/incognito mode to persist settings.",
+  },
+  fetch: {
+    label: "Fetch API",
+    guidance:
+      "Network requests are unavailable. Please upgrade to a modern browser to use the app.",
+  },
+  webSockets: {
+    label: "WebSockets",
+    guidance:
+      "Live updates are unavailable. A modern browser with WebSocket support is required for real-time features.",
+  },
+  notifications: {
+    label: "Notifications API",
+    guidance:
+      "Push notifications are unavailable. You can still use the app, but alerts will not be delivered.",
+  },
+};
+
+/**
+ * Capabilities that are essential for the app to function at all.
+ * Missing any of these means the app should show a blocking message.
+ */
+export const REQUIRED_CAPABILITIES: BrowserCapability[] = ["fetch", "cryptoSubtle"];
+
+/**
+ * Capabilities that are optional; missing them degrades features gracefully.
+ */
+export const OPTIONAL_CAPABILITIES: BrowserCapability[] = [
+  "serviceWorker",
+  "indexedDB",
+  "broadcastChannel",
+  "localStorage",
+  "webSockets",
+  "notifications",
+];
+
+function hasWindow(): boolean {
+  return typeof window !== "undefined";
+}
+
+function checkCapability(capability: BrowserCapability): boolean {
+  if (!hasWindow()) return false;
+
+  try {
+    switch (capability) {
+      case "serviceWorker":
+        return "serviceWorker" in navigator;
+      case "cryptoSubtle":
+        return (
+          typeof crypto !== "undefined" &&
+          typeof crypto.subtle !== "undefined" &&
+          crypto.subtle !== null
+        );
+      case "indexedDB":
+        return typeof indexedDB !== "undefined";
+      case "broadcastChannel":
+        return typeof BroadcastChannel !== "undefined";
+      case "localStorage":
+        try {
+          const probe = "__capability_probe__";
+          window.localStorage.setItem(probe, "1");
+          window.localStorage.removeItem(probe);
+          return true;
+        } catch {
+          return false;
+        }
+      case "fetch":
+        return typeof fetch === "function";
+      case "webSockets":
+        return typeof WebSocket !== "undefined";
+      case "notifications":
+        return "Notification" in window;
+      default:
+        return false;
+    }
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Builds a full capability report for the current browser.
+ * Safe to call during SSR; all capabilities report as unsupported without a window.
+ */
+export function detectCapabilities(): CapabilityReport {
+  const all = [...REQUIRED_CAPABILITIES, ...OPTIONAL_CAPABILITIES];
+  const checks: CapabilityCheck[] = all.map((capability) => ({
+    capability,
+    supported: checkCapability(capability),
+    label: CAPABILITY_META[capability].label,
+    guidance: CAPABILITY_META[capability].guidance,
+  }));
+
+  const missing = checks.filter((c) => !c.supported);
+
+  return {
+    supported: missing.length === 0,
+    missing,
+    checks,
+  };
+}
+
+/**
+ * Returns a targeted, human-readable message naming the missing capability.
+ * Returns null when the capability is available.
+ */
+export function getMissingCapabilityMessage(capability: BrowserCapability): string | null {
+  if (checkCapability(capability)) return null;
+  const meta = CAPABILITY_META[capability];
+  return `${meta.label} is not supported in this browser. ${meta.guidance}`;
+}
+
+/**
+ * Returns the first missing required capability, if any.
+ * Useful for error boundaries that must block rendering.
+ */
+export function getFirstMissingRequiredCapability(): CapabilityCheck | null {
+  for (const capability of REQUIRED_CAPABILITIES) {
+    if (!checkCapability(capability)) {
+      return {
+        capability,
+        supported: false,
+        label: CAPABILITY_META[capability].label,
+        guidance: CAPABILITY_META[capability].guidance,
+      };
+    }
+  }
+  return null;
+}
