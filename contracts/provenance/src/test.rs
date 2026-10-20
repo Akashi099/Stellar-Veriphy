@@ -187,6 +187,18 @@ mod tests {
     }
 
     #[test]
+    fn test_init_and_initialize_share_one_time_guard() {
+        let env = Env::default();
+        env.mock_all_auths();
+        let cid = env.register_contract(None, ProvenanceContract);
+        let client = ProvenanceContractClient::new(&env, &cid);
+        let oracle = soroban_sdk::Address::generate(&env);
+        client.init(&oracle);
+        assert!(client.try_initialize(&oracle).is_err());
+        assert!(client.try_init(&oracle).is_err());
+    }
+
+    #[test]
     fn test_mint_without_initialization() {
         let env = Env::default();
         env.mock_all_auths();

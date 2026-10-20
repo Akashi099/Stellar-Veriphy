@@ -688,6 +688,20 @@ fn test_get_provider_metrics_returns_none_initially() {
 }
 
 #[test]
+fn test_get_provider_metrics_is_alias_of_get_provider_sla() {
+    let env = make_env();
+    env.mock_all_auths();
+    let (cid, provider) = setup_with_provider(&env);
+    let client = OracleContractClient::new(&env, &cid);
+    client.set_provider_sla(&provider, &5u32, &90u32, &90u32);
+    client.record_verification(&provider, &true, &2u32, &100u32);
+    let canonical = client.get_provider_sla(&provider).unwrap();
+    let legacy = client.get_provider_metrics(&provider).unwrap();
+    assert_eq!(canonical.total_requests, legacy.total_requests);
+    assert_eq!(canonical.successful, legacy.successful);
+}
+
+#[test]
 fn test_record_verification_success() {
     let env = make_env();
     env.mock_all_auths();

@@ -23,7 +23,7 @@
 //! ## Provider management
 //!
 //! Oracle providers must:
-//! - Be registered via [`register_provider`].
+//! - Be registered via [`add_provider`].
 //! - Stake at least [`MINIMUM_STAKE`] stroops (≈ 10 XLM).
 //! - Maintain an SLA compliance rate above [`SLA_SUSPENSION_THRESHOLD`] % or
 //!   they are automatically suspended.
@@ -808,6 +808,7 @@ impl OracleContract {
     }
 
     /// Retrieve round-robin/reputation metrics for a provider.  Returns None if never recorded.
+    /// Not to be confused with `get_provider_sla`, which returns SLA compliance counters.
     pub fn get_verification_metrics(env: Env, provider: Address) -> Option<ProviderMetrics> {
         env.storage()
             .persistent()
@@ -1577,10 +1578,19 @@ impl OracleContract {
             .unwrap_or(0u32)
     }
 
-    pub fn get_provider_metrics(env: Env, provider: Address) -> Option<ProviderSLA> {
+    /// #791 — Canonical getter for a provider's SLA record (counters plus
+    /// configured targets). Returns None until `set_provider_sla` is called.
+    pub fn get_provider_sla(env: Env, provider: Address) -> Option<ProviderSLA> {
         env.storage()
             .persistent()
             .get(&DataKey::ProviderSLA(provider))
+    }
+
+    /// Deprecated alias of [`get_provider_sla`] (#791). The name suggested it
+    /// returned [`ProviderMetrics`] (see `get_verification_metrics`), but it has
+    /// always returned the SLA record. Kept so existing callers keep working.
+    pub fn get_provider_metrics(env: Env, provider: Address) -> Option<ProviderSLA> {
+        Self::get_provider_sla(env, provider)
     }
     // -----------------------------------------------------------------------
     // Attestation

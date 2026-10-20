@@ -423,6 +423,10 @@ pub struct RegistryContract;
 #[contractimpl]
 impl RegistryContract {
     /// Register an approved TEE code hash.
+    ///
+    /// Deprecated (#791): legacy entry point that only checks the signer is
+    /// `admin`, not that `admin` is the stored registry admin, and writes an
+    /// untyped key that `is_tee_hash_approved` never reads. Use `add_tee_hash`.
     pub fn register(env: Env, admin: soroban_sdk::Address, code_hash: Bytes) {
         admin.require_auth();
         env.storage().persistent().set(&code_hash, &true);
@@ -430,7 +434,9 @@ impl RegistryContract {
             .publish((Symbol::new(&env, "registered"),), code_hash);
     }
 
-    /// Check if a TEE code hash is approved.
+    /// Check if a TEE code hash was registered through the legacy `register`.
+    ///
+    /// Deprecated (#791): use `is_tee_hash_approved`, which the oracle calls.
     pub fn is_approved(env: Env, code_hash: Bytes) -> bool {
         env.storage().persistent().get(&code_hash).unwrap_or(false)
     }
