@@ -4,6 +4,10 @@ Terms used across StellarVeriphy's contracts, documentation, and codebase. Entri
 
 ## Table of contents
 
+- [Blockchain basics](#blockchain-basics)
+- [Proof basics](#proof-basics)
+- [Verification basics](#verification-basics)
+- [Provenance basics](#provenance-basics)
 - [Stellar and Soroban fundamentals](#stellar-and-soroban-fundamentals)
 - [Provenance certificates](#provenance-certificates)
 - [Verification and attestation](#verification-and-attestation)
@@ -13,6 +17,70 @@ Terms used across StellarVeriphy's contracts, documentation, and codebase. Entri
 - [Fees, staking, and economics](#fees-staking-and-economics)
 - [Governance](#governance)
 - [Frontend and integration](#frontend-and-integration)
+
+---
+
+## Blockchain basics
+
+**Block**
+A batch of transactions committed together to a blockchain. On Stellar, blocks are called [ledgers](#stellar-and-soroban-fundamentals) and are produced roughly every 5 seconds.
+
+**Consensus**
+The process by which independent network participants agree on the order and contents of blocks. Stellar uses the Stellar Consensus Protocol (SCP); StellarVeriphy relies on it to guarantee that certificates and attestations are recorded once and cannot be reordered.
+
+**Ledger (blockchain)**
+See [Ledger](#stellar-and-soroban-fundamentals) under Stellar and Soroban fundamentals. A single block on the Stellar blockchain, identified by a monotonically increasing sequence number.
+
+**Transaction**
+A signed instruction submitted to the Stellar network that changes on-chain state — for example minting a certificate, submitting a verification request, or depositing stake. Every StellarVeriphy action is a transaction and pays a network fee.
+
+---
+
+## Proof basics
+
+**Attestation (proof)**
+A signed statement from a trusted party that a claim is true. In StellarVeriphy, an attestation is produced inside a TEE and proves that verification ran on approved code. See [Attestation](#verification-and-attestation) for the contract-level details.
+
+**Hash**
+A fixed-length fingerprint computed from data by a one-way function (SHA-256 in StellarVeriphy). The same input always yields the same hash, and any change to the input changes the hash. Used for manifest hashes, attestation hashes, and TEE hashes.
+
+**Merkle proof**
+A short proof that a piece of data is included in a larger set, built from sibling hashes along a Merkle tree. Lets a verifier confirm inclusion without downloading the whole dataset.
+
+**Signature**
+A cryptographic value proving that a specific key holder authorized a message. StellarVeriphy verifies oracle attestations with ed25519 signatures; wallet transactions are signed by the user's Stellar key.
+
+---
+
+## Verification basics
+
+**Certificate**
+The user-facing record that a piece of content has been verified. Backed on-chain by a [ProvenanceCert](#provenance-certificates). Displayed in the app with its manifest hash, attestation hash, creator, and verification level.
+
+**Confidence score**
+A numeric indicator of how much trust to place in a verification result, derived from provider reputation, verification level, and attestation validity. Higher scores mean stronger evidence that the content matches its manifest.
+
+**Oracle**
+A service that supplies off-chain facts to a smart contract. In StellarVeriphy, oracle providers run verification inside a TEE and submit signed attestations to the Oracle contract.
+
+**Verification**
+The process of confirming that content matches its claimed manifest and was processed by approved code. Produces an attestation that is recorded on-chain and reflected in the certificate's verification level.
+
+---
+
+## Provenance basics
+
+**Anchor**
+A durable, tamper-evident reference that ties off-chain content to an on-chain record. In StellarVeriphy the certificate's `storage_ref` and `manifest_hash` together act as the anchor for a piece of content.
+
+**Audit trail**
+The chronological record of actions taken on a certificate or request. For certificates this is the [amendment history](#provenance-certificates); for requests it is the sequence of state changes and events.
+
+**Manifest (provenance)**
+The JSON document describing a piece of content's origin and metadata. Its hash anchors the content to a certificate. See [Manifest](#provenance-certificates) for the full field list.
+
+**Provenance record**
+The complete set of on-chain fields that establish where content came from and how it was verified: `storage_ref`, `manifest_hash`, and `attestation_hash`, plus the certificate's creator and timestamp.
 
 ---
 

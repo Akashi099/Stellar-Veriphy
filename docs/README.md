@@ -29,6 +29,7 @@ Start with [onboarding](onboarding.md), then bookmark [common contributor tasks]
 | [Frontend State Architecture](frontend-state-architecture.md)               | Frontend contributors                                 | State boundaries, context, data fetching, where new features belong                                                 |
 | [Data Retention Policy Summary](security/data-retention.md)                 | Users, contributors, operators                        | Active vs. archival records, retention rules, archival and removal of user and asset data                           |
 | [Frontend Render Benchmarks](performance/frontend-render-benchmarks.md)     | Frontend contributors                                 | Benchmarked render paths, repeatable method, hotspots, running the benchmark locally                               |
+| [Accessibility Review Checklist](testing/accessibility-review-checklist.md) | Frontend contributors and reviewers                   | Keyboard, contrast, semantics, screen-reader basics, and app-specific flows                                         |
 
 Security and operations: [vulnerability reporting](../SECURITY.md#quick-reporting-summary),
 [dependency security and maintenance](security/dependency-review.md), and
