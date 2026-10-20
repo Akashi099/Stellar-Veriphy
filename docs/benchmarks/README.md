@@ -79,3 +79,73 @@ pnpm test:bench-tools
 1. Add a `measure(&env, "<contract>.<name>", || { ... })` call in `benchmark_most_used_calls` in `contracts/<contract>/src/benchmark.rs`. Create any state it needs outside the closure so only the target call is measured.
 2. If the call is part of a user-facing flow, add it to `COMMON_FLOWS` in `scripts/lib/contract-benchmark.mjs`.
 3. Run `pnpm bench:contracts --update-baseline` and commit the three files.
+
+# Frontend render-path benchmark
+
+This benchmark measures the cost of the most frequently rendered frontend paths so regressions in render time are caught during development instead of after a release (#846). It complements the contract benchmark above: the contract benchmark covers on-chain cost, this one covers UI cost.
+
+## What is measured
+
+The benchmark renders each path in a headless test environment with a fixed, deterministic set of props and fixture data, then records the time spent rendering. Operation names are prefixed with the area of the app:
+
+| Operation                              | Why it is in the set                                        |
+| -------------------------------------- | ----------------------------------------------------------- |
+| `requests.list:default`                | The main list view every user lands on                      |
+| `requests.list:large`                  | Same list with a large page; shows how cost grows with rows |
+| `requests.detail`                      | Detail view opened from the list                            |
+| `requests.status_badge`                | Small, frequently re-rendered component                     |
+| `provenance.certificate_card`          | Certificate card rendered once per verified asset           |
+| `provenance.certificate_list:large`    | Batch of certificate cards; compare per-item cost           |
+| `registry.provider_table`              | Provider table; cost grows with the provider list           |
+| `registry.tee_hash_list`               | Enclave build approval list                                 |
+| `layout.app_shell`                     | App shell rendered on every route change                    |
+
+For each operation the benchmark records the **average render time** in milliseconds over a fixed number of iterations, plus the **number of renders** performed. The fixture data is fixed, so a given code version produces comparable numbers on every run. A change in the numbers means the component tree or its dependencies changed.
+
+## Running it
+
+```bash
+pnpm bench:frontend                      # run the benchmark and write the report
+pnpm bench:frontend --filter requests    # run a subset of paths
+pnpm bench:frontend --update-baseline    # also store these numbers as the new baseline
+```
+
+The benchmark runs through the frontend test runner and needs no network access or backend. It is lightweight enough to run locally before pushing; a full run takes a few seconds.
+
+## Files
+
+| Path                                    | Contents                                                             |
+| --------------------------------------- | -------------------------------------------------------------------- |
+| `docs/benchmarks/results/frontend-latest.json`   | Raw numbers from the most recent run                        |
+| `docs/benchmarks/results/frontend-baseline.json` | The numbers the next run is compared against                |
+| `docs/benchmarks/frontend-performance.md`        | The rendered report: results, regressions, hotspots         |
+
+All three are committed so contributors can read them without running the benchmark.
+
+## Reading the report
+
+- **Average render time** is the headline number per operation. Compare it against the baseline to see whether a path got slower.
+- **Hotspots** ranks the costliest operations by share of total render time. Start optimization work there.
+- **Growth patterns** compares the small and large variants of the same path (for example `requests.list:default` vs `requests.list:large`). A per-item cost that grows faster than the item count suggests a missing memoization or an unnecessary re-render.
+- **Δ render time** is the change against the baseline. Anything above +15% is marked `regression`; anything above +30% is marked `critical`. The thresholds are `FRONTEND_WARN_TOLERANCE` and `FRONTEND_CRITICAL_TOLERANCE` in the frontend benchmark tooling.
+- A baseline entry with no matching result shows up under **Regressions** as a missing operation, so a benchmark that silently stopped running is visible.
+
+## Recommended thresholds
+
+| Change in average render time | Action                                                          |
+| ----------------------------- | --------------------------------------------------------------- |
+| ≤ +15%                        | Acceptable; no action needed                                    |
+| +15% to +30%                  | Investigate before merging; check for unnecessary re-renders    |
+| > +30%                        | Blocking regression; fix or justify in the pull request         |
+
+Thresholds are deliberately looser than the contract benchmark because render timings are noisier. Run the benchmark on an idle machine and compare against a baseline produced on the same machine class.
+
+## Updating the baseline
+
+Update the baseline only after you have reviewed why the numbers moved. A regression you accept (for example, a new feature that legitimately renders more) should go into the baseline with the reason in the pull request description. Do not update the baseline just to make CI pass.
+
+## Adding a path
+
+1. Add a benchmark case for the component or route in the frontend benchmark suite, using fixed fixture data so the measurement is repeatable.
+2. If the path is part of a user-facing flow, add it to the hotspot grouping in the frontend benchmark tooling.
+3. Run `pnpm bench:frontend --update-baseline` and commit the three files.

@@ -132,3 +132,23 @@ development deployments can opt out of crawling by setting
 
 - Next.js App Router pages and layouts
 - `/api/` - API route handlers
+
+## Frontend State Architecture
+
+State is organized into four layers. Pick the layer that matches the scope of the data you are adding:
+
+| Layer | Location | Responsibility |
+| --- | --- | --- |
+| React Context | `context/` | App-wide, low-frequency state shared across routes: wallet connection (`WalletContext`), theme (`ThemeContext`), toasts (`ToastContext`), and the legacy wizard context (`WizardContext`). |
+| Zustand stores | `features/*/store/` | Feature-scoped client state with actions and selectors, e.g. the verification wizard (`features/verification/store/wizard.store.ts`). Prefer this over new contexts for feature state. |
+| Custom hooks | `features/*/hooks/`, `hooks/` | Encapsulate reusable logic and derived state, and act as the boundary between components and stores/contexts (e.g. `useWizardGuard`). |
+| Data fetching | React Query providers + `lib/` clients | Server/chain data (Soroban RPC, contract reads) is fetched and cached through React Query; components should not call RPC clients directly. |
+
+Where new features belong:
+
+- New global concern (auth, network, theme) → add a provider in `context/` and register it in the app layout.
+- New feature state → create `features/<feature>/store/` with a Zustand store plus typed selectors.
+- New server data → add a React Query hook in `features/<feature>/hooks/` backed by a client in `lib/`.
+- Reusable UI only → `components/ui/`; keep it free of store and context imports.
+
+For a deeper walkthrough of the boundaries, data flow, and conventions, see [`docs/frontend-state-architecture.md`](../docs/frontend-state-architecture.md).
