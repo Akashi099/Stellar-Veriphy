@@ -72,7 +72,7 @@ Operational events (`pause`, `provider_added`, `stake_slashed`, `sla_violation`,
 
 - **Schema checks never drop data.** If a payload doesn't match its schema (wrong topic count, missing map field, wrong tuple length), the event is still indexed with `schemaValid: false` and the reasons in `schemaErrors`. It is counted in `state().proofSchemaViolations`. A non-zero count usually means a contract changed and `proofEvents.ts` needs updating.
 - **Failed calls aren't proofs.** Events with `inSuccessfulContractCall: false`, and non-`contract` events, are indexed without a `proof` record.
-- **Re-ingest is idempotent.** An event id that is already indexed is ignored (`state().duplicatesIgnored`), so replays and overlapping RPC pages don't create duplicate history.
+- **Re-ingest is idempotent.** An event id that is already indexed is ignored (`state().duplicatesIgnored`), so replays and overlapping RPC pages don't create duplicate history. Re-broadcasts under a new id and reused ids with different content are handled too. See [event deduplication](event-deduplication.md) (#794).
 - **Pin contract ids in production.** Names like `submitted` or `cancelled` are generic. Pass `proofContracts` so only events from the real provenance and oracle contracts are decoded:
 
   ```ts
