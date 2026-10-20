@@ -365,9 +365,26 @@ Before opening your pull request, verify:
 
 ## Issue Labeling Guide
 
-We use GitHub labels to categorize issues and pull requests:
+This section is the canonical label taxonomy for Stellar-Veriphy. Issue templates, the
+[CHANGELOG](./CHANGELOG.md), and the [documentation index](./docs/README.md) all reference the
+label names defined here. If a label appears anywhere else in the repo, it must match this list.
+
+### Naming Convention
+
+All labels follow the same rules so they stay predictable and easy to maintain:
+
+- **Lowercase and hyphenated**: `good-first-issue`, `help-wanted`, `ci-cd`.
+- **Group prefixes use a colon and a space**: `priority: high`, `status: blocked`.
+- **Unprefixed labels are reserved for the `type` and `area` groups** (for example `bug`,
+  `frontend`). Every other group must carry its prefix.
+- **One `type` label per issue is required.** `area`, `priority`, and `status` labels are optional
+  but should be applied when they add signal.
+- **No synonyms or aliases.** Use the exact spelling below (for example `ci-cd`, not `ci/cd` or
+  `CI-CD`).
 
 ### Type Labels
+
+Exactly one type label applies to each issue or pull request.
 
 | Label           | Description                                       |
 | --------------- | ------------------------------------------------- |
@@ -380,14 +397,16 @@ We use GitHub labels to categorize issues and pull requests:
 
 ### Area Labels
 
+Area labels identify which part of the codebase is affected. Apply one or more as needed.
+
 | Label        | Description                                                  |
 | ------------ | ------------------------------------------------------------ |
 | `frontend`   | Web UI, Next.js components, styling                          |
 | `contracts`  | Soroban smart contracts (`oracle`, `provenance`, `registry`) |
 | `shared`     | Shared TypeScript library (`@stellarveriphy/shared`)         |
-| `UI`         | User interface and visual design                             |
+| `ui`         | User interface and visual design                             |
 | `typescript` | TypeScript types, strictness, compiler config                |
-| `ci/cd`      | GitHub Actions, deployment workflows, scripts                |
+| `ci-cd`      | GitHub Actions, deployment workflows, scripts                |
 
 ### Contributor Experience
 
@@ -403,6 +422,27 @@ We use GitHub labels to categorize issues and pull requests:
 | `priority: high`   | Critical bugs, security issues, or release blockers  |
 | `priority: medium` | Normal priority features and bug fixes               |
 | `priority: low`    | Minor enhancements, cosmetic fixes, non-urgent tasks |
+
+### Status Labels
+
+Status labels track where an issue sits in the workflow. Keep at most one active status label.
+
+| Label               | Description                                            |
+| ------------------- | ------------------------------------------------------ |
+| `status: blocked`   | Waiting on a dependency, decision, or external party   |
+| `status: in-review` | Work is complete and awaiting review or validation     |
+| `status: stale`     | No activity for an extended period; may be closed soon |
+
+### Maintaining Labels
+
+- **Adding a label**: open a `documentation` issue that updates this section first, then create the
+  label in GitHub with the same name. Follow the naming convention above and place it in the
+  correct group.
+- **Renaming or retiring a label**: update this section, the issue templates, the
+  [CHANGELOG](./CHANGELOG.md), and the [documentation index](./docs/README.md) in the same pull
+  request so references never drift.
+- **Review cadence**: revisit the taxonomy during release planning and remove labels that are no
+  longer applied to open issues.
 
 ---
 

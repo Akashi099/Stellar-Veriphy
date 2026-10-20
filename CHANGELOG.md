@@ -4,6 +4,7 @@ All notable changes to StellarVeriphy are documented in this file.
 
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) conventions. Versions are listed in reverse chronological order (newest first). StellarVeriphy uses [Semantic Versioning](https://semver.org/). Contract changes that alter on-chain behavior or error discriminants are treated as breaking changes.
 
+> **Labeling note:** Entries in this changelog are categorized using the canonical label taxonomy defined in the [Issue Labeling Guide](CONTRIBUTING.md#issue-labeling) in `CONTRIBUTING.md`. When adding entries, use the standardized labels (`documentation`, `frontend`, `security`, `performance`, `testing`, etc.) rather than ad-hoc tags. The label list in `CONTRIBUTING.md` is the single source of truth; update it there first if the taxonomy changes.
 > **Release notes:** When preparing milestone release notes, follow the reusable template in [`RELEASE.md`](./RELEASE.md). It defines the standard sections — **Features**, **Fixes**, and **Known Issues** — so contributors and maintainers communicate releases consistently. Summarize the relevant entries from this changelog into those sections.
 
 ---
@@ -95,7 +96,7 @@ Initial production release of StellarVeriphy — a decentralized content verific
 
 ---
 
-### Frontend
+### Frontend (`frontend`)
 
 #### Added
 - **Next.js 15 application** (`frontend/`) with TypeScript strict mode enabled (#367)
@@ -145,7 +146,7 @@ Initial production release of StellarVeriphy — a decentralized content verific
 
 ---
 
-### Testing
+### Testing (`testing`)
 
 #### Added
 - **Contract unit tests** (#239): 26 new Oracle tests (provider management, pause, staking, load balancing, reputation, dispute); 43 new Registry tests (TEE hash near-expiry, versioning, deprecation, reputation decay, regions, capacity, specializations, blacklist, multisig timelock, `verify_and_mint` hash mismatch); snapshot files in `test_snapshots/`
@@ -175,7 +176,7 @@ Initial production release of StellarVeriphy — a decentralized content verific
 
 ---
 
-### Security
+### Security (`security`)
 
 #### Added
 - HTTP security headers in `frontend/next.config.ts`: CSP, `X-Frame-Options: DENY`, `X-Content-Type-Options: nosniff`, `Strict-Transport-Security` (1 year + subdomains), `Referrer-Policy`, `Permissions-Policy`
@@ -187,11 +188,11 @@ Initial production release of StellarVeriphy — a decentralized content verific
 
 ---
 
-### Documentation
+### Documentation (`documentation`)
 
 #### Added
 - `README.md` — comprehensive project overview with architecture diagram, tech stack, monorepo structure, and quick-start guide with CI and version badges (#365)
-- `CONTRIBUTING.md` — full contribution guidelines: code of conduct, bug/feature reporting, dev setup, coding standards, commit message format, branch naming, PR process, issue labeling (#366)
+- `CONTRIBUTING.md` — full contribution guidelines: code of conduct, bug/feature reporting, dev setup, coding standards, commit message format, branch naming, PR process, and the canonical Issue Labeling Guide (#366)
 - `STYLE-GUIDE.md` — TypeScript/React and Rust/Soroban coding style reference
 - `contracts/IMPLEMENTATION.md` — storage conventions, TTL strategy, cross-contract call patterns, error enum rules, event patterns
 - `DEPLOYMENT.md` — contract deployment guide, initialization order, admin key handling, rollback procedures
@@ -202,15 +203,15 @@ Initial production release of StellarVeriphy — a decentralized content verific
 - `docs/INTEGRATION_GUIDE.md` — third-party integration guide
 - `docs/adr/` — Architecture Decision Records (including ADR-0004: TEE oracle trust model)
 - `docs/api/` — API contract documentation
-- `docs/security/key-management.md` — key inventory, HSM requirements, rotation procedures
-- `docs/security/smart-contract-audit-runbook.md` — audit firm selection, finding remediation, report publication
-- `docs/security/verification-service-security.md` — rate limiting, input validation, CSP, audit logging
-- `docs/security/security-headers.md` — HTTP header rationale and verification instructions
+- `docs/security/key-management.md` — key inventory, HSM requirements, rotation procedures (`security`)
+- `docs/security/smart-contract-audit-runbook.md` — audit firm selection, finding remediation, report publication (`security`)
+- `docs/security/verification-service-security.md` — rate limiting, input validation, CSP, audit logging (`security`)
+- `docs/security/security-headers.md` — HTTP header rationale and verification instructions (`security`)
 - `docs/deployment/ci-cd-pipeline.md` — CI/CD pipeline documentation
-- `docs/testing/` — testing strategy docs for accessibility, fuzzing, security, and performance testing
-- `docs/wizard_form_validation.md`, `docs/print_layout_certificates.md`, `docs/empty_state_designs.md`, `docs/micro_interactions.md` — UI feature design specs (#232–#235)
+- `docs/testing/` — testing strategy docs for accessibility, fuzzing, security, and performance testing (`testing`)
+- `docs/wizard_form_validation.md`, `docs/print_layout_certificates.md`, `docs/empty_state_designs.md`, `docs/micro_interactions.md` — UI feature design specs (#232–#235) (`frontend`)
 - `contracts/provenance/DEPLOYMENT.md` — provenance-specific deployment reference
-- `frontend/README.md` — frontend-specific documentation
+- `frontend/README.md` — frontend-specific documentation (`frontend`)
 
 ---
 
