@@ -104,6 +104,41 @@ Release notes are automatically generated from:
 
 The changelog is updated in `CHANGELOG.md` with each release.
 
+## Release Notes Template
+
+Use the following template when summarizing milestone work for a release. Copy it into the GitHub release description (or a milestone summary) and fill in the placeholders. Both contributors and maintainers can use it to keep release communication consistent.
+
+```markdown
+# Release vX.Y.Z
+
+**Release date:** YYYY-MM-DD
+**Milestone:** [Milestone name](link-to-milestone)
+**Compare:** [vPREVIOUS...vX.Y.Z](link-to-compare)
+
+## Features
+
+- Description of the feature ([#PR](link-to-pr))
+
+## Fixes
+
+- Description of the fix ([#PR](link-to-pr))
+
+## Known Issues
+
+- Description of the known issue and any workaround ([#ISSUE](link-to-issue))
+
+## Additional Links
+
+- Changelog: [CHANGELOG.md](link-to-changelog)
+- Documentation: [docs](link-to-docs)
+```
+
+### How to use it
+
+- **Contributors:** When your work is part of a milestone, add a short entry under the relevant section (Features or Fixes) in the milestone's release notes draft, linking the PR. Flag anything unresolved under Known Issues.
+- **Maintainers:** Before publishing a release, copy the template into the GitHub release, replace the version, date, and link placeholders, group merged PRs under Features and Fixes, and list any open or deferred items under Known Issues.
+- Keep entries concise and user-facing, and always include links so readers can trace changes back to PRs and issues.
+
 ## Branches
 
 - **main**: Production-ready releases

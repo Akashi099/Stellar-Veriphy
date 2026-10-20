@@ -4,6 +4,8 @@ All notable changes to StellarVeriphy are documented in this file.
 
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) conventions. Versions are listed in reverse chronological order (newest first). StellarVeriphy uses [Semantic Versioning](https://semver.org/). Contract changes that alter on-chain behavior or error discriminants are treated as breaking changes.
 
+> **Release notes:** When preparing milestone release notes, follow the reusable template in [`RELEASE.md`](./RELEASE.md). It defines the standard sections — **Features**, **Fixes**, and **Known Issues** — so contributors and maintainers communicate releases consistently. Summarize the relevant entries from this changelog into those sections.
+
 ---
 
 ## [Unreleased]

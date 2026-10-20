@@ -26,6 +26,7 @@ Start with [onboarding](onboarding.md), then bookmark [common contributor tasks]
 | [Governance and Policy Review Framework](security/governance-framework.md)  | Contributors, operators, community                    | Stakeholder roles, review paths, trust thresholds, emergency actions, accountability                                |
 | [Testing Strategy Design Docs](testing/README.md)                           | Contributors picking up testing work                  | Contract snapshot testing, chaos engineering, API contract testing, visual regression testing                       |
 | [Accessibility Review Checklist](testing/accessibility-review-checklist.md) | Frontend contributors and reviewers                   | Keyboard, contrast, semantics, screen-reader basics, and app-specific flows                                         |
+| [Accessibility Review Checklist](testing/accessibility-review-checklist.md) | Frontend contributors and reviewers                   | Keyboard, contrast, semantics, screen-reader basics, and app-specific flows                                         |
 
 Security and operations: [vulnerability reporting](../SECURITY.md#quick-reporting-summary),
 [dependency security and maintenance](security/dependency-review.md), and
