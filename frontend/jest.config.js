@@ -33,6 +33,32 @@ const config = {
         "<rootDir>/src/hooks/**/__tests__/**/*.test.tsx",
         "<rootDir>/components/**/__tests__/**/*.test.tsx",
       ],
+      testPathIgnorePatterns: ["/node_modules/", "\\.bench\\.test\\.tsx?$"],
+      moduleNameMapper: {
+        "^@/(.*)$": "<rootDir>/$1",
+        "^@stellarveriphy/shared/(.*)$": "<rootDir>/../packages/shared/$1",
+        "\\.(css|less|scss|sass)$": "<rootDir>/__mocks__/styleMock.js",
+        "\\.(png|jpg|jpeg|gif|svg|ico|webp)$": "<rootDir>/__mocks__/fileMock.js",
+      },
+      globals: {
+        "ts-jest": { tsconfig: "<rootDir>/tsconfig.test.json" },
+      },
+      setupFilesAfterFramework: [],
+    },
+
+    // ── Render-path benchmarks (jsdom environment, opt-in) ──────────────────
+    // Run explicitly with: jest --selectProjects benchmarks
+    // Kept out of the default run via the components project's
+    // testPathIgnorePatterns so day-to-day test runs stay fast.
+    {
+      displayName: "benchmarks",
+      preset: "ts-jest",
+      testEnvironment: "jest-environment-jsdom",
+      testMatch: [
+        "<rootDir>/src/**/__benchmarks__/**/*.bench.test.tsx",
+        "<rootDir>/src/**/__benchmarks__/**/*.bench.test.ts",
+        "<rootDir>/src/components/**/__tests__/**/*.bench.test.tsx",
+      ],
       moduleNameMapper: {
         "^@/(.*)$": "<rootDir>/$1",
         "^@stellarveriphy/shared/(.*)$": "<rootDir>/../packages/shared/$1",
@@ -54,6 +80,7 @@ const config = {
     "src/services/**/*.ts",
     "src/hooks/**/*.ts",
     "!**/__tests__/**",
+    "!**/__benchmarks__/**",
     "!**/*.d.ts",
   ],
 

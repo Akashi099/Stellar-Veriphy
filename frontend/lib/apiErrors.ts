@@ -17,6 +17,19 @@ export interface RateLimitInfo {
   retryAt?: string;
 }
 
+/** Canonical error code for a 403 caused by missing verification permissions (#850). */
+export const ACCESS_DENIED_CODE = "ACCESS_DENIED";
+
+/** Details attached to an access-denied error so the UI can request the missing scope. */
+export interface AccessDeniedDetails {
+  /** Permission/scope the action requires, e.g. `verification:approve`. */
+  requiredPermission?: string;
+  /** Broader scope the permission belongs to, e.g. `verification`. */
+  requiredScope?: string;
+  /** Human-readable reason the access is restricted. */
+  reason?: string;
+}
+
 export class ApiError extends Error {
   constructor(
     message: string,
@@ -25,7 +38,8 @@ export class ApiError extends Error {
     readonly retryAfterSeconds?: number,
     readonly requestId?: string,
     readonly code?: string,
-    readonly rateLimit?: RateLimitInfo
+    readonly rateLimit?: RateLimitInfo,
+    readonly accessDenied?: AccessDeniedDetails
   ) {
     super(message);
     this.name = "ApiError";
@@ -39,6 +53,11 @@ export class ApiError extends Error {
     return this.httpStatus === 0;
   }
 
+  /** True when the action was rejected because the user lacks the required permission. */
+  get isAccessDenied(): boolean {
+    return this.httpStatus === 403 || this.code === ACCESS_DENIED_CODE;
+  }
+
   /** Transient failures the user can reasonably retry. */
   get isRetryable(): boolean {
     const s = this.httpStatus;
@@ -50,6 +69,29 @@ export class ApiError extends Error {
     const s = this.httpStatus;
     return s === 0 || s === 502 || s === 503 || s === 504;
   }
+}
+
+function stringValue(value: unknown): string | undefined {
+  return typeof value === "string" && value.trim() ? value : undefined;
+}
+
+/** Extracts access-denied details from a response body (`details` or top-level fields). */
+export function parseAccessDenied(body: unknown): AccessDeniedDetails | undefined {
+  const b = (body && typeof body === "object" ? body : {}) as Record<string, unknown>;
+  const details = (b.details && typeof b.details === "object" ? b.details : {}) as Record<string, unknown>;
+
+  const info: AccessDeniedDetails = {
+    requiredPermission: stringValue(details.requiredPermission ?? b.requiredPermission),
+    requiredScope: stringValue(details.requiredScope ?? b.requiredScope),
+    reason: stringValue(details.reason ?? b.reason),
+  };
+
+  return Object.values(info).some((v) => v !== undefined) ? info : undefined;
+}
+
+/** Type guard for access-denied errors, so the UI can trigger the request-access flow. */
+export function isAccessDeniedError(error: unknown): error is ApiError {
+  return error instanceof ApiError && error.isAccessDenied;
 }
 
 const NETWORK_MESSAGE = "Could not reach the server. Check your connection and try again.";
@@ -140,6 +182,20 @@ export function apiErrorFromResponse(res: Response, body: unknown): ApiError {
     );
   }
 
+  if (res.status === 403) {
+    const accessDenied = parseAccessDenied(body);
+    return new ApiError(
+      serverMessage ?? "You don't have permission to perform this action.",
+      403,
+      Array.isArray(b.errors) ? (b.errors as FieldError[]) : [],
+      positiveNumber(res.headers.get("Retry-After")),
+      requestId,
+      code ?? ACCESS_DENIED_CODE,
+      undefined,
+      accessDenied
+    );
+  }
+
   return new ApiError(
     serverMessage ?? `Request failed (${res.status}).`,
     res.status,
@@ -176,6 +232,8 @@ export interface ErrorDescription {
   retryable: boolean;
   retryAfterSeconds?: number;
   requestId?: string;
+  /** Set when the failure is a permission problem; the UI should offer "Request access". */
+  accessDenied?: AccessDeniedDetails;
 }
 
 /** Maps any thrown value to copy suitable for an error state with a retry action. */
@@ -200,6 +258,18 @@ export function describeError(error: unknown, fallback = "Something went wrong."
         retryable: true,
         retryAfterSeconds: error.retryAfterSeconds,
         requestId: error.requestId,
+    if (error.isAccessDenied) {
+      const permission = error.accessDenied?.requiredPermission ?? error.accessDenied?.requiredScope;
+      return {
+        title: "Access restricted",
+        message:
+          error.message ||
+          (permission
+            ? `This action requires the "${permission}" permission. You can request access from the verification team.`
+            : "You don't have permission to perform this action. You can request access from the verification team."),
+        retryable: false,
+        requestId: error.requestId,
+        accessDenied: error.accessDenied,
       };
     }
     return {

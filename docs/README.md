@@ -26,9 +26,20 @@ Start with [onboarding](onboarding.md), then bookmark [common contributor tasks]
 | [Governance and Policy Review Framework](security/governance-framework.md)  | Contributors, operators, community                    | Stakeholder roles, review paths, trust thresholds, emergency actions, accountability                                |
 | [Testing Strategy Design Docs](testing/README.md)                           | Contributors picking up testing work                  | Contract snapshot testing, chaos engineering, API contract testing, visual regression testing                       |
 | [Accessibility Review Checklist](testing/accessibility-review-checklist.md) | Frontend contributors and reviewers                   | Keyboard, contrast, semantics, screen-reader basics, and app-specific flows                                         |
+| [Frontend State Architecture](frontend-state-architecture.md)               | Frontend contributors                                 | State boundaries, context, data fetching, where new features belong                                                 |
+| [Data Retention Policy Summary](security/data-retention.md)                 | Users, contributors, operators                        | Active vs. archival records, retention rules, archival and removal of user and asset data                           |
+| [Frontend Render Benchmarks](performance/frontend-render-benchmarks.md)     | Frontend contributors                                 | Benchmarked render paths, repeatable method, hotspots, running the benchmark locally                               |
+| [Accessibility Review Checklist](testing/accessibility-review-checklist.md) | Frontend contributors and reviewers                   | Keyboard, contrast, semantics, screen-reader basics, and app-specific flows                                         |
 
 Security and operations: [vulnerability reporting](../SECURITY.md#quick-reporting-summary),
 [dependency security and maintenance](security/dependency-review.md), and
 [incident communication](operations/incident-communication.md).
+
+## How work is categorized
+
+Issues and pull requests use the canonical label taxonomy defined in
+[CONTRIBUTING.md](../CONTRIBUTING.md#issue-and-pr-labels). Use those labels
+consistently when filing issues, referencing work in changelogs, and writing
+internal docs so contributors can tell how work is categorized.
 
 Start with the [Developer Onboarding Guide](onboarding.md) if you're new to the project.

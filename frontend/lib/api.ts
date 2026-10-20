@@ -1,4 +1,7 @@
 import type {
+  AccessPermissionState,
+  AccessRequest,
+  AccessRequestCreate,
   FieldError,
   UploadMetadata,
   UploadRecord,
@@ -173,4 +176,7 @@ export const api = {
   getUploadSession: (id: string) => request<UploadSessionView>(`/api/uploads/sessions/${encodeURIComponent(id)}`),
   updateUploadSession: (id: string, update: UploadSessionUpdate, options?: Pick<RequestOptions, "retry">) =>
     postJson<UploadSessionView>(`/api/uploads/sessions/${encodeURIComponent(id)}`, update, options, "PATCH"),
+  getAccessState: () => request<AccessPermissionState>("/api/access-requests/me"),
+  createAccessRequest: (payload: AccessRequestCreate, options?: Pick<RequestOptions, "retry">) =>
+    postJson<AccessRequest>("/api/access-requests", payload, options),
 };

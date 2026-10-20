@@ -26,6 +26,8 @@ import { AuthSessionProvider } from "@/context/AuthSessionContext";
 import { HelpProvider } from "@/context/HelpContext";
 import { WalletProvider } from "@/context/WalletContext";
 import { CacheInvalidationProvider } from "@/context/CacheInvalidationContext";
+// #848 — detect unsupported browser capabilities and surface guidance
+import { BrowserCapabilityBanner } from "@/components/BrowserCapabilityBanner";
 // #440 — wrap application with React Query provider
 import { ReactQueryProvider } from "@/lib/queryClient";
 import { SkipToContentLink } from "@/utils/accessibility";
@@ -92,40 +94,44 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <body className={`${GeistSans.variable} ${GeistMono.variable} font-sans safe-inset`}>
         <SkipToContentLink />
         <ReactQueryProvider>
-          <CacheInvalidationProvider>
-            <ThemeProvider>
-              <WalletProvider>
-                <AuthSessionProvider>
-                <NotificationProvider>
-                  <WizardProvider>
-                    <HelpProvider>
-                      <KeyboardShortcutsProvider>
-                        <ToastProvider>
-                          {/* #787 — site-wide notice while maintenance mode is on */}
-                          <MaintenanceBanner />
-                          <SiteHeader />
-                          {/* #438 — top-level boundary: catches errors in any provider or page */}
-                          <ErrorBoundary section="Application">
-                            {/* #438 — boundary around the page content */}
-                            <ErrorBoundary section="Page">{children}</ErrorBoundary>
-                          </ErrorBoundary>
-                          <ScrollToTop />
-                          <RouteScrollRestoration />
-                          <HelpSearchOverlay />
-                          <TutorialOverlay />
-                          <PWAInstallPrompt />
-                          <PWAUpdatePrompt />
-                          <ConsentBanner />
-                          <OnboardingFlow />
-                        </ToastProvider>
-                      </KeyboardShortcutsProvider>
-                    </HelpProvider>
-                  </WizardProvider>
-                </NotificationProvider>
-                </AuthSessionProvider>
-              </WalletProvider>
-            </ThemeProvider>
-          </CacheInvalidationProvider>
+          {/* #847 — AuthSessionProvider sits above dependent providers so persisted
+              session state hydrates before they render */}
+          <AuthSessionProvider>
+            <CacheInvalidationProvider>
+              <ThemeProvider>
+                <WalletProvider>
+                  <NotificationProvider>
+                    <WizardProvider>
+                      <HelpProvider>
+                        <KeyboardShortcutsProvider>
+                          <ToastProvider>
+                            {/* #787 — site-wide notice while maintenance mode is on */}
+                            <MaintenanceBanner />
+                            {/* #848 — dismissible banner naming missing browser capabilities */}
+                            <BrowserCapabilityBanner />
+                            <SiteHeader />
+                            {/* #438 — top-level boundary: catches errors in any provider or page */}
+                            <ErrorBoundary section="Application">
+                              {/* #438 — boundary around the page content */}
+                              <ErrorBoundary section="Page">{children}</ErrorBoundary>
+                            </ErrorBoundary>
+                            <ScrollToTop />
+                            <RouteScrollRestoration />
+                            <HelpSearchOverlay />
+                            <TutorialOverlay />
+                            <PWAInstallPrompt />
+                            <PWAUpdatePrompt />
+                            <ConsentBanner />
+                            <OnboardingFlow />
+                          </ToastProvider>
+                        </KeyboardShortcutsProvider>
+                      </HelpProvider>
+                    </WizardProvider>
+                  </NotificationProvider>
+                </WalletProvider>
+              </ThemeProvider>
+            </CacheInvalidationProvider>
+          </AuthSessionProvider>
         </ReactQueryProvider>
       </body>
     </html>

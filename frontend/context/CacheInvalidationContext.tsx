@@ -7,6 +7,19 @@ import { queryKeys } from "@/config/cache";
 
 export type InvalidationDomain = "certificates" | "manifests" | "assets" | "transactions" | "jobs" | "all";
 
+/** BroadcastChannel name used for cross-tab cache synchronization */
+export const CACHE_SYNC_CHANNEL = "stellar_cache_sync";
+
+/** Message type emitted by the service worker when a new cache version is activated */
+export const CACHE_VERSION_MESSAGE = "CACHE_VERSION_CHANGED";
+
+export interface CacheVersionEventDetail {
+  /** The newly activated cache version (e.g. build id or timestamp) */
+  version: string;
+  /** The previously active cache version, if known */
+  previousVersion?: string;
+}
+
 export interface CacheInvalidationContextValue {
   /** Invalidate specific certificate by id, or all certificate queries if omitted */
   invalidateCertificates: (id?: string) => Promise<void>;
@@ -20,6 +33,52 @@ export interface CacheInvalidationContextValue {
   invalidateDomain: (domain: InvalidationDomain, id?: string) => Promise<void>;
   /** Actively revalidate all queries relevant to the current page route */
   refreshCurrentView: () => Promise<void>;
+  /** The currently active service worker cache version, if known */
+  cacheVersion: string | null;
+  /** Safely invalidate stale caches after a version change without disrupting sessions */
+  handleCacheVersionChange: (version: string, previousVersion?: string) => Promise<void>;
+}
+
+/**
+ * Keys that must never be purged during cache invalidation because they hold
+ * authentication/session state. Preserving these keeps existing user sessions
+ * stable while stale public data is refreshed.
+ */
+const PROTECTED_STORAGE_PREFIXES = [
+  "auth",
+  "token",
+  "session",
+  "stellar_auth",
+  "supabase.auth",
+  "wallet",
+];
+
+function isProtectedStorageKey(key: string): boolean {
+  const lower = key.toLowerCase();
+  return PROTECTED_STORAGE_PREFIXES.some((prefix) => lower.startsWith(prefix) || lower.includes(prefix));
+}
+
+/**
+ * Remove stale, non-protected entries from localStorage/sessionStorage.
+ * Auth and session keys are always preserved.
+ */
+function purgeStaleStorage(): void {
+  if (typeof window === "undefined") return;
+
+  for (const storage of [window.localStorage, window.sessionStorage]) {
+    try {
+      const keysToRemove: string[] = [];
+      for (let i = 0; i < storage.length; i++) {
+        const key = storage.key(i);
+        if (key && !isProtectedStorageKey(key) && key.startsWith("cache:")) {
+          keysToRemove.push(key);
+        }
+      }
+      keysToRemove.forEach((key) => storage.removeItem(key));
+    } catch {
+      // Storage may be unavailable (private mode, quota); ignore safely.
+    }
+  }
 }
 
 const CacheInvalidationContext = createContext<CacheInvalidationContextValue | undefined>(undefined);
@@ -27,6 +86,8 @@ const CacheInvalidationContext = createContext<CacheInvalidationContextValue | u
 export function CacheInvalidationProvider({ children }: { children: React.ReactNode }) {
   const queryClient = useQueryClient();
   const pathname = usePathname();
+  const [cacheVersion, setCacheVersion] = React.useState<string | null>(null);
+  const cacheVersionRef = React.useRef<string | null>(null);
 
   // Invalidate certificate cache entries
   const invalidateCertificates = useCallback(
@@ -115,6 +176,34 @@ export function CacheInvalidationProvider({ children }: { children: React.ReactN
     [invalidateCertificates, invalidateManifests, invalidateAssets, invalidateJobs, queryClient]
   );
 
+  // Safely handle a service worker cache version change.
+  // Only public/query caches are invalidated; auth storage and active sessions are preserved.
+  const handleCacheVersionChange = useCallback(
+    async (version: string, previousVersion?: string) => {
+      if (!version || cacheVersionRef.current === version) return;
+
+      const previous = previousVersion ?? cacheVersionRef.current ?? undefined;
+      cacheVersionRef.current = version;
+      setCacheVersion(version);
+
+      // Purge only stale, non-protected cache entries from web storage.
+      purgeStaleStorage();
+
+      // Refresh active queries so new asset versions are reflected promptly,
+      // while leaving inactive queries intact to avoid disrupting the session.
+      await queryClient.invalidateQueries({ refetchType: "active" });
+
+      if (typeof window !== "undefined") {
+        window.dispatchEvent(
+          new CustomEvent<CacheVersionEventDetail>("cache-version-change", {
+            detail: { version, previousVersion: previous },
+          })
+        );
+      }
+    },
+    [queryClient]
+  );
+
   // Refresh current view based on active route
   const refreshCurrentView = useCallback(async () => {
     if (!pathname) return;
@@ -142,22 +231,43 @@ export function CacheInvalidationProvider({ children }: { children: React.ReactN
     refreshCurrentView();
   }, [pathname, refreshCurrentView]);
 
-  // Cross-tab synchronization via BroadcastChannel
+  // Listen for cache version changes broadcast by the service worker or other tabs.
   useEffect(() => {
-    if (typeof window === "undefined" || !("BroadcastChannel" in window)) return;
+    if (typeof window === "undefined") return;
 
-    const channel = new BroadcastChannel("stellar_cache_sync");
-    channel.onmessage = (event) => {
-      const { domain, id } = event.data || {};
-      if (domain) {
-        invalidateDomain(domain, id);
+    const onMessage = (event: MessageEvent) => {
+      const data = event.data;
+      if (data && data.type === CACHE_VERSION_MESSAGE && typeof data.version === "string") {
+        handleCacheVersionChange(data.version, data.previousVersion);
       }
     };
 
+    // Service worker -> page messages
+    if ("serviceWorker" in navigator) {
+      navigator.serviceWorker.addEventListener("message", onMessage);
+    }
+
+    // Cross-tab cache version propagation
+    let channel: BroadcastChannel | null = null;
+    if ("BroadcastChannel" in window) {
+      channel = new BroadcastChannel(CACHE_SYNC_CHANNEL);
+      channel.onmessage = (event) => {
+        const data = event.data || {};
+        if (data.type === CACHE_VERSION_MESSAGE && typeof data.version === "string") {
+          handleCacheVersionChange(data.version, data.previousVersion);
+        } else if (data.domain) {
+          invalidateDomain(data.domain, data.id);
+        }
+      };
+    }
+
     return () => {
-      channel.close();
+      if ("serviceWorker" in navigator) {
+        navigator.serviceWorker.removeEventListener("message", onMessage);
+      }
+      channel?.close();
     };
-  }, [invalidateDomain]);
+  }, [handleCacheVersionChange, invalidateDomain]);
 
   const value = useMemo(
     () => ({
@@ -167,8 +277,19 @@ export function CacheInvalidationProvider({ children }: { children: React.ReactN
       invalidateJobs,
       invalidateDomain,
       refreshCurrentView,
+      cacheVersion,
+      handleCacheVersionChange,
     }),
-    [invalidateCertificates, invalidateManifests, invalidateAssets, invalidateJobs, invalidateDomain, refreshCurrentView]
+    [
+      invalidateCertificates,
+      invalidateManifests,
+      invalidateAssets,
+      invalidateJobs,
+      invalidateDomain,
+      refreshCurrentView,
+      cacheVersion,
+      handleCacheVersionChange,
+    ]
   );
 
   return (

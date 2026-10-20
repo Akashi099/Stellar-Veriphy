@@ -2,7 +2,7 @@ import { timingSafeEqual } from "node:crypto";
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from "node:http";
 import { ObjectId } from "mongodb";
 import { config } from "./config.js";
-import type { CachedVerificationReads } from "./db/verifications.js";
+import type { CachedVerificationReads, VerificationRepository } from "./db/verifications.js";
 import type { HealthMonitor } from "./health/monitor.js";
 import type { JobQueue } from "./jobs/queue.js";
 import type { Logger } from "./lib/logger.js";
@@ -21,8 +21,7 @@ export interface ServerDeps {
   health: HealthMonitor;
   queue: JobQueue;
   cleanup: CleanupScheduler;
-  verifications: CachedVerificationReads;
-  verifications: VerificationRepository;
+  verifications: CachedVerificationReads & VerificationRepository;
   maintenance: MaintenanceMode;
   webhooks: WebhookService;
   log: Logger;
@@ -102,6 +101,48 @@ function exemptFromMaintenance(route: Route, pathname: string): boolean {
 }
 
 const WEBHOOK_STATUSES = new Set(["pending", "delivered", "failed"]);
+
+/** Verification permissions a user can request access to (#850). */
+const ACCESS_PERMISSIONS = new Set(["verify", "publish", "admin"]);
+const ACCESS_REQUEST_STATUSES = new Set(["pending", "approved", "denied"]);
+
+interface AccessRequestRecord {
+  id: string;
+  userId: string;
+  permission: string;
+  reason: string;
+  status: "pending" | "approved" | "denied";
+  createdAt: Date;
+  reviewedAt: Date | null;
+  reviewNote: string | null;
+}
+
+/** In-memory store for access requests; replaced by persistence once the backend lands. */
+const accessRequests = new Map<string, AccessRequestRecord>();
+
+function accessDenied(res: ServerResponse, permission: string, reason: string): void {
+  send(res, 403, {
+    error: "Access restricted",
+    code: "ACCESS_DENIED",
+    permission,
+    reason,
+    requestAccess: { method: "POST", path: "/api/access-requests", permission },
+  });
+}
+
+function currentUserId(req: IncomingMessage): string | undefined {
+  const header = req.headers["x-user-id"];
+  const value = Array.isArray(header) ? header[0] : header;
+  return value && value.trim() ? value.trim() : undefined;
+}
+
+function permissionState(userId: string, permission: string): { granted: boolean; request: AccessRequestRecord | null } {
+  const request =
+    [...accessRequests.values()]
+      .filter((r) => r.userId === userId && r.permission === permission)
+      .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())[0] ?? null;
+  return { granted: request?.status === "approved", request };
+}
 
 export function createHttpServer({ health, queue, cleanup, verifications, maintenance, webhooks, log }: ServerDeps): Server {
   const routes: Route[] = [
@@ -223,6 +264,108 @@ export function createHttpServer({ health, queue, cleanup, verifications, mainte
         const cleared = verifications.clear();
         log.info("public read cache cleared by operator", { cleared, requestedBy: req.socket.remoteAddress ?? "unknown" });
         send(res, 200, { cleared });
+      },
+    },
+
+    // --- Access requests (#850) -------------------------------------------------
+    {
+      method: "GET",
+      pattern: /^\/api\/access-requests\/me$/,
+      handler: async (req, res, _params, url) => {
+        const userId = currentUserId(req);
+        if (!userId) return send(res, 401, { error: "Missing user identity" });
+        const requested = url.searchParams.get("permission");
+        if (requested && !ACCESS_PERMISSIONS.has(requested)) {
+          return send(res, 400, { error: "Unknown permission" });
+        }
+        const permissions = [...ACCESS_PERMISSIONS].map((permission) => ({
+          permission,
+          ...permissionState(userId, permission),
+        }));
+        const requests = [...accessRequests.values()]
+          .filter((r) => r.userId === userId)
+          .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
+        send(res, 200, { userId, permissions, requests });
+      },
+    },
+    {
+      method: "POST",
+      pattern: /^\/api\/access-requests$/,
+      handler: async (req, res) => {
+        const userId = currentUserId(req);
+        if (!userId) return send(res, 401, { error: "Missing user identity" });
+        const body = await readJson(req);
+        const permission = body.permission;
+        if (typeof permission !== "string" || !ACCESS_PERMISSIONS.has(permission)) {
+          return send(res, 400, { error: "permission must be one of verify, publish, admin" });
+        }
+        const reason = body.reason;
+        if (reason !== undefined && (typeof reason !== "string" || reason.length > 1000)) {
+          return send(res, 400, { error: "reason must be a string of at most 1000 characters" });
+        }
+        const existing = permissionState(userId, permission);
+        if (existing.granted) return send(res, 409, { error: "Permission already granted", permission });
+        if (existing.request?.status === "pending") {
+          return send(res, 202, { request: existing.request, duplicate: true });
+        }
+        const record: AccessRequestRecord = {
+          id: new ObjectId().toHexString(),
+          userId,
+          permission,
+          reason: (reason as string | undefined)?.trim() ?? "",
+          status: "pending",
+          createdAt: new Date(),
+          reviewedAt: null,
+          reviewNote: null,
+        };
+        accessRequests.set(record.id, record);
+        log.info("access request submitted", { userId, permission, requestId: record.id });
+        send(res, 201, { request: record });
+      },
+    },
+    {
+      method: "GET",
+      pattern: /^\/admin\/access-requests$/,
+      admin: true,
+      handler: async (_req, res, _params, url) => {
+        const status = url.searchParams.get("status") ?? undefined;
+        if (status && !ACCESS_REQUEST_STATUSES.has(status)) {
+          return send(res, 400, { error: "status must be one of pending, approved, denied" });
+        }
+        const items = [...accessRequests.values()]
+          .filter((r) => !status || r.status === status)
+          .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
+        send(res, 200, { items });
+      },
+    },
+    {
+      method: "POST",
+      pattern: /^\/admin\/access-requests\/(?<id>[^/]+)\/review$/,
+      admin: true,
+      handler: async (req, res, { id }) => {
+        const record = accessRequests.get(id);
+        if (!record) return send(res, 404, { error: "Access request not found" });
+        if (record.status !== "pending") return send(res, 409, { error: "Access request already reviewed" });
+        const body = await readJson(req);
+        const decision = body.decision;
+        if (decision !== "approve" && decision !== "deny") {
+          return send(res, 400, { error: "decision must be approve or deny" });
+        }
+        const note = body.note;
+        if (note !== undefined && (typeof note !== "string" || note.length > 1000)) {
+          return send(res, 400, { error: "note must be a string of at most 1000 characters" });
+        }
+        record.status = decision === "approve" ? "approved" : "denied";
+        record.reviewedAt = new Date();
+        record.reviewNote = (note as string | undefined)?.trim() ?? null;
+        log.info("access request reviewed", {
+          requestId: record.id,
+          userId: record.userId,
+          permission: record.permission,
+          status: record.status,
+          reviewedBy: req.socket.remoteAddress ?? "unknown",
+        });
+        send(res, 200, { request: record });
       },
     },
 
@@ -411,7 +554,11 @@ export function createHttpServer({ health, queue, cleanup, verifications, mainte
     {
       method: "GET",
       pattern: /^\/api\/verifications\/(?<jobId>[^/]+)$/,
-      handler: async (_req, res, { jobId }) => {
+      handler: async (req, res, { jobId }) => {
+        const userId = currentUserId(req);
+        if (userId && !permissionState(userId, "verify").granted) {
+          return accessDenied(res, "verify", "Your account does not have verification permissions yet.");
+        }
         const status = await verifications.getStatus(jobId);
         if (!status) return send(res, 404, { error: "Verification not found" });
         send(res, 200, status);

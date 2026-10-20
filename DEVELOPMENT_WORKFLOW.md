@@ -2,7 +2,7 @@
 
 This document describes the end-to-end development workflow for StellarVeriphy — from setting up your local environment to getting code merged into `main`. It covers both the frontend (Next.js) and the smart contracts (Rust/Soroban).
 
-For coding standards and style rules, see [STYLE-GUIDE.md](./STYLE-GUIDE.md). For contribution guidelines and PR process details, see [CONTRIBUTING.md](./CONTRIBUTING.md).
+For coding standards and style rules, see [STYLE-GUIDE.md](./STYLE-GUIDE.md). For contribution guidelines and PR process details, see [CONTRIBUTING.md](./CONTRIBUTING.md). If you hit setup or environment problems, see the [troubleshooting guide](./docs/troubleshooting.md) for fixes to common issues.
 
 ---
 
@@ -55,6 +55,8 @@ rustc --version  # should print stable toolchain
 stellar --version
 ```
 
+If any of these commands fail or print an unexpected version, see the [troubleshooting guide](./docs/troubleshooting.md) for common setup and environment fixes.
+
 ---
 
 ## 2. Local Setup
@@ -101,6 +103,8 @@ NEXT_PUBLIC_MOCK_WALLET=true
 # Should start the Next.js dev server on http://localhost:3000
 pnpm dev:frontend
 ```
+
+If the dev server fails to start, `pnpm install` errors out, or environment variables are not picked up, check the [troubleshooting guide](./docs/troubleshooting.md) before opening an issue.
 
 ---
 
