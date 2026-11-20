@@ -403,20 +403,15 @@ export function ModerationQueue({ defaultStatusFilter }: Props) {
       {items.length > 0 && (
         <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden">
           <div className="overflow-x-auto">
-            <table className="w-full text-left" aria-label={t("admin.moderation.table.label")}>
+            <table className="w-max min-w-full text-left" aria-label={t("admin.moderation.table.label")}>
               <thead>
                 <tr className="text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400 border-b border-gray-200 dark:border-gray-700">
-                  <th className="px-4 py-3">Asset</th>
-                  <th className="px-4 py-3">Trigger</th>
-                  <th className="px-4 py-3">Status</th>
-                  <th className="px-4 py-3">Created</th>
-                  <th className="px-4 py-3">Last updated</th>
-                  <th className="px-4 py-3 text-right">Actions</th>
-                  <th className="px-4 py-3">{t("admin.moderation.table.asset")}</th>
-                  <th className="px-4 py-3">{t("admin.moderation.table.trigger")}</th>
-                  <th className="px-4 py-3">{t("admin.moderation.table.status")}</th>
-                  <th className="px-4 py-3">{t("admin.moderation.table.created")}</th>
-                  <th className="px-4 py-3 text-right">{t("admin.moderation.table.actions")}</th>
+                  <th id="moderation-asset" scope="col" className="min-w-[14rem] px-4 py-3">{t("admin.moderation.table.asset")}</th>
+                  <th id="moderation-trigger" scope="col" className="min-w-[10rem] px-4 py-3">{t("admin.moderation.table.trigger")}</th>
+                  <th id="moderation-status" scope="col" className="min-w-[9rem] px-4 py-3">{t("admin.moderation.table.status")}</th>
+                  <th id="moderation-created" scope="col" className="min-w-[10rem] px-4 py-3">{t("admin.moderation.table.created")}</th>
+                  <th id="moderation-updated" scope="col" className="min-w-[10rem] px-4 py-3">Last updated</th>
+                  <th id="moderation-actions" scope="col" className="min-w-[8rem] px-4 py-3 text-right">{t("admin.moderation.table.actions")}</th>
                 </tr>
               </thead>
               <tbody>

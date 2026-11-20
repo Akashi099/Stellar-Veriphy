@@ -39,6 +39,8 @@ export interface TableColumn<T> {
   sortValue?: (row: T) => string | number;
   align?: "left" | "center" | "right";
   className?: string;
+  /** Minimum readable width for dense tables and enlarged text. */
+  minWidth?: number;
 }
 
 export interface TableProps<T> {
@@ -169,8 +171,8 @@ export function Table<T>({
   return (
     <div className={cn("w-full", className)}>
       {/* Desktop / tablet table view */}
-      <div className="hidden md:block overflow-x-auto rounded-lg border border-gray-200 dark:border-gray-800">
-        <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-800">
+      <div className="hidden md:block max-w-full overflow-x-auto rounded-lg border border-gray-200 dark:border-gray-800" tabIndex={0} aria-label="Scrollable table">
+        <table className="w-max min-w-full table-auto divide-y divide-gray-200 dark:divide-gray-800">
           {caption && <caption className="sr-only">{caption}</caption>}
           <thead className="bg-gray-50 dark:bg-gray-800/50">
             <tr>
@@ -192,8 +194,10 @@ export function Table<T>({
                 <th
                   key={column.key}
                   scope="col"
+                  id={`table-column-${column.key}`}
+                  style={column.minWidth ? { minWidth: column.minWidth } : undefined}
                   className={cn(
-                    "px-4 py-3 text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400",
+                    "relative resize-x overflow-hidden px-4 py-3 text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400",
                     column.align === "right"
                       ? "text-right"
                       : column.align === "center"
@@ -251,6 +255,8 @@ export function Table<T>({
                   {columns.map((column) => (
                     <td
                       key={column.key}
+                      headers={`table-column-${column.key}`}
+                      style={column.minWidth ? { minWidth: column.minWidth } : undefined}
                       className={cn(
                         "px-4 py-3 text-sm text-gray-700 dark:text-gray-300",
                         column.align === "right"
