@@ -16,3 +16,18 @@ export function t(key: MessageKey, values?: MessageValues): string {
     name in values ? String(values[name]) : match,
   );
 }
+
+/**
+ * Returns an array of all defined message keys.
+ * Useful for tooling that needs to compare used keys against the full set.
+ */
+export function getAllMessageKeys(): MessageKey[] {
+  return Object.keys(messages) as MessageKey[];
+}
+
+  const template: string = messages[key];
+  if (!values) return template;
+  return template.replace(/\{(\w+)\}/g, (match, name: string) =>
+    name in values ? String(values[name]) : match,
+  );
+}
