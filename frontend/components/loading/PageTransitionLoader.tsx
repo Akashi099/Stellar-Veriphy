@@ -76,7 +76,7 @@ export function PageTransitionLoader({
         <Spinner size="lg" label="Loading page..." />
 
         {/* Animated border */}
-        <div className="absolute inset-0 border-4 border-transparent border-t-blue-500 border-r-blue-500 rounded-full animate-spin"></div>
+        <div className="absolute inset-0 border-4 border-transparent border-t-blue-500 border-r-blue-500 rounded-full animate-spin motion-reduce:animate-none"></div>
       </div>
 
       <div className="mt-6 max-w-md text-center">

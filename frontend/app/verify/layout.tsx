@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Breadcrumbs from "@/components/ui/Breadcrumbs";
+import { SkipLinks } from "@/utils/accessibility";
 
 const TITLE = "Verify Content";
 const DESCRIPTION =
@@ -15,6 +16,12 @@ export const metadata: Metadata = {
 export default function VerifyLayout({ children }: { children: React.ReactNode }) {
   return (
     <>
+      <SkipLinks
+        links={[
+          { href: "#verification-main", label: "Skip to verification content" },
+          { href: "#verification-navigation", label: "Skip to verification navigation" },
+        ]}
+      />
       <div className="mx-auto max-w-5xl px-4 pt-2">
         <Breadcrumbs items={[{ label: "Verify", href: "/verify" }, { label: "Verification" }]} />
       </div>

@@ -88,7 +88,7 @@ function LazyEvidenceSection({ id, label, minHeight, children }: LazySectionProp
 
 function HashComparisonView() {
   return (
-    <main>
+    <main id="verification-main">
       <h1>Verify a file</h1>
       <p>Check whether a file is exactly the one recorded in a StellarVeriphy provenance record.</p>
       <HashComparison />
@@ -470,6 +470,7 @@ export default function VerifyPage() {
   return (
     <div>
       <nav
+        id="verification-navigation"
         aria-label="Verification tools"
         className="flex gap-2 border-b border-gray-200 px-4 py-3 dark:border-gray-700 sm:px-6"
       >
