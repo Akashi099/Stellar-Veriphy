@@ -55,6 +55,48 @@ const ACCEPT = Object.entries(SUPPORTED_MEDIA_TYPES)
 const DRAFT_KEY = "stellar-veriphy:certificate-upload-draft:v1";
 const DRAFT_TTL_MS = 7 * 24 * 60 * 60 * 1000;
 
+// Component to show draft autosave status
+function DraftStatus() {
+  const [status, setStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      const raw = localStorage.getItem(DRAFT_KEY);
+      if (!raw) {
+        setStatus('idle');
+        return;
+      }
+      try {
+        const draft: DraftState = JSON.parse(raw);
+        if (!draft.savedAt) {
+          setStatus('idle');
+          return;
+        }
+        const savedAt = new Date(draft.savedAt);
+        const diff = Date.now() - savedAt.getTime();
+        // If saved within last 5 seconds, consider it still saving
+        if (diff < 5000) {
+          setStatus('saving');
+        } else {
+          setStatus('saved');
+        }
+      } catch {
+        setStatus('error');
+      }
+    }, 1000);
+    return () => clearInterval(interval);
+  }, []);
+
+  return (
+    <div className="text-sm text-gray-500 mt-2">
+      {status === 'saving' && 'Saving draft...'}
+      {status === 'saved' && 'Draft saved'}
+      {status === 'error' && 'Error saving draft'}
+    </div>
+  );
+}
+
+
 type FormValues = {
   creator: string;
   capturedAt: string;
