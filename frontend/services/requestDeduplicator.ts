@@ -33,11 +33,70 @@
 import { logger } from "@/lib/logger";
 
 /**
+ * HTTP methods that are safe to deduplicate.
+ *
+ * Only read-only methods are deduplicated. Mutations (POST, PUT, PATCH,
+ * DELETE, etc.) must never be deduplicated because each call has side
+ * effects and must reach the server exactly once.
+ */
+const DEDUPLICABLE_METHODS = new Set(["GET", "HEAD"]);
+
+/**
  * Represents a pending request that can be shared among multiple callers.
  */
 interface PendingRequest<T> {
   promise: Promise<T>;
   timestamp: number;
+}
+
+/**
+ * Options accepted by {@link RequestDeduplicator.deduplicateRequest}.
+ */
+export interface DeduplicateRequestOptions {
+  /** HTTP method for the request. Defaults to "GET". */
+  method?: string;
+  /** Request URL (or any stable resource identifier). */
+  url: string;
+  /** Optional request body. Only relevant for non-deduplicable methods. */
+  body?: unknown;
+}
+
+/**
+ * Returns true when a request with the given method may be deduplicated.
+ *
+ * @param method - HTTP method (case-insensitive)
+ */
+export function isDeduplicableMethod(method: string | undefined): boolean {
+  return DEDUPLICABLE_METHODS.has((method ?? "GET").toUpperCase());
+}
+
+/**
+ * Builds a stable deduplication key from method, URL and body.
+ *
+ * The key is only meaningful for deduplicable (read) methods; mutations
+ * bypass deduplication entirely.
+ *
+ * @param method - HTTP method (case-insensitive)
+ * @param url - Request URL
+ * @param body - Optional request body
+ */
+export function buildRequestKey(
+  method: string | undefined,
+  url: string,
+  body?: unknown
+): string {
+  const normalizedMethod = (method ?? "GET").toUpperCase();
+  let serializedBody = "";
+  if (body !== undefined) {
+    try {
+      serializedBody = JSON.stringify(body) ?? "";
+    } catch {
+      // Non-serializable bodies cannot be safely keyed; fall back to a
+      // unique marker so they are never incorrectly shared.
+      serializedBody = `__unserializable_${Math.random()}`;
+    }
+  }
+  return `${normalizedMethod} ${url} ${serializedBody}`;
 }
 
 /**
@@ -128,13 +187,13 @@ export class RequestDeduplicator<T = unknown> {
       .then((result) => {
         this.log(`Request completed for ${key}`);
         // Clean up after success
-        setTimeout(() => this.pendingRequests.delete(key), 0);
+        this.cleanup(key);
         return result;
       })
       .catch((error) => {
         this.log(`Request failed for ${key}: ${error.message}`);
         // Clean up after failure
-        setTimeout(() => this.pendingRequests.delete(key), 0);
+        this.cleanup(key);
         throw error;
       });
 
@@ -144,6 +203,40 @@ export class RequestDeduplicator<T = unknown> {
     });
 
     return promise;
+  }
+
+  /**
+   * Deduplicate a request keyed by HTTP method, URL and body.
+   *
+   * Only read-only methods (GET, HEAD) are deduplicated. Mutations
+   * (POST, PUT, PATCH, DELETE, ...) always invoke `fetchFn` directly and
+   * are never shared, so side effects are never lost.
+   *
+   * @param options - Request descriptor (method, url, body)
+   * @param fetchFn - Async function that makes the actual request
+   * @returns Promise that resolves to the request result
+   *
+   * @example
+   * ```ts
+   * const result = await deduplicator.deduplicateRequest(
+   *   { method: "GET", url: "/api/certificates/123" },
+   *   () => api.getCertificate("123")
+   * );
+   * ```
+   */
+  deduplicateRequest(
+    options: DeduplicateRequestOptions,
+    fetchFn: () => Promise<T>
+  ): Promise<T> {
+    if (!isDeduplicableMethod(options.method)) {
+      this.log(
+        `Bypassing deduplication for ${options.method ?? "GET"} ${options.url}`
+      );
+      return fetchFn();
+    }
+
+    const key = buildRequestKey(options.method, options.url, options.body);
+    return this.deduplicate(key, fetchFn);
   }
 
   /**
@@ -204,6 +297,16 @@ export class RequestDeduplicator<T = unknown> {
       logger.debug(`[RequestDeduplicator] ${message}`);
     }
   }
+
+  /**
+   * Remove a pending request entry once it has settled.
+   *
+   * Deferred to a microtask so callers that attach to the shared promise
+   * in the same tick still observe the cached entry.
+   */
+  private cleanup(key: string): void {
+    setTimeout(() => this.pendingRequests.delete(key), 0);
+  }
 }
 
 /**
@@ -251,5 +354,39 @@ export function createDedupFunction<Args extends unknown[], T>(
   return (...args: Args): Promise<T> => {
     const key = keyGen(...args);
     return deduplicator.deduplicate(key, () => fn(...args));
+  };
+}
+
+/**
+ * Create a deduplicator wrapper for an HTTP-style async function.
+ *
+ * Unlike {@link createDedupFunction}, this wrapper is method-aware: only
+ * GET/HEAD requests are deduplicated, while mutations always execute.
+ *
+ * @param fn - The async function to deduplicate
+ * @param requestGen - Function that derives the request descriptor from args
+ * @param deduplicator - Optional custom deduplicator instance
+ * @returns A wrapped function that deduplicates read requests only
+ *
+ * @example
+ * ```ts
+ * const dedupFetch = createDedupRequestFunction(
+ *   (url: string, init?: RequestInit) => fetch(url, init).then((r) => r.json()),
+ *   (url: string, init?: RequestInit) => ({
+ *     method: init?.method,
+ *     url,
+ *     body: init?.body,
+ *   })
+ * );
+ * ```
+ */
+export function createDedupRequestFunction<Args extends unknown[], T>(
+  fn: (...args: Args) => Promise<T>,
+  requestGen: (...args: Args) => DeduplicateRequestOptions,
+  deduplicator: RequestDeduplicator<T> = globalDeduplicator as unknown as RequestDeduplicator<T>
+): (...args: Args) => Promise<T> {
+  return (...args: Args): Promise<T> => {
+    const request = requestGen(...args);
+    return deduplicator.deduplicateRequest(request, () => fn(...args));
   };
 }

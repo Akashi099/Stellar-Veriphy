@@ -569,6 +569,132 @@ export function reportPerformanceMetrics(
   }
 }
 
+// ============================================================================
+// Font Loading Fallback Metrics
+// ============================================================================
+
+/**
+ * A layout shift observed during the font swap window.
+ */
+export interface FontLayoutShift {
+  /** Layout shift score for this entry */
+  value: number;
+  /** Timestamp (ms since navigation start) of the shift */
+  startTime: number;
+  /** Whether the shift occurred shortly after user input */
+  hadRecentInput: boolean;
+  /** Cumulative shift score observed during the font swap window */
+  cumulative: number;
+}
+
+/**
+ * Configuration for font loading shift monitoring.
+ */
+export interface FontLoadingMetricsConfig {
+  /** How long (ms) to observe shifts after fonts settle. Defaults to 3000. */
+  windowMs?: number;
+  /** Handler invoked with each observed font-related layout shift */
+  onShift?: (shift: FontLayoutShift) => void;
+}
+
+/**
+ * Set up monitoring for layout shifts caused by custom font loading.
+ *
+ * Observes `layout-shift` performance entries during the font swap window
+ * (from now until fonts settle, plus a short grace period), records them via
+ * the performance tracker, logs them in development, and forwards them to the
+ * configured monitoring handler.
+ *
+ * @param config - Optional configuration
+ * @returns Cleanup function that stops observation
+ *
+ * @example
+ * ```ts
+ * // In the root layout
+ * useEffect(() => setupFontLoadingMetrics(), []);
+ * ```
+ */
+export function setupFontLoadingMetrics(config?: FontLoadingMetricsConfig): () => void {
+  if (typeof window === "undefined" || !("PerformanceObserver" in window)) {
+    return () => {};
+  }
+
+  const windowMs = config?.windowMs ?? 3000;
+  const isDev = process.env.NODE_ENV === "development";
+  let cumulative = 0;
+  let stopped = false;
+  let observer: PerformanceObserver | undefined;
+  let timeoutId: ReturnType<typeof setTimeout> | undefined;
+
+  const stop = (): void => {
+    if (stopped) return;
+    stopped = true;
+    if (observer) {
+      observer.disconnect();
+      observer = undefined;
+    }
+    if (timeoutId !== undefined) {
+      clearTimeout(timeoutId);
+      timeoutId = undefined;
+    }
+  };
+
+  try {
+    observer = new PerformanceObserver((list) => {
+      for (const entry of list.getEntries()) {
+        const shift = entry as PerformanceEntry & {
+          value?: number;
+          hadRecentInput?: boolean;
+        };
+        const value = shift.value ?? 0;
+        if (value <= 0) continue;
+
+        cumulative += value;
+        const fontShift: FontLayoutShift = {
+          value,
+          startTime: shift.startTime,
+          hadRecentInput: shift.hadRecentInput ?? false,
+          cumulative,
+        };
+
+        performanceTracker.recordMetric({
+          name: "font_layout_shift",
+          value,
+          unit: "score",
+          timestamp: Date.now(),
+          metadata: {
+            startTime: fontShift.startTime,
+            hadRecentInput: fontShift.hadRecentInput,
+            cumulative: fontShift.cumulative,
+          },
+        });
+
+        if (isDev) {
+          logger.debug("Font loading layout shift detected", {
+            value,
+            startTime: fontShift.startTime,
+            hadRecentInput: fontShift.hadRecentInput,
+            cumulative,
+          });
+        }
+
+        if (config?.onShift) {
+          config.onShift(fontShift);
+        }
+      }
+    });
+    observer.observe({ entryTypes: ["layout-shift"] });
+  } catch (err) {
+    logger.debug("Font loading shift tracking failed", { error: String(err) });
+    return () => {};
+  }
+
+  // Stop observing once the font swap window has elapsed.
+  timeoutId = setTimeout(stop, windowMs);
+
+  return stop;
+}
+
 /**
  * Check if any Core Web Vitals exceed recommended thresholds.
  *

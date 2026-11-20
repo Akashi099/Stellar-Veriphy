@@ -21,6 +21,7 @@
 import { useQuery } from "@tanstack/react-query";
 
 import { queryKeys, STALE_TIMES } from "@/config/cache";
+import { dedupeRequest } from "@/lib/requestDeduplicator";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -69,6 +70,20 @@ async function fetchNetworkStatus(): Promise<NetworkStatus> {
   };
 }
 
+/**
+ * Deduplicated wrapper around {@link fetchNetworkStatus}.
+ *
+ * Concurrent identical reads (e.g. rapid navigation or multiple components
+ * mounting at once) share a single in-flight request.  This is a read-only
+ * path, so deduplication is always safe here; mutation requests must never
+ * be routed through this helper.
+ *
+ * @returns Current {@link NetworkStatus}, shared across concurrent callers.
+ */
+function fetchNetworkStatusDeduped(): Promise<NetworkStatus> {
+  return dedupeRequest("network:status", fetchNetworkStatus);
+}
+
 // ---------------------------------------------------------------------------
 // Hook
 // ---------------------------------------------------------------------------
@@ -86,7 +101,7 @@ async function fetchNetworkStatus(): Promise<NetworkStatus> {
 export function useNetworkStatus() {
   return useQuery({
     queryKey: queryKeys.network.status(),
-    queryFn: fetchNetworkStatus,
+    queryFn: fetchNetworkStatusDeduped,
     staleTime: STALE_TIMES.blockchain,
     // Retry immediately when connectivity is restored
     networkMode: "always",

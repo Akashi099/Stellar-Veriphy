@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import { HashComparison } from "@/components/HashComparison";
 import { WizardPageShell } from "@/src/features/verification/components/WizardPageShell";
@@ -9,12 +9,94 @@ import type { ManifestData } from "@/src/features/verification/types/wizard.type
 import { useRetryableVerification } from "@/src/features/verification/hooks/useRetryableVerification";
 import { hashFile } from "@/utils/hashing";
 
+type LazySectionProps = {
+  id: string;
+  label: string;
+  minHeight: number;
+  children: React.ReactNode;
+};
+
+/**
+ * Defers rendering of below-fold evidence until it scrolls into view.
+ * Placeholders reserve the section's height so nothing shifts when it loads,
+ * and sections targeted by a URL hash are rendered eagerly so direct links
+ * always reveal the correct evidence.
+ */
+function LazyEvidenceSection({ id, label, minHeight, children }: LazySectionProps) {
+  const containerRef = useRef<HTMLElement | null>(null);
+  const [isVisible, setIsVisible] = useState(false);
+
+  useEffect(() => {
+    const isTargeted = () => window.location.hash === `#${id}`;
+    if (isTargeted()) {
+      setIsVisible(true);
+      return;
+    }
+
+    const node = containerRef.current;
+    if (!node) return;
+
+    if (typeof IntersectionObserver === "undefined") {
+      setIsVisible(true);
+      return;
+    }
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries.some((entry) => entry.isIntersecting)) {
+          setIsVisible(true);
+          observer.disconnect();
+        }
+      },
+      { rootMargin: "200px 0px" }
+    );
+    observer.observe(node);
+
+    const handleHashChange = () => {
+      if (isTargeted()) setIsVisible(true);
+    };
+    window.addEventListener("hashchange", handleHashChange);
+
+    return () => {
+      observer.disconnect();
+      window.removeEventListener("hashchange", handleHashChange);
+    };
+  }, [id]);
+
+  return (
+    <section
+      ref={containerRef}
+      id={id}
+      aria-label={label}
+      aria-busy={!isVisible}
+      style={{ minHeight }}
+    >
+      {isVisible ? (
+        children
+      ) : (
+        <div
+          role="status"
+          aria-live="polite"
+          className="flex h-full items-center justify-center rounded-lg border border-dashed border-gray-300 p-6 text-sm text-gray-500 dark:border-gray-600 dark:text-gray-400"
+        >
+          Loading {label.toLowerCase()}…
+        </div>
+      )}
+    </section>
+  );
+}
+
 function HashComparisonView() {
   return (
     <main>
       <h1>Verify a file</h1>
       <p>Check whether a file is exactly the one recorded in a StellarVeriphy provenance record.</p>
       <HashComparison />
+      <div className="mt-10 space-y-6">
+        <LazyEvidenceSection id="evidence-hash-details" label="Hash details" minHeight={320}>
+          <HashComparison />
+        </LazyEvidenceSection>
+      </div>
     </main>
   );
 }
@@ -354,6 +436,29 @@ function VerifyPageContent() {
         <div className="text-sm text-gray-500 dark:text-gray-400">
           Step {currentStep + 1} of {STEP_CONFIGS.length}
         </div>
+        <LazyEvidenceSection id="evidence-review" label="Verification evidence" minHeight={280}>
+          <div className="space-y-3 rounded-lg border border-gray-200 p-4 dark:border-gray-700">
+            <h2 className="text-base font-semibold text-gray-900 dark:text-white">
+              Verification evidence
+            </h2>
+            <div>
+              <p className="text-xs font-medium text-gray-600 dark:text-gray-300">
+                Content SHA-256
+              </p>
+              <p className="break-all font-mono text-sm text-gray-900 dark:text-white">
+                {contentHash || "Not yet calculated"}
+              </p>
+            </div>
+            <div>
+              <p className="text-xs font-medium text-gray-600 dark:text-gray-300">
+                Manifest SHA-256
+              </p>
+              <p className="break-all font-mono text-sm text-gray-900 dark:text-white">
+                {manifestHash || "Not yet calculated"}
+              </p>
+            </div>
+          </div>
+        </LazyEvidenceSection>
       </div>
     </WizardPageShell>
   );

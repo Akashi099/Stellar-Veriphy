@@ -1,11 +1,51 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
+
+const MAX_FALLBACK_RETRIES = 1;
 
 export interface MediaSnapshotPreviewProps {
   file: File | null;
   verificationState?: "idle" | "hashing" | "submitting" | "processing" | "completed" | "failed" | string;
   className?: string;
+}
+
+/**
+ * Resolve a fallback media source for a failed primary endpoint.
+ *
+ * Privacy and origin restrictions are enforced here: only same-origin URLs
+ * (or relative paths) are eligible for fallback, and blob:/data: URLs are
+ * never rewritten. Returns null when no safe fallback is available.
+ */
+export function resolveMediaFallback(primaryUrl: string | null | undefined): string | null {
+  if (!primaryUrl) return null;
+
+  // Never rewrite local object URLs or inline data payloads.
+  if (
+    primaryUrl.startsWith("blob:") ||
+    primaryUrl.startsWith("data:") ||
+    primaryUrl.startsWith("object:")
+  ) {
+    return null;
+  }
+
+  try {
+    const base =
+      typeof window !== "undefined" && window.location?.origin
+        ? window.location.origin
+        : "http://localhost";
+    const parsed = new URL(primaryUrl, base);
+
+    // Enforce same-origin restriction to avoid leaking requests cross-origin.
+    if (parsed.origin !== base) {
+      return null;
+    }
+
+    // Route the request through the fallback media endpoint.
+    return `/api/media/fallback?src=${encodeURIComponent(parsed.pathname + parsed.search)}`;
+  } catch {
+    return null;
+  }
 }
 
 export function MediaSnapshotPreview({
@@ -14,6 +54,9 @@ export function MediaSnapshotPreview({
   className = "",
 }: MediaSnapshotPreviewProps) {
   const [objectUrl, setObjectUrl] = useState<string | null>(null);
+  const [imageSrc, setImageSrc] = useState<string | null>(null);
+  const [imageFailed, setImageFailed] = useState(false);
+  const [fallbackAttempts, setFallbackAttempts] = useState(0);
 
   useEffect(() => {
     if (!file) {
@@ -28,6 +71,27 @@ export function MediaSnapshotPreview({
       URL.revokeObjectURL(url);
     };
   }, [file]);
+
+  useEffect(() => {
+    setImageSrc(objectUrl);
+    setImageFailed(false);
+    setFallbackAttempts(0);
+  }, [objectUrl]);
+
+  const handleImageError = useCallback(() => {
+    // Bounded retries: attempt the fallback source at most once, then
+    // resolve to the standard placeholder state.
+    if (fallbackAttempts < MAX_FALLBACK_RETRIES) {
+      const fallback = resolveMediaFallback(imageSrc);
+      if (fallback) {
+        setFallbackAttempts((prev) => prev + 1);
+        setImageSrc(fallback);
+        return;
+      }
+    }
+
+    setImageFailed(true);
+  }, [fallbackAttempts, imageSrc]);
 
   if (!file) return null;
 
@@ -87,13 +151,26 @@ export function MediaSnapshotPreview({
       </div>
 
       <div className="preview-container relative flex items-center justify-center bg-gray-50 dark:bg-gray-900 rounded border border-dashed border-gray-300 dark:border-gray-700 overflow-hidden min-h-[160px] max-h-[320px]">
-        {objectUrl && isImage && (
+        {objectUrl && isImage && !imageFailed && imageSrc && (
           // eslint-disable-next-line @next/next/no-img-element
           <img
-            src={objectUrl}
+            src={imageSrc}
             alt={`Snapshot preview for ${file.name}`}
             className="max-h-[300px] w-auto max-w-full object-contain rounded"
+            onError={handleImageError}
+            data-testid="media-snapshot-image"
           />
+        )}
+
+        {objectUrl && isImage && imageFailed && (
+          <div
+            className="p-6 text-center text-gray-500"
+            data-testid="media-snapshot-placeholder"
+          >
+            <div className="text-2xl mb-1">🖼️</div>
+            <div className="font-medium text-sm text-gray-700 dark:text-gray-200">{file.name}</div>
+            <div className="text-xs text-gray-400 mt-1">Preview unavailable</div>
+          </div>
         )}
 
         {objectUrl && isVideo && (

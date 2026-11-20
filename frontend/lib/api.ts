@@ -45,6 +45,109 @@ interface RequestOptions extends RequestInit {
     maxDelayMs?: number;
     onRetry?: (update: RetryUpdate) => void;
   };
+  /**
+   * Opt out of in-flight request deduplication. Mutations are never deduplicated
+   * regardless of this flag; it only affects idempotent reads (GET/HEAD).
+   */
+  dedupe?: boolean;
+}
+
+/**
+ * Standard placeholder state returned when a media thumbnail cannot be loaded
+ * from either the primary or the fallback source.
+ */
+export const MEDIA_PLACEHOLDER_SRC = "/media/placeholder.svg";
+
+/**
+ * Origins permitted to serve media thumbnails. Anything else is rejected so
+ * that fallback resolution cannot be used to leak requests to arbitrary hosts.
+ */
+const ALLOWED_MEDIA_ORIGINS = new Set<string>([
+  "https://media.stellarveriphy.app",
+  "https://cdn.stellarveriphy.app",
+]);
+
+/**
+ * Paths that must never be proxied through the media fallback (private or
+ * authenticated resources). Privacy restrictions remain enforced.
+ */
+const PRIVATE_MEDIA_PATH_PREFIXES = ["/api/", "/private/", "/access-requests/"];
+
+function isAllowedMediaUrl(raw: string): boolean {
+  let parsed: URL;
+  try {
+    parsed = new URL(raw, typeof window !== "undefined" ? window.location.origin : "https://stellarveriphy.app");
+  } catch {
+    return false;
+  }
+  if (parsed.protocol !== "https:") return false;
+  if (!ALLOWED_MEDIA_ORIGINS.has(parsed.origin)) return false;
+  if (PRIVATE_MEDIA_PATH_PREFIXES.some((prefix) => parsed.pathname.startsWith(prefix))) return false;
+  return true;
+}
+
+export interface MediaFallbackResult {
+  src: string;
+  usedFallback: boolean;
+  failed: boolean;
+}
+
+/**
+ * Resolves a thumbnail through the primary source and, on failure, retries at
+ * most once through the fallback source. Both sources must pass origin and
+ * privacy checks; otherwise the standard placeholder is returned.
+ */
+export async function resolveMediaThumbnail(
+  primarySrc: string,
+  fallbackSrc: string | undefined,
+  load: (src: string) => Promise<boolean> = defaultMediaLoader
+): Promise<MediaFallbackResult> {
+  if (isAllowedMediaUrl(primarySrc)) {
+    try {
+      if (await load(primarySrc)) return { src: primarySrc, usedFallback: false, failed: false };
+    } catch {
+      // fall through to the single fallback attempt
+    }
+  }
+  if (fallbackSrc && isAllowedMediaUrl(fallbackSrc)) {
+    try {
+      if (await load(fallbackSrc)) return { src: fallbackSrc, usedFallback: true, failed: false };
+    } catch {
+      // fall through to placeholder
+    }
+  }
+  return { src: MEDIA_PLACEHOLDER_SRC, usedFallback: false, failed: true };
+}
+
+function defaultMediaLoader(src: string): Promise<boolean> {
+  if (typeof Image === "undefined") return Promise.resolve(false);
+  return new Promise((resolve) => {
+    const img = new Image();
+    img.onload = () => resolve(true);
+    img.onerror = () => resolve(false);
+    img.src = src;
+  });
+}
+
+/**
+ * In-flight read requests keyed by method + URL + auth-relevant headers.
+ * Only idempotent reads are stored here; mutations bypass deduplication.
+ */
+const inFlightReads = new Map<string, Promise<unknown>>();
+
+function isIdempotentRead(method: string): boolean {
+  const normalized = method.toUpperCase();
+  return normalized === "GET" || normalized === "HEAD";
+}
+
+function dedupeKey(url: string, method: string, headers: Headers): string {
+  const auth = headers.get("Authorization") ?? "";
+  return `${method.toUpperCase()} ${url} ${auth}`;
+}
+
+/** Clears the in-flight read cache. Exposed for deterministic tests. */
+export function clearInFlightRequests(): void {
+  inFlightReads.clear();
 }
 
 function wait(ms: number): Promise<void> {
@@ -67,7 +170,34 @@ async function request<T>(pathOrUrl: string, init?: RequestOptions): Promise<T> 
   const maxAttempts = retry?.maxAttempts ?? 1;
   const baseDelayMs = retry?.baseDelayMs ?? 600;
   const maxDelayMs = retry?.maxDelayMs ?? 6000;
-  const { retry: _retry, ...fetchInit } = init ?? {};
+  const { retry: _retry, dedupe, ...fetchInit } = init ?? {};
+
+  const method = (fetchInit.method ?? "GET").toUpperCase();
+  const dedupeEnabled = dedupe !== false && isIdempotentRead(method);
+  if (dedupeEnabled) {
+    const key = dedupeKey(url, method, new Headers(fetchInit.headers));
+    const existing = inFlightReads.get(key);
+    if (existing) return existing as Promise<T>;
+    const pending = performRequest<T>(url, fetchInit, retry, maxAttempts, baseDelayMs, maxDelayMs);
+    inFlightReads.set(key, pending);
+    try {
+      return await pending;
+    } finally {
+      inFlightReads.delete(key);
+    }
+  }
+
+  return performRequest<T>(url, fetchInit, retry, maxAttempts, baseDelayMs, maxDelayMs);
+}
+
+async function performRequest<T>(
+  url: string,
+  fetchInit: RequestInit,
+  retry: RequestOptions["retry"],
+  maxAttempts: number,
+  baseDelayMs: number,
+  maxDelayMs: number
+): Promise<T> {
   let lastError: ApiError | null = null;
 
   for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
@@ -158,6 +288,8 @@ function postJson<T>(
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(payload),
     retry: options?.retry,
+    // Mutations must never be deduplicated.
+    dedupe: false,
   });
 }
 
