@@ -1,6 +1,6 @@
 "use client";
 
-import React from "react";
+import React, { useMemo } from "react";
 
 import { cn } from "@/utils/cn";
 
@@ -9,6 +9,11 @@ import { OptionalIndicator, RequiredIndicator } from "./FormIndicators";
 export type FormInputState = "default" | "error" | "success";
 
 export interface FormInputProps extends React.InputHTMLAttributes<HTMLInputElement> {
+  /**
+   * Optional locale identifier (e.g., "en-US", "fr-FR") used to format
+   * placeholder values for date and number inputs.
+   */
+  locale?: string;
   label?: React.ReactNode;
   helperText?: React.ReactNode;
   errorText?: React.ReactNode;

@@ -150,6 +150,22 @@ export function SkipToContentLink() {
   );
 }
 
+export function SkipLinks({
+  links,
+}: {
+  links: Array<{ href: string; label: string }>;
+}) {
+  return (
+    <nav aria-label="Skip links" className="skip-links">
+      {links.map((link) => (
+        <a key={link.href} href={link.href} className="skip-link">
+          {link.label}
+        </a>
+      ))}
+    </nav>
+  );
+}
+
 /**
  * Component to render visually hidden content for screen readers
  */

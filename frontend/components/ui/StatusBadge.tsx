@@ -50,6 +50,7 @@ interface VariantStyle {
   bg: string;
   text: string;
   ring: string;
+  border: string;
   Icon: LucideIcon;
 }
 
@@ -58,24 +59,28 @@ const VARIANT_STYLES: Record<StatusBadgeVariant, VariantStyle> = {
     bg: "bg-emerald-50 dark:bg-emerald-950",
     text: "text-emerald-800 dark:text-emerald-100",
     ring: "ring-emerald-600/20 dark:ring-emerald-300/30",
+    border: "border-emerald-700 dark:border-emerald-300",
     Icon: CheckCircle2,
   },
   warning: {
     bg: "bg-amber-50 dark:bg-amber-950",
     text: "text-amber-900 dark:text-amber-100",
     ring: "ring-amber-600/20 dark:ring-amber-300/30",
+    border: "border-amber-700 dark:border-amber-300",
     Icon: AlertTriangle,
   },
   error: {
     bg: "bg-red-50 dark:bg-red-950",
     text: "text-red-800 dark:text-red-100",
     ring: "ring-red-600/20 dark:ring-red-300/30",
+    border: "border-red-700 dark:border-red-300",
     Icon: XCircle,
   },
   info: {
     bg: "bg-blue-50 dark:bg-blue-950",
     text: "text-blue-800 dark:text-blue-100",
     ring: "ring-blue-600/20 dark:ring-blue-300/30",
+    border: "border-blue-700 dark:border-blue-300",
     Icon: Info,
   },
 };
@@ -106,11 +111,12 @@ export function StatusBadge({
   const showIcon = icon !== false;
 
   const badgeClassName = cn(
-    "inline-flex items-center font-medium ring-1 ring-inset transition-colors",
+    "status-badge inline-flex items-center border-2 font-medium ring-1 ring-inset transition-colors",
     shape === "pill" ? "rounded-full" : "rounded-md",
     style.bg,
     style.text,
     style.ring,
+    style.border,
     SIZE_STYLES[size],
     onClick &&
       "cursor-pointer hover:brightness-95 dark:hover:brightness-125 active:scale-95 focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-1 focus-visible:ring-blue-500",

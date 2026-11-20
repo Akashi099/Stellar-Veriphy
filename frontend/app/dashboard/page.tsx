@@ -23,7 +23,7 @@ export default function DashboardPage() {
   }, []);
 
   return (
-    <main id="main-content" className="min-h-screen bg-gray-50 py-8 dark:bg-gray-900">
+    <main id="dashboard-main" className="min-h-screen bg-gray-50 py-8 dark:bg-gray-900">
       <div className="mx-auto max-w-6xl space-y-6 px-4">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <h1 className="text-2xl font-semibold text-gray-900 dark:text-white">Dashboard</h1>

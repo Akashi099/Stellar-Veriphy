@@ -55,6 +55,48 @@ const ACCEPT = Object.entries(SUPPORTED_MEDIA_TYPES)
 const DRAFT_KEY = "stellar-veriphy:certificate-upload-draft:v1";
 const DRAFT_TTL_MS = 7 * 24 * 60 * 60 * 1000;
 
+// Component to show draft autosave status
+function DraftStatus() {
+  const [status, setStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      const raw = localStorage.getItem(DRAFT_KEY);
+      if (!raw) {
+        setStatus('idle');
+        return;
+      }
+      try {
+        const draft: DraftState = JSON.parse(raw);
+        if (!draft.savedAt) {
+          setStatus('idle');
+          return;
+        }
+        const savedAt = new Date(draft.savedAt);
+        const diff = Date.now() - savedAt.getTime();
+        // If saved within last 5 seconds, consider it still saving
+        if (diff < 5000) {
+          setStatus('saving');
+        } else {
+          setStatus('saved');
+        }
+      } catch {
+        setStatus('error');
+      }
+    }, 1000);
+    return () => clearInterval(interval);
+  }, []);
+
+  return (
+    <div className="text-sm text-gray-500 mt-2">
+      {status === 'saving' && 'Saving draft...'}
+      {status === 'saved' && 'Draft saved'}
+      {status === 'error' && 'Error saving draft'}
+    </div>
+  );
+}
+
+
 type FormValues = {
   creator: string;
   capturedAt: string;
@@ -424,7 +466,7 @@ export function UploadForm() {
         }
       }}
       noValidate
-      className="form"
+      className="form pb-24 sm:pb-20"
     >
       {/* Transient failure (network, 5xx, rate limit): one-click resubmit; the draft is kept */}
       {serverError &&
@@ -735,14 +777,20 @@ export function UploadForm() {
           {uploadSession.attempt > 1 && ` (attempt ${uploadSession.attempt})`}
         </div>
       )}
-      <button type="submit" disabled={submitting || hashState.status === "hashing"}>
-        {submitting
-          ? "Submitting…"
-          : hashState.status === "hashing"
-            ? "Hashing file…"
-            : "Submit for verification"}
-        {!submitting && hashState.status !== "hashing" && <ShortcutHint keys="Ctrl + Enter" />}
-      </button>
+      <div className="sticky bottom-0 z-20 -mx-4 mt-6 border-t border-gray-200 bg-white/95 px-4 py-3 shadow-[0_-4px_12px_rgba(0,0,0,0.08)] backdrop-blur dark:border-gray-700 dark:bg-gray-900/95 sm:-mx-6 sm:px-6">
+        <button
+          type="submit"
+          disabled={submitting || hashState.status === "hashing"}
+          className="w-full sm:w-auto"
+        >
+          {submitting
+            ? "Submitting…"
+            : hashState.status === "hashing"
+              ? "Hashing file…"
+              : "Submit for verification"}
+          {!submitting && hashState.status !== "hashing" && <ShortcutHint keys="Ctrl + Enter" />}
+        </button>
+      </div>
     </form>
   );
 }

@@ -5,7 +5,8 @@ Commands run from the repository root. Choose checks for the area you change.
 | Task | Command or reference |
 | --- | --- |
 | First setup | [Onboarding](onboarding.md) |
-| Run frontend | `pnpm dev:frontend` → `http://localhost:3000` |
+| Run frontend | `pnpm dev:frontend` → `http://localhost:3000`
+| Detect missing i18n keys | `pnpm detect:i18n` (runs the i18n key detection script) | |
 | Run backend | Export settings from [backend/.env.example](../backend/.env.example), start MongoDB, then `pnpm dev:backend` |
 | Frontend checks | `pnpm check:frontend`, `pnpm --filter frontend typecheck`, `pnpm --filter frontend test --runInBand`, `pnpm build:frontend` |
 | Shared tests | `pnpm --filter @stellarveriphy/shared test` |

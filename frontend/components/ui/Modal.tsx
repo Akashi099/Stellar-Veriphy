@@ -31,7 +31,10 @@ export function Modal({
   useEffect(() => {
     if (!isOpen) return;
 
-    previousActiveElement.current = document.activeElement as HTMLElement;
+    const activeElement = document.activeElement;
+    previousActiveElement.current = activeElement instanceof HTMLElement ? activeElement : null;
+    const previouslyFocusedElement = previousActiveElement.current;
+    const previousBodyOverflow = document.body.style.overflow;
 
     const handleEscape = (e: KeyboardEvent) => {
       if (e.key === "Escape") {
@@ -81,7 +84,14 @@ export function Modal({
       }
     };
 
+    const handleFocusIn = (e: FocusEvent) => {
+      if (dialogRef.current && e.target instanceof Node && !dialogRef.current.contains(e.target)) {
+        (firstElement || dialogRef.current)?.focus();
+      }
+    };
+
     document.addEventListener("keydown", handleTabKey);
+    document.addEventListener("focusin", handleFocusIn);
 
     // Focus first element or close button
     setTimeout(() => {
@@ -95,8 +105,16 @@ export function Modal({
     return () => {
       document.removeEventListener("keydown", handleEscape);
       document.removeEventListener("keydown", handleTabKey);
-      document.body.style.overflow = "";
-      previousActiveElement.current?.focus();
+      document.removeEventListener("focusin", handleFocusIn);
+      document.body.style.overflow = previousBodyOverflow;
+
+      const restoreTarget =
+        previouslyFocusedElement && document.contains(previouslyFocusedElement)
+          ? previouslyFocusedElement
+          : previouslyFocusedElement?.parentElement?.querySelector<HTMLElement>(
+              'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
+            );
+      restoreTarget?.focus();
     };
   }, [isOpen, onClose, title, ariaLabel]);
 
