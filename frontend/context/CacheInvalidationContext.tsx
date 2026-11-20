@@ -4,6 +4,10 @@ import React, { createContext, useContext, useEffect, useCallback, useMemo } fro
 import { usePathname } from "next/navigation";
 import { useQueryClient } from "@tanstack/react-query";
 import { queryKeys } from "@/config/cache";
+import {
+  invalidateCertificateCache,
+  clearVerificationStatusCache,
+} from "@/services/verificationCache";
 
 export type InvalidationDomain = "certificates" | "manifests" | "assets" | "transactions" | "jobs" | "all";
 
@@ -92,6 +96,14 @@ export function CacheInvalidationProvider({ children }: { children: React.ReactN
   // Invalidate certificate cache entries
   const invalidateCertificates = useCallback(
     async (id?: string) => {
+      // Clear the short-lived public verification response cache so stale
+      // lookups are never reused after a mutation.
+      if (id) {
+        invalidateCertificateCache(id);
+      } else {
+        clearVerificationStatusCache();
+      }
+
       if (id) {
         await Promise.all([
           queryClient.invalidateQueries({ queryKey: queryKeys.certificates.detail(id) }),
@@ -170,6 +182,8 @@ export function CacheInvalidationProvider({ children }: { children: React.ReactN
           return queryClient.invalidateQueries({ queryKey: queryKeys.transactions.all });
         case "all":
         default:
+          // Clear all cached public verification responses before a full purge.
+          clearVerificationStatusCache();
           return queryClient.invalidateQueries();
       }
     },

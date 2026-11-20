@@ -32,43 +32,61 @@ export default defineConfig({
   },
 
   projects: [
+    // ── Web Vitals regression suite (Chromium only) ─────────────────────────
+    // LCP/CLS/INP observers are most reliable in Chromium, so this project is
+    // intentionally single-browser. It is excluded from the default matrix via
+    // `testIgnore` and is run explicitly with `pnpm test:e2e:vitals`.
+    {
+      name: "web-vitals",
+      testMatch: /web-vitals\/.*\.spec\.ts/,
+      use: { ...devices["Desktop Chrome"] },
+    },
     // ── Local desktop browsers ──────────────────────────────────────────────
     {
       name: "chromium",
+      testIgnore: /web-vitals\//,
       use: { ...devices["Desktop Chrome"] },
     },
     {
       name: "firefox",
+      testIgnore: /web-vitals\//,
       use: { ...devices["Desktop Firefox"] },
     },
     {
       name: "webkit",
+      testIgnore: /web-vitals\//,
       use: { ...devices["Desktop Safari"] },
     },
     // ── Local mobile emulation ───────────────────────────────────────────────
     {
       name: "mobile-chrome",
+      testIgnore: /web-vitals\//,
       use: { ...devices["Pixel 5"] },
     },
     {
       name: "mobile-safari",
+      testIgnore: /web-vitals\//,
       use: { ...devices["iPhone 13"] },
     },
     // ── Responsive breakpoint snapshots ─────────────────────────────────────
     {
       name: "breakpoint-xs",
+      testIgnore: /web-vitals\//,
       use: { ...devices["Galaxy S8"] },
     },
     {
       name: "breakpoint-sm",
+      testIgnore: /web-vitals\//,
       use: { viewport: { width: 640, height: 900 } },
     },
     {
       name: "breakpoint-md",
+      testIgnore: /web-vitals\//,
       use: { viewport: { width: 768, height: 1024 } },
     },
     {
       name: "breakpoint-lg",
+      testIgnore: /web-vitals\//,
       use: { viewport: { width: 1024, height: 768 } },
     },
     // ── BrowserStack real devices (only when credentials are present) ────────
@@ -76,6 +94,7 @@ export default defineConfig({
       ? [
           {
             name: "bs-ios-safari",
+            testIgnore: /web-vitals\//,
             use: {
               connectOptions: {
                 wsEndpoint: `wss://cdp.browserstack.com/playwright?caps=${encodeURIComponent(
@@ -93,6 +112,7 @@ export default defineConfig({
           },
           {
             name: "bs-android-chrome",
+            testIgnore: /web-vitals\//,
             use: {
               connectOptions: {
                 wsEndpoint: `wss://cdp.browserstack.com/playwright?caps=${encodeURIComponent(

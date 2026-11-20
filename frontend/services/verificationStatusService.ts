@@ -65,6 +65,14 @@ export interface WatchOptions {
   onTerminal?: ((status: VerificationStatus) => void) | undefined;
   /** Called when polling fails (network error, etc.). */
   onError?: ((err: Error, jobId: string) => void) | undefined;
+  /**
+   * Opt out of the short-lived response cache for this watch.  Defaults to
+   * `true` (caching enabled).  Set to `false` for authenticated/private
+   * lookups where responses must never be reused.
+   */
+  useCache?: boolean | undefined;
+  /** Override the cache lifetime (ms) for this watch. */
+  cacheTtlMs?: number | undefined;
 }
 
 // ---------------------------------------------------------------------------
@@ -141,6 +149,77 @@ function makeStatus(
 }
 
 // ---------------------------------------------------------------------------
+// Response cache for public verification lookups
+// ---------------------------------------------------------------------------
+
+/**
+ * Default lifetime (ms) for cached public verification responses.  Kept short
+ * so navigation between views doesn't trigger redundant requests while never
+ * serving meaningfully stale data.
+ */
+export const DEFAULT_VERIFICATION_CACHE_TTL_MS = 5_000;
+
+interface CacheEntry<T> {
+  value: T;
+  expiresAt: number;
+}
+
+/**
+ * Minimal TTL cache keyed by string.  Entries are evicted lazily on read and
+ * opportunistically on write, so it never grows unbounded during navigation.
+ */
+class TtlCache<T> {
+  private entries = new Map<string, CacheEntry<T>>();
+
+  constructor(private ttlMs: number) {}
+
+  get ttl(): number {
+    return this.ttlMs;
+  }
+
+  setTtl(ttlMs: number): void {
+    this.ttlMs = ttlMs;
+    // Existing entries keep their original expiry; new writes use the new TTL.
+  }
+
+  get(key: string): T | undefined {
+    const entry = this.entries.get(key);
+    if (!entry) return undefined;
+    if (entry.expiresAt <= Date.now()) {
+      this.entries.delete(key);
+      return undefined;
+    }
+    return entry.value;
+  }
+
+  set(key: string, value: T): void {
+    if (this.ttlMs <= 0) return; // caching disabled
+    this.evictExpired();
+    this.entries.set(key, { value, expiresAt: Date.now() + this.ttlMs });
+  }
+
+  delete(key: string): void {
+    this.entries.delete(key);
+  }
+
+  clear(): void {
+    this.entries.clear();
+  }
+
+  private evictExpired(): void {
+    const now = Date.now();
+    for (const [key, entry] of this.entries) {
+      if (entry.expiresAt <= now) this.entries.delete(key);
+    }
+  }
+}
+
+/** Cache key for a public verification lookup. */
+function cacheKeyFor(txHash: string, requestId: string): string {
+  return `verification:${requestId || "-"}:${txHash || "-"}`;
+}
+
+// ---------------------------------------------------------------------------
 // Horizon transaction poller
 // ---------------------------------------------------------------------------
 
@@ -148,13 +227,33 @@ const DEFAULT_HORIZON = "https://horizon-testnet.stellar.org";
 
 type HorizonTxStatus = "SUCCESS" | "FAILED" | "NOT_FOUND" | "PENDING";
 
-async function fetchTxStatus(txHash: string, horizonUrl: string): Promise<HorizonTxStatus> {
+/**
+ * Fetch the on-ledger status of a transaction.  Public, non-sensitive
+ * responses are cached briefly; transient/unknown states are never cached so
+ * stale data can't be reused.
+ */
+async function fetchTxStatus(
+  txHash: string,
+  horizonUrl: string,
+  cache: TtlCache<HorizonTxStatus>,
+  useCache: boolean
+): Promise<HorizonTxStatus> {
+  const key = cacheKeyFor(txHash, "");
+  if (useCache) {
+    const cached = cache.get(key);
+    if (cached !== undefined) return cached;
+  }
   try {
     const res = await fetch(`${horizonUrl}/transactions/${txHash}`, { cache: "no-store" });
     if (res.status === 404) return "NOT_FOUND";
     if (!res.ok) return "PENDING";
     const data = await res.json();
-    return data.successful === true ? "SUCCESS" : "FAILED";
+    const status: HorizonTxStatus = data.successful === true ? "SUCCESS" : "FAILED";
+    // Only cache definitive, public outcomes — never transient states.
+    if (useCache && (status === "SUCCESS" || status === "FAILED")) {
+      cache.set(key, status);
+    }
+    return status;
   } catch {
     return "PENDING";
   }
@@ -179,6 +278,30 @@ interface PollRecord {
 
 class VerificationStatusService {
   private polls = new Map<string, PollRecord>();
+  private cache = new TtlCache<HorizonTxStatus>(DEFAULT_VERIFICATION_CACHE_TTL_MS);
+
+  /** Adjust the default cache lifetime (ms).  `0` disables caching. */
+  setCacheTtl(ttlMs: number): void {
+    this.cache.setTtl(ttlMs);
+  }
+
+  /** Current default cache lifetime (ms). */
+  get cacheTtlMs(): number {
+    return this.cache.ttl;
+  }
+
+  /**
+   * Invalidate cached verification lookups.  Call after any relevant update
+   * (e.g. a new request is submitted or a status changes) so stale data is
+   * never reused.
+   */
+  invalidateCache(jobId?: string, requestId?: string): void {
+    if (jobId === undefined && requestId === undefined) {
+      this.cache.clear();
+      return;
+    }
+    this.cache.delete(cacheKeyFor(jobId ?? "", requestId ?? ""));
+  }
 
   /**
    * Begin polling for `jobId`.
@@ -197,7 +320,16 @@ class VerificationStatusService {
       onUpdate: opts.onUpdate,
       onTerminal: opts.onTerminal,
       onError: opts.onError,
+      useCache: opts.useCache ?? true,
+      cacheTtlMs: opts.cacheTtlMs ?? this.cache.ttl,
     };
+
+    // Apply a per-watch TTL override without disturbing the shared default.
+    const cache = this.cache;
+    const useCache = fullOpts.useCache && fullOpts.cacheTtlMs > 0;
+    if (fullOpts.cacheTtlMs !== cache.ttl) {
+      cache.setTtl(fullOpts.cacheTtlMs);
+    }
 
     // Emit the initial "submitted" status immediately
     const initial = makeStatus(jobId, "submitted", {
@@ -232,6 +364,8 @@ class VerificationStatusService {
         message: extras?.message,
       });
       fullOpts.onUpdate(status);
+      // Any status change makes previously cached lookups stale.
+      this.invalidateCache(jobId, fullOpts.requestId || undefined);
       if (status.terminal) {
         fullOpts.onTerminal?.(status);
         this.unwatch(jobId);
@@ -243,7 +377,12 @@ class VerificationStatusService {
       try {
         // Step 1 — confirm the transaction landed on the ledger
         if (record.lastPhase === "submitted" && fullOpts.txHash) {
-          const txStatus = await fetchTxStatus(fullOpts.txHash, fullOpts.horizonUrl);
+          const txStatus = await fetchTxStatus(
+            fullOpts.txHash,
+            fullOpts.horizonUrl,
+            cache,
+            useCache
+          );
           if (txStatus === "FAILED") {
             emit("failed");
             return;

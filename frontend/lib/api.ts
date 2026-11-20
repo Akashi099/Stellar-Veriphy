@@ -12,8 +12,56 @@ import type {
 } from "@stellarveriphy/shared";
 import { resolveApiEndpoint } from "@/config";
 import { ApiError, apiErrorFromResponse, createRequestId, networkError } from "@/lib/apiErrors";
+import { logger } from "@/lib/logger";
 
 export { ApiError };
+
+/**
+ * Correlation identifiers captured from API responses. These are safe to show
+ * to support staff: they never contain request bodies or auth headers.
+ */
+export interface SupportDiagnostics {
+  method: string;
+  path: string;
+  status: number;
+  timestamp: string;
+  requestId: string | null;
+  message: string;
+}
+
+/**
+ * Builds a privacy-safe diagnostics payload for the support flow. Only
+ * correlation metadata is included — never request bodies, headers or tokens.
+ */
+export function buildSupportDiagnostics(error: unknown): SupportDiagnostics {
+  if (error instanceof ApiError) {
+    return {
+      method: error.method ?? "GET",
+      path: error.path ?? "",
+      status: error.status,
+      timestamp: error.timestamp ?? new Date().toISOString(),
+      requestId: error.requestId ?? null,
+      message: error.message,
+    };
+  }
+  return {
+    method: "GET",
+    path: "",
+    status: 0,
+    timestamp: new Date().toISOString(),
+    requestId: null,
+    message: error instanceof Error ? error.message : "Unknown error",
+  };
+}
+
+/**
+ * Reads the server-provided correlation ID from a response, preferring the
+ * canonical `x-request-id` header and falling back to `request-id`.
+ */
+function responseRequestId(res: Response | null): string | null {
+  if (!res) return null;
+  return res.headers.get("x-request-id") ?? res.headers.get("request-id");
+}
 
 /**
  * Statuses that indicate the verification service is temporarily unavailable
@@ -217,7 +265,13 @@ async function performRequest<T>(
     const body = res ? await res.json().catch(() => null) : null;
     if (res?.ok) return body.data as T;
 
+    // Prefer the server-provided correlation ID so client and server logs agree.
+    const correlationId = responseRequestId(res) ?? requestId;
     lastError = res ? apiErrorFromResponse(res, body) : networkError(requestId);
+    lastError.requestId = correlationId;
+    lastError.method = (fetchInit.method ?? "GET").toUpperCase();
+    lastError.path = pathOrUrl;
+    lastError.timestamp = new Date().toISOString();
     const retryAfter = Number(res?.headers.get("Retry-After") ?? body?.retryAfterSeconds);
     const retryAfterSeconds = Number.isFinite(retryAfter) && retryAfter > 0 ? retryAfter : undefined;
     const rateLimitMessage =
@@ -241,15 +295,15 @@ async function performRequest<T>(
     );
 
     if (attempt >= maxAttempts || !shouldRetry(status)) {
-      if (attempt > 1) {
-        console.error("API request failed after retry attempts", {
-          url,
-          attempts: attempt,
-          status,
-          requestId: lastError.requestId,
-          message: lastError.message,
-        });
-      }
+      // Structured log with correlation metadata only — never bodies or headers.
+      logger.error("API request failed", {
+        component: "api",
+        operation: lastError.method,
+        path: lastError.path,
+        status,
+        requestId: lastError.requestId,
+        attempts: attempt,
+      });
       throw lastError;
     }
 
@@ -262,8 +316,10 @@ async function performRequest<T>(
       delayMs,
       reason: status === 0 ? "network unavailable" : status === 429 ? "rate limited" : `HTTP ${status}`,
     });
-    console.warn("Transient API request failure; retrying", {
-      url,
+    logger.warn("Transient API request failure; retrying", {
+      component: "api",
+      operation: lastError.method,
+      path: lastError.path,
       attempt,
       nextAttempt: attempt + 1,
       maxAttempts,

@@ -23,6 +23,92 @@ import {
 } from "./app";
 
 // ---------------------------------------------------------------------------
+// Verification response cache
+// ---------------------------------------------------------------------------
+
+/** Default lifetime for cached public verification lookups (30 s). */
+const DEFAULT_VERIFICATION_CACHE_TTL_MS = 30_000;
+
+/**
+ * Short-lived TTL for cached public verification responses.
+ *
+ * Overridable via `NEXT_PUBLIC_VERIFICATION_CACHE_TTL_MS`. Invalid or
+ * non-positive values fall back to the default.
+ */
+export const VERIFICATION_CACHE_TTL_MS: number = (() => {
+  const raw = process.env.NEXT_PUBLIC_VERIFICATION_CACHE_TTL_MS;
+  const parsed = raw != null ? Number(raw) : NaN;
+  return Number.isFinite(parsed) && parsed > 0
+    ? parsed
+    : DEFAULT_VERIFICATION_CACHE_TTL_MS;
+})();
+
+/** Options accepted by `createTtlCache`. */
+export interface TtlCacheOptions {
+  /** Entry lifetime in milliseconds. Defaults to `VERIFICATION_CACHE_TTL_MS`. */
+  ttlMs?: number;
+  /** Clock source (injectable for tests). Defaults to `Date.now`. */
+  now?: () => number;
+}
+
+/** Minimal TTL cache interface. */
+export interface TtlCache<K, V> {
+  /** Return a cached value if present and not expired; otherwise `undefined`. */
+  get(key: K): V | undefined;
+  /** Store a value for `ttlMs` from now. */
+  set(key: K, value: V): void;
+  /** Remove a single entry. */
+  invalidate(key: K): void;
+  /** Remove every entry. */
+  clear(): void;
+}
+
+/**
+ * Create a small in-memory TTL cache keyed by lookup parameters.
+ *
+ * Expired entries are treated as absent and lazily evicted on access.
+ * Callers are responsible for only storing safe, public, successful
+ * responses — never private data or error results.
+ *
+ * @example
+ * ```ts
+ * const cache = createTtlCache<string, VerificationResult>();
+ * const cached = cache.get(code);
+ * if (cached) return cached;
+ * const result = await verify(code);
+ * if (result.ok) cache.set(code, result);
+ * ```
+ */
+export function createTtlCache<K, V>(
+  options: TtlCacheOptions = {},
+): TtlCache<K, V> {
+  const ttlMs = options.ttlMs ?? VERIFICATION_CACHE_TTL_MS;
+  const now = options.now ?? Date.now;
+  const store = new Map<K, { value: V; expiresAt: number }>();
+
+  return {
+    get(key) {
+      const entry = store.get(key);
+      if (!entry) return undefined;
+      if (entry.expiresAt <= now()) {
+        store.delete(key);
+        return undefined;
+      }
+      return entry.value;
+    },
+    set(key, value) {
+      store.set(key, { value, expiresAt: now() + ttlMs });
+    },
+    invalidate(key) {
+      store.delete(key);
+    },
+    clear() {
+      store.clear();
+    },
+  };
+}
+
+// ---------------------------------------------------------------------------
 // Singleton QueryClient
 // ---------------------------------------------------------------------------
 
@@ -116,6 +202,12 @@ export const queryKeys = {
     /** Cryptographic authenticity check for one certificate. */
     authenticity: (id: string) =>
       [...queryKeys.certificates.all, "authenticity", id] as const,
+    /** All public verification lookups (short-lived cache). */
+    verifications: () =>
+      [...queryKeys.certificates.all, "verification"] as const,
+    /** A public verification lookup keyed by its lookup parameters. */
+    verification: (params: unknown) =>
+      [...queryKeys.certificates.verifications(), params] as const,
   },
 
   transactions: {

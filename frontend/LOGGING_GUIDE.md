@@ -540,6 +540,67 @@ For production, aggregate logs using:
 }
 ```
 
+## API Request Correlation IDs
+
+Every API call made through the frontend services layer is tagged with a correlation ID so that a single failed request can be traced end-to-end from the browser to the server logs.
+
+### How Request IDs Are Captured
+
+- The API client reads the correlation identifier from the response headers (`x-request-id`, falling back to `x-correlation-id`).
+- If the server does not return an ID, the client generates one locally and attaches it to the outgoing request so the value is still consistent for that call.
+- The ID is recorded on **every failed call** (network errors, non-2xx responses, timeouts) and included in the structured log entry via the `requestId` field.
+
+```typescript
+// services/apiClient.ts (illustrative)
+import { logger } from "@/lib/logger";
+
+try {
+  const response = await fetch(url, { headers: { "x-request-id": requestId } });
+  if (!response.ok) {
+    logger.error("API request failed", {
+      requestId: response.headers.get("x-request-id") ?? requestId,
+      endpoint: path,
+      status: response.status,
+      error: formatError(error),
+    });
+  }
+} catch (error) {
+  logger.error("API request failed", {
+    requestId,
+    endpoint: path,
+    error: formatError(error),
+  });
+}
+```
+
+### Surfacing the ID in the Error UI
+
+When a request fails, the error component displays the correlation ID in a copyable form (e.g. "Reference: `req_abc123`"). Users can copy this value and share it with support. The ID is also written to the browser console log at `error` level for users who can access developer tools.
+
+### Support Diagnostics Flow
+
+1. **Ask the user for the correlation ID.** It appears in the error message shown in the UI, prefixed with `Reference:`. If the user cannot see it, ask them to open the browser console and look for the `API request failed` log entry, which contains `requestId`.
+2. **Look up the ID in server logs.** Search the aggregated logs for the `requestId` field:
+
+   ```json
+   {
+     "requestId": "req_abc123"
+   }
+   ```
+
+   This returns every log entry associated with that request across the frontend and backend, including the endpoint, status code, duration, and error details.
+3. **Correlate with APM/tracing.** The same ID is propagated as the `x-request-id` header, so it can be matched against traces in your APM tool.
+
+### Privacy: Request Bodies Are Never Included
+
+Diagnostics are designed to be privacy-safe:
+
+- **Request and response bodies are never logged** as part of the correlation flow. Only the request ID, endpoint path, HTTP method, status code, and timing are recorded.
+- Sensitive fields (tokens, keys, personal data) are never attached to log context.
+- The correlation ID itself is an opaque identifier and contains no user data.
+
+When adding new logging around API calls, always log the `requestId` and metadata — never the payload.
+
 ## Troubleshooting
 
 ### Logs Not Appearing

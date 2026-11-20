@@ -731,3 +731,236 @@ export function checkWebVitalsThresholds(): {
     violations,
   };
 }
+
+// ============================================================================
+// Web Vitals Regression Testing
+// ============================================================================
+
+/**
+ * Documented default Web Vitals thresholds used for regression tests.
+ *
+ * Based on Google's "good" thresholds:
+ * - LCP (Largest Contentful Paint): <= 2500ms
+ * - CLS (Cumulative Layout Shift): <= 0.1
+ * - INP (Interaction to Next Paint): <= 200ms
+ *
+ * Each threshold can be overridden via environment variables so CI
+ * environments (which are typically slower/noisier) can relax them:
+ * - `NEXT_PUBLIC_WEB_VITALS_LCP_THRESHOLD`
+ * - `NEXT_PUBLIC_WEB_VITALS_CLS_THRESHOLD`
+ * - `NEXT_PUBLIC_WEB_VITALS_INP_THRESHOLD`
+ */
+export interface WebVitalsThresholds {
+  /** Maximum acceptable LCP in milliseconds. */
+  LCP: number;
+  /** Maximum acceptable CLS score. */
+  CLS: number;
+  /** Maximum acceptable INP in milliseconds. */
+  INP: number;
+}
+
+/**
+ * Parse a numeric environment variable, falling back to a default.
+ *
+ * @internal
+ */
+function readEnvThreshold(name: string, fallback: number): number {
+  const raw =
+    typeof process !== "undefined" && process.env ? process.env[name] : undefined;
+  if (raw === undefined || raw === "") return fallback;
+  const parsed = Number(raw);
+  return Number.isFinite(parsed) && parsed >= 0 ? parsed : fallback;
+}
+
+/**
+ * Default Web Vitals thresholds, overridable via environment variables.
+ *
+ * @example
+ * ```ts
+ * const thresholds = getWebVitalsThresholds();
+ * if (vitals.LCP > thresholds.LCP) fail(`LCP regression on ${page}`);
+ * ```
+ */
+export function getWebVitalsThresholds(): WebVitalsThresholds {
+  return {
+    LCP: readEnvThreshold("NEXT_PUBLIC_WEB_VITALS_LCP_THRESHOLD", 2500),
+    CLS: readEnvThreshold("NEXT_PUBLIC_WEB_VITALS_CLS_THRESHOLD", 0.1),
+    INP: readEnvThreshold("NEXT_PUBLIC_WEB_VITALS_INP_THRESHOLD", 200),
+  };
+}
+
+/**
+ * Documented default thresholds (evaluated once at module load).
+ */
+export const DEFAULT_WEB_VITALS_THRESHOLDS: WebVitalsThresholds =
+  getWebVitalsThresholds();
+
+/**
+ * Web Vitals values collected for a single page.
+ */
+export interface CollectedWebVitals {
+  /** Route/page identifier the vitals were collected for. */
+  page: string;
+  /** Largest Contentful Paint in ms (undefined if never observed). */
+  LCP?: number;
+  /** Cumulative Layout Shift score (undefined if never observed). */
+  CLS?: number;
+  /** Interaction to Next Paint in ms (undefined if never observed). */
+  INP?: number;
+}
+
+/**
+ * Options for {@link collectWebVitals}.
+ */
+export interface CollectWebVitalsOptions {
+  /** Maximum time to wait for metrics before resolving (default 10000ms). */
+  timeout?: number;
+  /** Optional callback invoked whenever a metric is updated. */
+  onUpdate?: (vitals: CollectedWebVitals) => void;
+}
+
+/**
+ * Collect LCP, CLS, and INP for a representative page/route.
+ *
+ * Installs `PerformanceObserver`s for `largest-contentful-paint`,
+ * `layout-shift`, and `event` (falling back to `first-input` when `event`
+ * is unsupported). Resolves after the window `load` event and an idle
+ * callback (or the configured timeout), returning the collected values.
+ *
+ * Safe to call in non-browser environments: resolves with only the `page`
+ * field populated.
+ *
+ * @param page - Route identifier used to attribute regressions (e.g. "/verify").
+ * @param options - Optional timeout and update callback.
+ * @returns Collected Web Vitals for the page.
+ *
+ * @example
+ * ```ts
+ * const vitals = await collectWebVitals('/verify');
+ * const thresholds = getWebVitalsThresholds();
+ * if (vitals.LCP && vitals.LCP > thresholds.LCP) {
+ *   throw new Error(`LCP regression on ${vitals.page}`);
+ * }
+ * ```
+ */
+export function collectWebVitals(
+  page: string,
+  options: CollectWebVitalsOptions = {}
+): Promise<CollectedWebVitals> {
+  const { timeout = 10000, onUpdate } = options;
+  const result: CollectedWebVitals = { page };
+
+  if (typeof window === "undefined" || !("PerformanceObserver" in window)) {
+    return Promise.resolve(result);
+  }
+
+  const observers: PerformanceObserver[] = [];
+  const notify = () => onUpdate?.({ ...result });
+
+  const observe = (entryTypes: string[], callback: PerformanceObserverCallback) => {
+    try {
+      const observer = new PerformanceObserver(callback);
+      observer.observe({ entryTypes, type: entryTypes[0] } as PerformanceObserverInit);
+      observers.push(observer);
+    } catch (err) {
+      logger.debug(`Web Vitals observer failed for ${entryTypes.join(",")}`, {
+        page,
+        error: String(err),
+      });
+    }
+  };
+
+  // Largest Contentful Paint
+  observe(["largest-contentful-paint"], (list) => {
+    const entries = list.getEntries();
+    const last = entries[entries.length - 1] as
+      | (PerformanceEntry & { renderTime?: number; loadTime?: number })
+      | undefined;
+    if (!last) return;
+    const lcp = last.renderTime || last.loadTime || last.startTime;
+    if (lcp !== undefined) {
+      result.LCP = lcp;
+      notify();
+    }
+  });
+
+  // Cumulative Layout Shift
+  let clsValue = 0;
+  observe(["layout-shift"], (list) => {
+    for (const entry of list.getEntries()) {
+      const shift = entry as PerformanceEntry & {
+        hadRecentInput?: boolean;
+        value?: number;
+      };
+      if (shift.hadRecentInput) continue;
+      clsValue += shift.value ?? 0;
+    }
+    result.CLS = clsValue;
+    notify();
+  });
+
+  // Interaction to Next Paint (with first-input fallback)
+  let maxInteraction = 0;
+  const handleInteraction = (list: PerformanceObserverEntryList) => {
+    for (const entry of list.getEntries()) {
+      const interaction = entry as PerformanceEntry & { duration?: number };
+      const duration = interaction.duration ?? 0;
+      if (duration > maxInteraction) {
+        maxInteraction = duration;
+        result.INP = maxInteraction;
+        notify();
+      }
+    }
+  };
+  const supportsEvent = (
+    PerformanceObserver as unknown as { supportedEntryTypes?: string[] }
+  ).supportedEntryTypes?.includes("event");
+  if (supportsEvent) {
+    observe(["event"], handleInteraction);
+  } else {
+    observe(["first-input"], handleInteraction);
+  }
+
+  return new Promise<CollectedWebVitals>((resolve) => {
+    let settled = false;
+    const finish = () => {
+      if (settled) return;
+      settled = true;
+      for (const observer of observers) {
+        try {
+          observer.disconnect();
+        } catch {
+          // ignore
+        }
+      }
+      resolve({ ...result });
+    };
+
+    const timer = setTimeout(finish, timeout);
+
+    const scheduleFinish = () => {
+      const idle = (
+        window as unknown as {
+          requestIdleCallback?: (cb: () => void, opts?: { timeout: number }) => number;
+        }
+      ).requestIdleCallback;
+      if (typeof idle === "function") {
+        idle(() => {
+          clearTimeout(timer);
+          finish();
+        }, { timeout: 2000 });
+      } else {
+        setTimeout(() => {
+          clearTimeout(timer);
+          finish();
+        }, 0);
+      }
+    };
+
+    if (document.readyState === "complete") {
+      scheduleFinish();
+    } else {
+      window.addEventListener("load", scheduleFinish, { once: true });
+    }
+  });
+}

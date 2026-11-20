@@ -9,13 +9,24 @@
  * - Recommendations for optimization
  */
 
-import { readFileSync, writeFileSync, readdirSync } from 'fs';
+import { readFileSync, writeFileSync, readdirSync, existsSync, statSync } from 'fs';
 import { join } from 'path';
+import { gzipSync } from 'zlib';
 
 const REPORT_DIR = './.bundle-reports';
 const NEXT_BUILD_DIR = './.next/static/chunks';
+const NEXT_DIR = './.next';
+const APP_BUILD_MANIFEST = join(NEXT_DIR, 'app-build-manifest.json');
+const BUILD_MANIFEST = join(NEXT_DIR, 'build-manifest.json');
+const PACKAGE_JSON = './package.json';
 const TIMESTAMP = new Date().toISOString().split('T')[0];
 const REPORT_FILE = `${REPORT_DIR}/bundle-report-${TIMESTAMP}.json`;
+
+// Budget enforcement mode: 'error' (default) fails the build, 'warn' only warns.
+const BUDGET_MODE = process.env.BUNDLE_BUDGET_MODE === 'warn' ? 'warn' : 'error';
+// Default budget (KB, gzipped) applied to routes without an explicit budget.
+const DEFAULT_ROUTE_BUDGET_KB = 250;
+=======
 
 // Ensure report directory exists
 if (!readdirSync('.').includes('.bundle-reports')) {
@@ -68,6 +79,126 @@ function getBundleInfo() {
 }
 
 /**
+ * Load bundle budgets from package.json (`bundleBudgets` field).
+ * Shape: { "routes": { "/path": 200 }, "default": 250 }
+ * Values are gzipped KB budgets.
+ */
+function loadBudgets() {
+  const budgets = { routes: {}, default: DEFAULT_ROUTE_BUDGET_KB };
+  try {
+    const pkg = JSON.parse(readFileSync(PACKAGE_JSON, 'utf8'));
+    const configured = pkg.bundleBudgets;
+    if (configured && typeof configured === 'object') {
+      if (configured.routes && typeof configured.routes === 'object') {
+        budgets.routes = configured.routes;
+      }
+      if (typeof configured.default === 'number') {
+        budgets.default = configured.default;
+      }
+    }
+  } catch (error) {
+    console.warn('Could not read bundleBudgets from package.json:', error.message);
+  }
+  return budgets;
+}
+
+/**
+ * Resolve a chunk path from a manifest entry to an absolute file path.
+ */
+function resolveChunkPath(chunk) {
+  const candidates = [
+    join(NEXT_DIR, chunk),
+    join(NEXT_DIR, 'static', chunk),
+    join(NEXT_DIR, 'static', 'chunks', chunk)
+  ];
+  return candidates.find(p => existsSync(p)) || null;
+}
+
+/**
+ * Compute gzipped size (bytes) for a set of chunk files, deduplicating.
+ */
+function gzipSizeOfChunks(chunks) {
+  const seen = new Set();
+  let total = 0;
+  chunks.forEach(chunk => {
+    const filePath = resolveChunkPath(chunk);
+    if (!filePath || seen.has(filePath)) return;
+    seen.add(filePath);
+    try {
+      total += gzipSync(readFileSync(filePath)).length;
+    } catch (error) {
+      console.warn(`Could not read chunk ${chunk}:`, error.message);
+    }
+  });
+  return total;
+}
+
+/**
+ * Build a route -> chunks map from Next.js build manifests.
+ */
+function getRouteChunks() {
+  const routes = {};
+
+  const readManifest = file => {
+    try {
+      if (existsSync(file)) {
+        return JSON.parse(readFileSync(file, 'utf8'));
+      }
+    } catch (error) {
+      console.warn(`Could not read manifest ${file}:`, error.message);
+    }
+    return null;
+  };
+
+  // App router: app-build-manifest.json -> { pages: { "/route": [chunks] } }
+  const appManifest = readManifest(APP_BUILD_MANIFEST);
+  if (appManifest && appManifest.pages) {
+    Object.entries(appManifest.pages).forEach(([route, chunks]) => {
+      routes[route] = Array.isArray(chunks) ? chunks : [];
+    });
+  }
+
+  // Pages router: build-manifest.json -> { pages: { "/route": [chunks] } }
+  const buildManifest = readManifest(BUILD_MANIFEST);
+  if (buildManifest && buildManifest.pages) {
+    Object.entries(buildManifest.pages).forEach(([route, chunks]) => {
+      if (!routes[route]) {
+        routes[route] = Array.isArray(chunks) ? chunks : [];
+      }
+    });
+  }
+
+  return routes;
+}
+
+/**
+ * Compute per-route JavaScript sizes and compare against budgets.
+ */
+function getRouteSizes(budgets) {
+  const routeChunks = getRouteChunks();
+  const results = [];
+
+  Object.entries(routeChunks).forEach(([route, chunks]) => {
+    const sizeBytes = gzipSizeOfChunks(chunks);
+    const sizeKB = parseFloat((sizeBytes / 1024).toFixed(2));
+    const budgetKB = typeof budgets.routes[route] === 'number'
+      ? budgets.routes[route]
+      : budgets.default;
+    const passed = sizeKB <= budgetKB;
+    results.push({
+      route,
+      sizeKB,
+      budgetKB,
+      passed,
+      overByKB: passed ? 0 : parseFloat((sizeKB - budgetKB).toFixed(2))
+    });
+  });
+
+  results.sort((a, b) => b.sizeKB - a.sizeKB);
+  return results;
+}
+
+/**
  * Generate markdown report
  */
 function generateMarkdownReport(info) {
@@ -107,12 +238,30 @@ function generateMarkdownReport(info) {
   markdown += `- ✓ Enable gzip compression in production.\n`;
   markdown += `- ✓ Monitor bundle size changes in CI/CD pipeline.\n`;
 
+  if (info.routes && info.routes.length > 0) {
+    markdown += `\n## Route Budgets (gzipped JS)\n\n`;
+    markdown += `| Route | Size (KB) | Budget (KB) | Status |\n`;
+    markdown += `|-------|-----------|-------------|--------|\n`;
+    info.routes.forEach(route => {
+      const status = route.passed
+        ? '✅ pass'
+        : `❌ over by ${route.overByKB}KB`;
+      markdown += `| ${route.route} | ${route.sizeKB} | ${route.budgetKB} | ${status} |\n`;
+    });
+  }
+
   return markdown;
 }
 
 // Generate report
 console.log('🔍 Analyzing bundle...');
 const bundleInfo = getBundleInfo();
+
+// Route-level budget analysis
+const budgets = loadBudgets();
+bundleInfo.routes = getRouteSizes(budgets);
+bundleInfo.budgetMode = BUDGET_MODE;
+bundleInfo.budgetViolations = bundleInfo.routes.filter(r => !r.passed);
 
 // Save JSON report
 writeFileSync(REPORT_FILE, JSON.stringify(bundleInfo, null, 2));
@@ -132,5 +281,28 @@ console.log('\nTop 5 Largest Bundles:');
 bundleInfo.bundles.slice(0, 5).forEach((bundle, idx) => {
   console.log(`${idx + 1}. ${bundle.name} (${bundle.sizeKB}KB)`);
 });
+
+// Report route budgets
+if (bundleInfo.routes.length > 0) {
+  console.log('\n📏 Route Budgets (gzipped JS):');
+  bundleInfo.routes.forEach(route => {
+    const status = route.passed
+      ? '✓'
+      : `✗ over by ${route.overByKB}KB`;
+    console.log(`  ${status} ${route.route}: ${route.sizeKB}KB / ${route.budgetKB}KB`);
+  });
+}
+
+// Enforce budgets
+if (bundleInfo.budgetViolations.length > 0) {
+  const message = `${bundleInfo.budgetViolations.length} route(s) exceeded their bundle budget.`;
+  if (BUDGET_MODE === 'warn') {
+    console.warn(`\n⚠️  ${message} (BUNDLE_BUDGET_MODE=warn, not failing build)`);
+    process.exit(0);
+  }
+  console.error(`\n❌ ${message}`);
+  console.error('Set BUNDLE_BUDGET_MODE=warn to downgrade this to a warning.');
+  process.exit(1);
+}
 
 process.exit(0);

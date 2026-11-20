@@ -166,12 +166,26 @@ export function networkError(requestId?: string): ApiError {
   return new ApiError(NETWORK_MESSAGE, 0, [], undefined, requestId, "network_error");
 }
 
+/** Reads the server correlation ID from the response headers, if present. */
+export function correlationIdFromResponse(res: Response): string | undefined {
+  return (
+    stringValue(res.headers.get("x-request-id")) ??
+    stringValue(res.headers.get("request-id")) ??
+    undefined
+  );
+}
+
 /** Converts a non-OK response (and its parsed JSON body, if any) into an ApiError. */
-export function apiErrorFromResponse(res: Response, body: unknown): ApiError {
+export function apiErrorFromResponse(
+  res: Response,
+  body: unknown,
+  fallbackRequestId?: string
+): ApiError {
   const b = (body && typeof body === "object" ? body : {}) as Record<string, unknown>;
   const requestId =
+    correlationIdFromResponse(res) ??
     (typeof b.requestId === "string" ? b.requestId : undefined) ??
-    res.headers.get("X-Request-Id") ??
+    fallbackRequestId ??
     undefined;
   const code =
     typeof b.code === "string" ? b.code : typeof b.status === "string" ? b.status : undefined;
@@ -233,8 +247,47 @@ export async function fetchJson<T = unknown>(input: string, init?: RequestInit):
     throw networkError(requestId);
   }
   const body = await res.json().catch(() => null);
-  if (!res.ok) throw apiErrorFromResponse(res, body);
+  if (!res.ok) throw apiErrorFromResponse(res, body, requestId);
   return body as T;
+}
+
+/**
+ * Privacy-safe support diagnostics for a failed API call (#914).
+ *
+ * Contains only correlation metadata — never request/response bodies, headers
+ * or user data — so it can be copied into a support ticket safely.
+ */
+export interface SupportDiagnostics {
+  /** HTTP method of the failed call, when known. */
+  method?: string;
+  /** Request path (query string stripped) of the failed call, when known. */
+  path?: string;
+  /** HTTP status, or 0 for network failures. */
+  status: number;
+  /** ISO timestamp of when the diagnostics were generated. */
+  timestamp: string;
+  /** Correlation ID to quote to support; matches the server's request log. */
+  requestId?: string;
+  /** User-facing error message (already sanitized by the API layer). */
+  message: string;
+}
+
+/** Builds a redacted diagnostics object from any thrown error. */
+export function toSupportDiagnostics(error: unknown): SupportDiagnostics {
+  const timestamp = new Date().toISOString();
+  if (error instanceof ApiError) {
+    return {
+      status: error.httpStatus,
+      timestamp,
+      requestId: error.requestId,
+      message: error.message,
+    };
+  }
+  return {
+    status: 0,
+    timestamp,
+    message: error instanceof Error && error.message ? error.message : "Unknown error",
+  };
 }
 
 export interface ErrorDescription {

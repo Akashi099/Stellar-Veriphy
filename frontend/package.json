@@ -23,7 +23,15 @@
     "test:a11y:pages": "playwright test e2e/accessibility.spec.ts",
     "test:a11y:components": "jest --runInBand --config jest.config.js --selectProjects components --testPathPattern=accessibility.test.tsx",
     "test:a11y:report": "node scripts/a11y-report.mjs",
-    "bundle:analyze": "node scripts/bundle-analyzer.mjs"
+    "bundle:analyze": "node scripts/bundle-analyzer.mjs",
+    "bundle:check": "node scripts/bundle-analyzer.mjs --enforce"
+  },
+  "bundleBudgets": {
+    "_comment": "Per-route gzip JavaScript budgets in KB. Maintained here; review and update whenever routes or their dependencies change. Enforced in CI via `npm run bundle:check`.",
+    "/": 200,
+    "/certificates": 250,
+    "/dashboard": 300,
+    "/verify": 250
   },
   "dependencies": {
     "@stellarveriphy/shared": "workspace:*",

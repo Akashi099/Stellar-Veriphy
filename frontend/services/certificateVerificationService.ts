@@ -21,6 +21,7 @@
 
 import type { AttestationEvidence, ContentManifest } from "@stellarveriphy/shared/types";
 import type { ProvenanceAnchor } from "@stellarveriphy/shared/types";
+import { createTtlCache, type TtlCache } from "../config/cache";
 
 export type CertificateLookupMethod = "id" | "code" | "creator";
 
@@ -156,6 +157,67 @@ const VERIFICATION_CODES: Map<string, string> = new Map([
 const NOW = Math.floor(Date.now() / 1000);
 
 // ---------------------------------------------------------------------------
+// Response cache
+// ---------------------------------------------------------------------------
+
+/**
+ * Short-lived cache for public verification lookups. Only safe, public
+ * responses are stored; anything fetched with auth/private context bypasses
+ * the cache entirely so private data is never reused.
+ */
+const verificationCache: TtlCache<CertificateVerificationResult> =
+  createTtlCache<CertificateVerificationResult>();
+
+const creatorCache: TtlCache<CertificateSearchResult> =
+  createTtlCache<CertificateSearchResult>();
+
+/** Optional caller context. When `private`/`auth` is set, caching is skipped. */
+export interface VerificationLookupContext {
+  /** Auth token or session marker; presence disables caching. */
+  authToken?: string;
+  /** Explicitly mark the lookup as private; disables caching. */
+  private?: boolean;
+}
+
+function isCacheableContext(context?: VerificationLookupContext): boolean {
+  if (!context) return true;
+  if (context.private) return false;
+  if (context.authToken) return false;
+  return true;
+}
+
+function certificateCacheKey(method: CertificateLookupMethod, value: string): string {
+  return `${method}:${value}`;
+}
+
+function creatorCacheKey(creator: string, offset: number, limit: number): string {
+  return `creator:${creator}:${offset}:${limit}`;
+}
+
+/**
+ * Invalidate cached verification responses.
+ *
+ * @param idOrCode Optional certificate id or verification code. When provided,
+ *   only entries for that certificate are cleared; otherwise the entire
+ *   verification cache is flushed.
+ */
+export function invalidateCertificateCache(idOrCode?: string): void {
+  if (!idOrCode) {
+    verificationCache.clear();
+    creatorCache.clear();
+    return;
+  }
+
+  const normalized = idOrCode.toUpperCase();
+  const certId = VERIFICATION_CODES.get(normalized) ?? idOrCode;
+
+  verificationCache.delete(certificateCacheKey("id", certId));
+  verificationCache.delete(certificateCacheKey("code", normalized));
+  // Creator listings may include the affected certificate, so drop them too.
+  creatorCache.clear();
+}
+
+// ---------------------------------------------------------------------------
 // Helper: simulate contract call delay
 // ---------------------------------------------------------------------------
 
@@ -257,8 +319,19 @@ function buildVerificationResult(
  * Look up a certificate by its on-chain ID.
  */
 export async function getCertificateById(
-  id: string
+  id: string,
+  context?: VerificationLookupContext
 ): Promise<ApiResponse<CertificateVerificationResult>> {
+  const cacheable = isCacheableContext(context);
+  const cacheKey = certificateCacheKey("id", id);
+
+  if (cacheable) {
+    const cached = verificationCache.get(cacheKey);
+    if (cached) {
+      return { success: true, data: cached };
+    }
+  }
+
   try {
     await delay();
 
@@ -270,9 +343,14 @@ export async function getCertificateById(
       };
     }
 
+    const result = buildVerificationResult(cert, id);
+    if (cacheable) {
+      verificationCache.set(cacheKey, result);
+    }
+
     return {
       success: true,
-      data: buildVerificationResult(cert, id),
+      data: result,
     };
   } catch (err) {
     return {
@@ -286,12 +364,24 @@ export async function getCertificateById(
  * Look up a certificate using its 8-character verification code.
  */
 export async function getCertificateByCode(
-  code: string
+  code: string,
+  context?: VerificationLookupContext
 ): Promise<ApiResponse<CertificateVerificationResult>> {
+  const normalizedCode = code.toUpperCase();
+  const cacheable = isCacheableContext(context);
+  const cacheKey = certificateCacheKey("code", normalizedCode);
+
+  if (cacheable) {
+    const cached = verificationCache.get(cacheKey);
+    if (cached) {
+      return { success: true, data: cached };
+    }
+  }
+
   try {
     await delay();
 
-    const certId = VERIFICATION_CODES.get(code.toUpperCase());
+    const certId = VERIFICATION_CODES.get(normalizedCode);
     if (!certId) {
       return {
         success: false,
@@ -307,9 +397,14 @@ export async function getCertificateByCode(
       };
     }
 
+    const result = buildVerificationResult(cert, certId);
+    if (cacheable) {
+      verificationCache.set(cacheKey, result);
+    }
+
     return {
       success: true,
-      data: buildVerificationResult(cert, certId),
+      data: result,
     };
   } catch (err) {
     return {
@@ -325,8 +420,19 @@ export async function getCertificateByCode(
 export async function getCertificatesByCreator(
   creator: string,
   offset = 0,
-  limit = 10
+  limit = 10,
+  context?: VerificationLookupContext
 ): Promise<ApiResponse<CertificateSearchResult>> {
+  const cacheable = isCacheableContext(context);
+  const cacheKey = creatorCacheKey(creator, offset, limit);
+
+  if (cacheable) {
+    const cached = creatorCache.get(cacheKey);
+    if (cached) {
+      return { success: true, data: cached };
+    }
+  }
+
   try {
     await delay();
 
@@ -337,14 +443,20 @@ export async function getCertificatesByCreator(
     const total = allCerts.length;
     const sliced = allCerts.slice(offset, offset + limit);
 
+    const result: CertificateSearchResult = {
+      certificates: sliced,
+      total,
+      offset,
+      limit,
+    };
+
+    if (cacheable) {
+      creatorCache.set(cacheKey, result);
+    }
+
     return {
       success: true,
-      data: {
-        certificates: sliced,
-        total,
-        offset,
-        limit,
-      },
+      data: result,
     };
   } catch (err) {
     return {
@@ -476,6 +588,7 @@ export async function generateVerificationCode(
       code += chars[Math.floor(Math.random() * 36)];
     }
     VERIFICATION_CODES.set(code, certificateId);
+    invalidateCertificateCache(certificateId);
     return { success: true, data: code };
   } catch (err) {
     return {
