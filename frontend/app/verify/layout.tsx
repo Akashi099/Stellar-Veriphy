@@ -15,6 +15,7 @@ export const metadata: Metadata = {
 
 export default function VerifyLayout({ children }: { children: React.ReactNode }) {
   return (
+    <div dir="rtl">
     <>
       <SkipLinks
         links={[
@@ -26,6 +27,6 @@ export default function VerifyLayout({ children }: { children: React.ReactNode }
         <Breadcrumbs items={[{ label: "Verify", href: "/verify" }, { label: "Verification" }]} />
       </div>
       {children}
-    </>
+    </div>
   );
 }

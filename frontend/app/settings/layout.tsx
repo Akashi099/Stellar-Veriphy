@@ -14,5 +14,5 @@ export const metadata: Metadata = {
 };
 
 export default function SettingsLayout({ children }: { children: ReactNode }) {
-  return <AdminGuard>{children}</AdminGuard>;
+  return <AdminGuard><div dir="rtl">{children}</div></AdminGuard>;
 }
