@@ -1,14 +1,15 @@
 import "./globals.css";
 
-import { GeistMono } from "geist/font/mono";
-import { GeistSans } from "geist/font/sans";
 import type { Metadata } from "next";
+import localFont from "next/font/local";
 
 import { WizardProvider } from "@/app/context/WizardContext";
 // #848 — detect unsupported browser capabilities and surface guidance
 import { BrowserCapabilityBanner } from "@/components/BrowserCapabilityBanner";
 import { ConsentBanner } from "@/components/ConsentBanner";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
+// #917 — observe layout shifts caused by custom font loading/swaps
+import { FontLoadingMetrics } from "@/components/FontLoadingMetrics";
 import { KeyboardShortcutsProvider } from "@/components/KeyboardShortcutsProvider";
 import { MaintenanceBanner } from "@/components/MaintenanceBanner";
 import { NotificationProvider } from "@/components/notifications";
@@ -33,6 +34,44 @@ import { WalletProvider } from "@/context/WalletContext";
 // #440 — wrap application with React Query provider
 import { ReactQueryProvider } from "@/lib/queryClient";
 import { SkipToContentLink } from "@/utils/accessibility";
+
+// #917 — custom fonts with metric-matched fallbacks to minimise layout shift
+// during font swap. `size-adjust`/`ascent-override`/`descent-override` align the
+// fallback's metrics with the custom face so text occupies the same space.
+const GeistSans = localFont({
+  src: [
+    { path: "../public/fonts/Geist-Regular.woff2", weight: "400", style: "normal" },
+    { path: "../public/fonts/Geist-Medium.woff2", weight: "500", style: "normal" },
+    { path: "../public/fonts/Geist-Bold.woff2", weight: "700", style: "normal" },
+  ],
+  variable: "--font-geist-sans",
+  display: "swap",
+  fallback: ["system-ui", "Segoe UI", "Roboto", "Helvetica Neue", "Arial", "sans-serif"],
+  adjustFontFallback: "Arial",
+  declarations: [
+    { prop: "ascent-override", value: "90.2%" },
+    { prop: "descent-override", value: "22.4%" },
+    { prop: "line-gap-override", value: "0%" },
+    { prop: "size-adjust", value: "100%" },
+  ],
+});
+
+const GeistMono = localFont({
+  src: [
+    { path: "../public/fonts/GeistMono-Regular.woff2", weight: "400", style: "normal" },
+    { path: "../public/fonts/GeistMono-Medium.woff2", weight: "500", style: "normal" },
+  ],
+  variable: "--font-geist-mono",
+  display: "swap",
+  fallback: ["ui-monospace", "SFMono-Regular", "Menlo", "Consolas", "monospace"],
+  adjustFontFallback: "Arial",
+  declarations: [
+    { prop: "ascent-override", value: "90.2%" },
+    { prop: "descent-override", value: "22.4%" },
+    { prop: "line-gap-override", value: "0%" },
+    { prop: "size-adjust", value: "100%" },
+  ],
+});
 
 export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),
@@ -94,6 +133,8 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <meta name="format-detection" content="telephone=no" />
       </head>
       <body className={`${GeistSans.variable} ${GeistMono.variable} font-sans safe-inset`}>
+        {/* #917 — capture layout-shift entries during font swap (dev + monitoring) */}
+        <FontLoadingMetrics />
         <SkipToContentLink />
         <ReactQueryProvider>
           {/* #847 — AuthSessionProvider sits above dependent providers so persisted

@@ -20,7 +20,9 @@
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import React, { Suspense } from "react";
 
+import { LazyEvidenceSection } from "@/components/LazyEvidenceSection";
 import { Tab, TabList, TabPanel, TabPanels, Tabs } from "@/components/ui/Tabs";
+import { resolveMediaFallback } from "@/lib/mediaFallback";
 
 export const ASSET_DETAIL_TAB_PARAM = "tab";
 
@@ -28,6 +30,28 @@ export interface AssetDetailTabItem {
   id: string;
   label: string;
   content: React.ReactNode;
+  /**
+   * When true, the panel content is deferred until it scrolls into view
+   * (see #920). The panel reserves space so the page does not jump.
+   */
+  lazy?: boolean;
+  /** Reserved height (px) for a lazy panel before it renders. */
+  lazyMinHeight?: number;
+}
+
+/** Default reserved height for below-fold lazy panels. */
+const DEFAULT_LAZY_MIN_HEIGHT = 320;
+
+/**
+ * Resolves an image source through the bounded media fallback chain (#918).
+ * Returns the standard placeholder when every source fails, so callers never
+ * retry indefinitely and errors degrade to a consistent state.
+ */
+export function resolveAssetImage(
+  primarySrc: string | null | undefined,
+  fallbackSrc?: string | null
+): string {
+  return resolveMediaFallback(primarySrc, fallbackSrc);
 }
 
 /**
@@ -78,7 +102,17 @@ function AssetDetailTabsInner({ tabs }: { tabs: AssetDetailTabItem[] }) {
       <TabPanels className="mt-4">
         {tabs.map((t) => (
           <TabPanel key={t.id} id={t.id}>
-            {t.content}
+            {t.lazy ? (
+              <LazyEvidenceSection
+                id={`asset-detail-panel-${t.id}`}
+                minHeight={t.lazyMinHeight ?? DEFAULT_LAZY_MIN_HEIGHT}
+                eager={t.id === activeId}
+              >
+                {t.content}
+              </LazyEvidenceSection>
+            ) : (
+              t.content
+            )}
           </TabPanel>
         ))}
       </TabPanels>

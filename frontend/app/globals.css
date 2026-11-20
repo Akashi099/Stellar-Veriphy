@@ -9,10 +9,58 @@
   --warning-bg: #fff9db;
   --success: #2b8a3e;
   --success-bg: #ebfbee;
+
+  /* Font stacks: custom font first, metric-matched fallback second */
+  --font-sans: "Inter", "Inter Fallback", system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", "JetBrains Mono Fallback", ui-monospace, monospace;
+}
+
+/*
+ * Metric-matched fallback font faces.
+ * size-adjust / ascent-override / descent-override / line-gap-override align the
+ * fallback's metrics with the custom font so swapping in the real font does not
+ * shift layout (reduces CLS). Values are approximations for Inter / JetBrains Mono
+ * rendered with Arial / Courier New; tune with dev tooling if fonts change.
+ */
+@font-face {
+  font-family: "Inter Fallback";
+  src: local("Arial"), local("Helvetica Neue"), local("Liberation Sans");
+  font-display: swap;
+  size-adjust: 107%;
+  ascent-override: 90%;
+  descent-override: 22.4%;
+  line-gap-override: 0%;
+}
+
+@font-face {
+  font-family: "JetBrains Mono Fallback";
+  src: local("Courier New"), local("Liberation Mono"), local("Menlo");
+  font-display: swap;
+  size-adjust: 100%;
+  ascent-override: 102%;
+  descent-override: 30%;
+  line-gap-override: 0%;
+}
+
+/* Custom font faces: swap to avoid invisible text and reduce layout shift */
+@font-face {
+  font-family: "Inter";
+  src: local("Inter");
+  font-display: swap;
+  font-weight: 100 900;
+  font-style: normal;
+}
+
+@font-face {
+  font-family: "JetBrains Mono";
+  src: local("JetBrains Mono");
+  font-display: swap;
+  font-weight: 100 800;
+  font-style: normal;
 }
 
 * { box-sizing: border-box; }
-body { margin: 0; font-family: system-ui, sans-serif; color: var(--fg); background: var(--bg); line-height: 1.5; }
+body { margin: 0; font-family: var(--font-sans); color: var(--fg); background: var(--bg); line-height: 1.5; }
 main { max-width: 760px; margin: 0 auto; padding: 1.5rem 1rem 4rem; }
 a { color: var(--accent); }
 
@@ -38,7 +86,7 @@ button.link { border: 0; background: none; color: var(--accent); padding: 0; tex
 .muted { color: var(--muted); }
 .error-text { color: var(--error); }
 .hint { color: var(--muted); }
-.hash { font-family: ui-monospace, monospace; font-size: 0.85em; word-break: break-all; }
+.hash { font-family: var(--font-mono); font-size: 0.85em; word-break: break-all; }
 .hash-diff .diff { background: #ffc9c9; color: var(--error); font-weight: 700; }
 
 .notice { border-radius: 8px; padding: 0.75rem 1rem; margin: 0.5rem 0; }
@@ -136,6 +184,7 @@ button.link { border: 0; background: none; color: var(--accent); padding: 0; tex
 
   body {
     @apply bg-background text-foreground;
+    font-family: var(--font-sans);
     -webkit-tap-highlight-color: transparent;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
@@ -236,6 +285,15 @@ button.link { border: 0; background: none; color: var(--accent); padding: 0; tex
   /* Responsive typography utilities */
   .text-balance {
     text-wrap: balance;
+  }
+
+  /* Font stack utilities */
+  .font-sans {
+    font-family: var(--font-sans);
+  }
+
+  .font-mono {
+    font-family: var(--font-mono);
   }
 
   .text-pretty {

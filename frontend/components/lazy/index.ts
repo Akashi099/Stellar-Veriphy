@@ -12,6 +12,32 @@
 import dynamic from "next/dynamic";
 
 // ---------------------------------------------------------------------------
+// Below-fold lazy section — #920 lazy loading for verification evidence
+//
+// Defers expensive evidence rendering until the section scrolls into view.
+// A reserved min-height placeholder prevents layout gaps while loading, and
+// sections targeted by a URL hash (direct links) are loaded eagerly so the
+// correct evidence is revealed immediately.
+// ---------------------------------------------------------------------------
+
+export const LazyBelowFoldSection = dynamic(
+  () =>
+    import("@/components/lazy/BelowFoldSection").then((m) => ({
+      default: m.BelowFoldSection,
+    })),
+  {
+    ssr: false,
+    // Reserve space to avoid visible layout gaps before the chunk loads.
+    loading: () => (
+      <div
+        aria-busy="true"
+        style={{ minHeight: "var(--below-fold-min-height, 320px)" }}
+      />
+    ),
+  }
+);
+
+// ---------------------------------------------------------------------------
 // Charts (recharts) — ~220 kB gzipped
 // ---------------------------------------------------------------------------
 
