@@ -11,5 +11,5 @@ export const metadata: Metadata = {
 };
 
 export default function BatchVerificationLayout({ children }: { children: React.ReactNode }) {
-  return children;
+  return <div dir="rtl">{children}</div>;
 }

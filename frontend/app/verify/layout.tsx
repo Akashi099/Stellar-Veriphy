@@ -14,11 +14,11 @@ export const metadata: Metadata = {
 
 export default function VerifyLayout({ children }: { children: React.ReactNode }) {
   return (
-    <>
+    <div dir="rtl">
       <div className="mx-auto max-w-5xl px-4 pt-2">
         <Breadcrumbs items={[{ label: "Verify", href: "/verify" }, { label: "Verification" }]} />
       </div>
       {children}
-    </>
+    </div>
   );
 }
