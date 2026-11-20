@@ -408,7 +408,12 @@ export function AdvancedManifestEditor({
 
   const handleSchemaChange = (v: SchemaVersion) => {
     setSchemaVersion(v);
-    const next: AdvancedManifestValue = { ...values, schemaVersion: v };
+    const nextSchema = SCHEMA_VERSIONS.find((candidate) => candidate.version === v)!;
+    const allowed = new Set(nextSchema.optionalFields.map((key) => key.replace("metadata.", "")));
+    const metadata = Object.fromEntries(
+      Object.entries(values.metadata ?? {}).map(([key, value]) => [key, allowed.has(key) ? value : ""])
+    ) as AdvancedManifestValue["metadata"];
+    const next: AdvancedManifestValue = { ...values, schemaVersion: v, metadata };
     updateValues(next);
   };
 
@@ -431,6 +436,9 @@ export function AdvancedManifestEditor({
             *
           </span>
         </label>
+        <p className="text-xs text-gray-600 dark:text-gray-400 mb-3" id="schema-version-help">
+          The selected schema controls which metadata fields are available. Switching to a simpler schema clears unsupported values.
+        </p>
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
           {SCHEMA_VERSIONS.map((sv) => (
             <button
@@ -605,6 +613,13 @@ export function AdvancedManifestEditor({
                       (optional)
                     </span>
                   </label>
+                  <p id={`${subKey}-help`} className="mb-1 text-xs text-gray-500 dark:text-gray-400">
+                    {subKey === "device" && "Add the camera, phone, or tool used to create this content."}
+                    {subKey === "location" && "Add where it was created; leave blank if you prefer not to share it."}
+                    {subKey === "aiModel" && "Add the tool or model when AI created or edited the content."}
+                    {subKey === "license" && "Add the reuse terms that apply to this content."}
+                    {subKey === "tags" && "Add short comma-separated labels to help find this content later."}
+                  </p>
                   <AutoCompleteInput
                     id={subKey}
                     value={fieldVal}
@@ -612,7 +627,7 @@ export function AdvancedManifestEditor({
                     suggestions={suggestions}
                     placeholder={`Enter ${label.toLowerCase()}`}
                     hasError={!!errorMsg}
-                    aria-describedby={errorMsg ? errorId : undefined}
+                    aria-describedby={errorMsg ? `${subKey}-help ${errorId}` : `${subKey}-help`}
                   />
                   {errorMsg && (
                     <p

@@ -424,7 +424,7 @@ export function UploadForm() {
         }
       }}
       noValidate
-      className="form"
+      className="form pb-24 sm:pb-20"
     >
       {/* Transient failure (network, 5xx, rate limit): one-click resubmit; the draft is kept */}
       {serverError &&
@@ -735,14 +735,20 @@ export function UploadForm() {
           {uploadSession.attempt > 1 && ` (attempt ${uploadSession.attempt})`}
         </div>
       )}
-      <button type="submit" disabled={submitting || hashState.status === "hashing"}>
-        {submitting
-          ? "Submitting…"
-          : hashState.status === "hashing"
-            ? "Hashing file…"
-            : "Submit for verification"}
-        {!submitting && hashState.status !== "hashing" && <ShortcutHint keys="Ctrl + Enter" />}
-      </button>
+      <div className="sticky bottom-0 z-20 -mx-4 mt-6 border-t border-gray-200 bg-white/95 px-4 py-3 shadow-[0_-4px_12px_rgba(0,0,0,0.08)] backdrop-blur dark:border-gray-700 dark:bg-gray-900/95 sm:-mx-6 sm:px-6">
+        <button
+          type="submit"
+          disabled={submitting || hashState.status === "hashing"}
+          className="w-full sm:w-auto"
+        >
+          {submitting
+            ? "Submitting…"
+            : hashState.status === "hashing"
+              ? "Hashing file…"
+              : "Submit for verification"}
+          {!submitting && hashState.status !== "hashing" && <ShortcutHint keys="Ctrl + Enter" />}
+        </button>
+      </div>
     </form>
   );
 }

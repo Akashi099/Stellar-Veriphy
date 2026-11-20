@@ -26,6 +26,13 @@ const ROLE_TARGETS: Record<Role, readonly VerificationStatus[]> = {
 };
 
 export const BULK_STATUS_ROLES: readonly Role[] = ["admin", "moderator"];
+export const BULK_STATUS_UNDO_WINDOW_MS = 30_000;
+interface BulkUndoOperation {
+  actorSubject: string;
+  expiresAt: number;
+  changes: Array<{ id: string; expectedStatus: VerificationStatus; previousStatus: VerificationStatus }>;
+}
+const bulkUndoOperations = new Map<string, BulkUndoOperation>();
 
 export interface BulkStatusRequest {
   ids: string[];
@@ -44,6 +51,7 @@ export interface BulkStatusResult {
   atomic: boolean;
   summary: { requested: number; succeeded: number; failed: number; changed: number };
   results: BulkItemResult[];
+  undo?: { token: string; expiresAt: string };
 }
 
 export function parseBulkStatusRequest(body: Record<string, unknown>): BulkStatusRequest {
@@ -148,6 +156,42 @@ export function applyBulkStatusUpdate(actor: Actor, request: BulkStatusRequest):
     .map((r) => ({ id: r.id, status: request.status, reason: request.reason, updatedBy: actor.subject }));
 
   if (changes.length > 0) records.applyStatusChanges(changes);
+  const result = summarize(request.atomic, results);
+  if (changes.length === 0) return result;
+  const token = crypto.randomUUID();
+  const expiresAt = Date.now() + BULK_STATUS_UNDO_WINDOW_MS;
+  bulkUndoOperations.set(token, {
+    actorSubject: actor.subject,
+    expiresAt,
+    changes: changes.map((change) => {
+      const item = results.find((candidate) => candidate.id === change.id);
+      return { id: change.id, expectedStatus: change.status, previousStatus: item && item.ok ? item.previousStatus : change.status };
+    }),
+  });
+  return { ...result, undo: { token, expiresAt: new Date(expiresAt).toISOString() } };
+}
 
-  return summarize(request.atomic, results);
+export function undoBulkStatusUpdate(actor: Actor, token: string): BulkStatusResult {
+  const operation = bulkUndoOperations.get(token);
+  if (!operation || operation.expiresAt <= Date.now()) {
+    bulkUndoOperations.delete(token);
+    throw new ApiError("BULK_UNDO_EXPIRED", { message: "This bulk update can no longer be undone." });
+  }
+  if (operation.actorSubject !== actor.subject || !BULK_STATUS_ROLES.includes(actor.role)) {
+    throw new ApiError("FORBIDDEN", { message: "You are not allowed to undo this bulk update." });
+  }
+  const current = records.getMany(operation.changes.map((change) => change.id));
+  if (operation.changes.some((change) => current.get(change.id)?.status !== change.expectedStatus)) {
+    throw new ApiError("BULK_UNDO_STATE_CHANGED", { message: "The records changed after this update, so it was not undone." });
+  }
+  const reversed = operation.changes.map((change) => ({ id: change.id, status: change.previousStatus, reason: null, updatedBy: actor.subject }));
+  records.applyStatusChanges(reversed);
+  bulkUndoOperations.delete(token);
+  return summarize(true, reversed.map((change) => ({
+    id: change.id,
+    ok: true as const,
+    previousStatus: operation.changes.find((item) => item.id === change.id)?.expectedStatus ?? change.status,
+    status: change.status,
+    changed: true,
+  })));
 }
