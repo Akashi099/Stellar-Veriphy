@@ -1,3 +1,4 @@
+import { config } from "../config.js";
 import { Counter, Gauge, Histogram, Registry, collectDefaultMetrics } from "prom-client";
 
 /**
@@ -5,7 +6,7 @@ import { Counter, Gauge, Histogram, Registry, collectDefaultMetrics } from "prom
  * Exposed at GET /metrics. Naming: sv_<area>_<what>_<unit>.
  */
 export const registry = new Registry();
-registry.setDefaultLabels({ service: "stellarveriphy-backend" });
+registry.setDefaultLabels({ service: "stellarveriphy-backend", environment: config.trafficEnvironment });
 collectDefaultMetrics({ register: registry, prefix: "sv_" });
 
 const registers = [registry];
@@ -251,6 +252,9 @@ export const orphanMediaBytes = new Counter({
   name: "sv_orphan_media_deleted_bytes_total",
   help: "Bytes reclaimed by deleting orphaned media files",
   labelNames: ["storage"] as const,
+  registers,
+});
+
 // --- Service-level timeouts and slow responses (#853) -----------------------
 //
 // Every HTTP request is timed and recorded in sv_http_request_duration_seconds
@@ -328,3 +332,11 @@ export const webhookDeliveriesInState = new Gauge({
   labelNames: ["status"] as const,
   registers,
 });
+
+export const externalApiTimeouts = new Counter({ name: "sv_external_api_timeouts_total", help: "External request attempts that timed out", labelNames: ["service", "method"] as const, registers });
+export const externalApiSlowResponses = new Counter({ name: "sv_external_api_slow_responses_total", help: "Successful external attempts above the slow threshold", labelNames: ["service", "method"] as const, registers });
+
+// Bounded labels only: no URLs, job IDs, caller input, or credentials.
+export const providerCalls = new Counter({ name: "sv_provider_calls_total", help: "Logical provider calls, including all attempts", labelNames: ["provider", "environment", "traffic", "outcome"] as const, registers });
+export const providerLatency = new Histogram({ name: "sv_provider_latency_seconds", help: "Logical provider response time including retries and body parsing", labelNames: ["provider", "environment", "traffic", "outcome"] as const, buckets: [0.05, 0.1, 0.25, 0.5, 1, 2, 5, 10, 30, 60, 120], registers });
+export const providerLastSuccess = new Gauge({ name: "sv_provider_last_success_timestamp_seconds", help: "Last successful logical provider call", labelNames: ["provider", "environment", "traffic"] as const, registers });

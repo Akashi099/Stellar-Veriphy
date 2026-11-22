@@ -96,3 +96,7 @@ export STELLAR_SECRET_KEY=SB... (your secret key, optional if configured in stel
 
 ./deploy.sh
 ```
+
+## Verification providers and cancellation
+
+See [verification lifecycle operations](docs/operations/verification-lifecycle.md) for startup validation, provider configuration restart policy, MongoDB transaction requirements, cancellation authorization, the versioned error taxonomy, and Grafana traffic filters. Configure `VERIFICATION_BACKEND_URL` in the frontend server environment for the backend status proxy.

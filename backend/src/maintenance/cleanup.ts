@@ -90,7 +90,7 @@ export class RetentionCleaner {
       [
         "purge_succeeded_jobs",
         () =>
-          this.purge(Collections.jobs, { status: "succeeded", finishedAt: { $lt: new Date(now - p.succeededJobDays * DAY_MS) } }, dryRun),
+          this.purge(Collections.jobs, { status: { $in: ["succeeded", "cancelled"] }, finishedAt: { $lt: new Date(now - p.succeededJobDays * DAY_MS) } }, dryRun),
       ],
       [
         "purge_dead_jobs",

@@ -1,6 +1,6 @@
 import type { QueueName } from "../db/collections.js";
 import { WEBHOOK_JOB_TYPE, type WebhookService } from "../webhooks/service.js";
-import { JobError, type HandlerMap } from "./worker.js";
+import { JobError, type HandlerMap, type JobHandler, type JobContext } from "./worker.js";
 
 export const REINDEX_JOB_TYPE = "reindex";
 
@@ -23,7 +23,7 @@ export interface ReindexStore {
 
 export interface JobHandlerDeps {
   webhooks: WebhookService;
-  reindex: ReindexStore;
+  reindex?: ReindexStore;
 }
 
 /**
@@ -33,13 +33,17 @@ export interface JobHandlerDeps {
  *
  * Example:
  *   verification: {
- *     "submit-attestation": async (job, { log, signal }) => { ... },
+ *     "submit-attestation": async (job, { signal, beginFinalization }) => {
+ *       await prepare({ signal });
+ *       await beginFinalization(); // required BEFORE any irreversible external effect
+ *       await submit({ signal, idempotencyKey: job.correlationId });
+ *     },
  *   },
  *
  * Long-running handlers (#781) should report progress and checkpoint after each unit of work so an
  * interrupted attempt resumes instead of reprocessing everything:
  *
- *   "verify-media": async (job, { signal, checkpoint, reportProgress, saveCheckpoint }) => {
+ *   "verify-media": async (job: Parameters<JobHandler>[0], { signal, checkpoint, reportProgress, saveCheckpoint }: JobContext) => {
  *     const done = (checkpoint as { chunk: number } | undefined)?.chunk ?? 0;
  *     for (let chunk = done; chunk < total; chunk++) {
  *       if (signal.aborted) throw new JobError("aborted", "ABORTED");
@@ -55,10 +59,10 @@ export function buildJobHandlers({ webhooks, reindex }: JobHandlerDeps): Partial
       // #789 — outbound webhook delivery; retries come from the queue's backoff.
       [WEBHOOK_JOB_TYPE]: (job, ctx) => webhooks.deliver(job, ctx),
     },
-    reindex: {
+    ...(reindex ? { reindex: {
       // #854 — selective record reindexing; resumes from the last checkpointed batch.
       [REINDEX_JOB_TYPE]: async (job, { signal, checkpoint, reportProgress, saveCheckpoint }) => {
-        const payload = (job.data ?? {}) as ReindexJobPayload;
+        const payload = (job.payload ?? {}) as ReindexJobPayload;
         const targets = await reindex.resolveTargets(payload);
         const total = targets.length;
 
@@ -88,6 +92,6 @@ export function buildJobHandlers({ webhooks, reindex }: JobHandlerDeps): Partial
           });
         }
       },
-    },
+    } } : {}),
   };
 }

@@ -13,7 +13,7 @@ export const Collections = {
 // --- Verifications -----------------------------------------------------------
 
 /** Mirrors VerificationStatus in packages/shared/types. */
-export type VerificationStatus = "pending" | "processing" | "certified" | "failed";
+export type VerificationStatus = "pending" | "processing" | "certified" | "failed" | "cancelled";
 
 /** A verification request and its on-chain outcome. Never touched by retention cleanup. */
 export interface VerificationDoc {
@@ -29,9 +29,12 @@ export interface VerificationDoc {
   certId?: string;
   txHash?: string;
   error?: string;
+  errorCode?: import("../verification-errors.js").VerificationErrorCode;
   createdAt: Date;
   updatedAt: Date;
   completedAt?: Date;
+  cancelledAt?: Date;
+  finalizationStartedAt?: Date;
 }
 
 // --- Verification sessions ---------------------------------------------------
@@ -94,7 +97,7 @@ export const REINDEX_MAX_BATCH_SIZE = 1000;
  * succeeded – finished successfully
  * dead      – failed permanently (attempts exhausted or non-retryable error)
  */
-export type JobStatus = "queued" | "running" | "succeeded" | "dead";
+export type JobStatus = "queued" | "running" | "succeeded" | "dead" | "cancelled";
 
 export interface JobErrorEntry {
   attempt: number;
@@ -132,6 +135,8 @@ export interface JobDoc<P = unknown> {
   updatedAt: Date;
   startedAt?: Date;
   finishedAt?: Date;
+  cancelledAt?: Date;
+  finalizationStartedAt?: Date;
   lockedBy?: string;
   lockedAt?: Date;
   heartbeatAt?: Date;

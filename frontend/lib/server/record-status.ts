@@ -16,6 +16,7 @@ const TRANSITIONS: Record<VerificationStatus, readonly VerificationStatus[]> = {
   processing: ["pending", "certified", "failed"],
   failed: ["pending"],
   certified: [],
+  cancelled: [],
 };
 
 // Which target statuses each role may set during review/moderation.

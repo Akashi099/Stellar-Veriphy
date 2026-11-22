@@ -30,6 +30,8 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
       return respond(404, { status: "not_found", message: "No verification job exists with this ID." });
     }
 
+    if (job.status === "cancelled") return respond(409, { status: "conflict", message: "Cancelled jobs cannot be retried. Submit a new verification." });
+
     const recoveryState = await retryJob(id, job.uploadId, { force });
 
     logOperationalEvent("info", "job.manual_retry_requested", {

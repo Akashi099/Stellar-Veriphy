@@ -1,4 +1,5 @@
-import type { Db, ObjectId, UpdateFilter, WithId } from "mongodb";
+import { verificationErrorFromFailure } from "../verification-errors.js";
+import { ObjectId, type Db, type UpdateFilter, type WithId } from "mongodb";
 import type { Logger } from "../lib/logger.js";
 import {
   jobDuration,
@@ -16,6 +17,7 @@ import {
   Collections,
   QUEUE_NAMES,
   type JobDoc,
+  type VerificationDoc,
   type JobErrorEntry,
   type JobProgress,
   type QueueName,
@@ -75,7 +77,6 @@ export interface ReindexEnqueueResult {
 
 const REINDEX_CHUNK_SIZE = 100;
 const REINDEX_MAX_ITEMS = 10_000;
-=======
 
 export type FailOutcome = "retried" | "dead" | "lost";
 
@@ -190,7 +191,7 @@ export class JobQueue {
     for (const chunk of chunkItems(ids, chunkSize)) {
       jobIds.push(
         await this.enqueue(
-          "maintenance",
+          "reindex",
           "reindex",
           { ids: chunk, scope: request.scope, requestedBy: request.requestedBy },
           { correlationId, runAt, timeoutMs: opts.timeoutMs, maxAttempts: opts.maxAttempts },
@@ -200,7 +201,7 @@ export class JobQueue {
     for (const chunk of chunkItems(hashes, chunkSize)) {
       jobIds.push(
         await this.enqueue(
-          "maintenance",
+          "reindex",
           "reindex",
           { hashes: chunk, scope: request.scope, requestedBy: request.requestedBy },
           { correlationId, runAt, timeoutMs: opts.timeoutMs, maxAttempts: opts.maxAttempts },
@@ -219,6 +220,59 @@ export class JobQueue {
     return { correlationId, jobIds, total, chunks: jobIds.length };
   }
 
+  /** Admin-authorized API calls this only after authentication. Both records change atomically.
+   * Requires MongoDB replica-set transactions; failure leaves both records unchanged.
+   */
+  async cancelVerification(jobId: string): Promise<"cancelled" | "conflict" | "not_found"> {
+    const session = this.db.client.startSession();
+    try {
+      return await session.withTransaction(async () => {
+        const verifications = this.db.collection<VerificationDoc>(Collections.verifications);
+        const verification = await verifications.findOne({ jobId }, { session });
+        if (!verification) return "not_found" as const;
+        if (verification.status === "cancelled") return "cancelled" as const;
+        if (!["pending", "processing"].includes(verification.status) || verification.finalizationStartedAt) return "conflict" as const;
+        const jobs = await this.col.find({ queue: "verification", correlationId: jobId }, { session }).toArray();
+        if (jobs.some((job) => job.finalizationStartedAt || job.status === "succeeded")) return "conflict" as const;
+        const now = new Date();
+        const result = await verifications.updateOne(
+          { jobId, status: { $in: ["pending", "processing"] }, finalizationStartedAt: { $exists: false } },
+          { $set: { status: "cancelled", cancelledAt: now, completedAt: now, updatedAt: now }, $unset: { error: "", errorCode: "" } },
+          { session },
+        );
+        if (result.matchedCount !== 1) throw new Error("Verification changed during cancellation");
+        await this.col.updateMany(
+          { queue: "verification", correlationId: jobId, status: { $in: ["queued", "running"] } },
+          { $set: { status: "cancelled", cancelledAt: now, finishedAt: now, updatedAt: now }, $unset: { ...UNLOCK, lastError: "", progress: "", checkpoint: "", checkpointAt: "" } },
+          { session },
+        );
+        return "cancelled" as const;
+      }) ?? "conflict";
+    } finally { await session.endSession(); }
+  }
+
+  /** Must win this fence BEFORE an irreversible provider/ledger submission.
+   * The same transaction competes with cancellation on the verification document.
+   */
+  async beginFinalization(job: WithId<JobDoc>, workerId: string): Promise<boolean> {
+    const session = this.db.client.startSession();
+    try {
+      return await session.withTransaction(async () => {
+        const owned = await this.col.findOne({ _id: job._id, status: "running", lockedBy: workerId }, { session });
+        if (!owned) return false;
+        if (job.queue !== "verification" || !job.correlationId) return false;
+        const now = new Date();
+        const result = await this.db.collection<VerificationDoc>(Collections.verifications).updateOne(
+          { jobId: job.correlationId, status: { $in: ["pending", "processing"] } },
+          { $set: { finalizationStartedAt: now, updatedAt: now } }, { session },
+        );
+        if (result.matchedCount !== 1) return false;
+        await this.col.updateOne({ _id: job._id, status: "running", lockedBy: workerId }, { $set: { finalizationStartedAt: now } }, { session });
+        return true;
+      }) ?? false;
+    } finally { await session.endSession(); }
+  }
+
   /** Atomically claims the oldest ready job on `queue`. Index: queue_status_runAt. */
   async claim(queue: QueueName, workerId: string): Promise<WithId<JobDoc> | null> {
     const now = new Date();
@@ -230,6 +284,15 @@ export class JobQueue {
       },
       { sort: { runAt: 1 }, returnDocument: "after" },
     );
+    if (job && queue === "verification" && job.correlationId) {
+      const verification = await this.db.collection<VerificationDoc>(Collections.verifications).findOne({ jobId: job.correlationId });
+      if (verification?.status === "cancelled") {
+        await this.col.updateOne({ _id: job._id, status: "running", lockedBy: workerId }, {
+          $set: { status: "cancelled", finishedAt: now, cancelledAt: now, updatedAt: now }, $unset: UNLOCK,
+        });
+        return null;
+      }
+    }
     if (job) {
       jobsStarted.inc({ queue, type: job.type });
       jobWait.observe({ queue, type: job.type }, Math.max(0, now.getTime() - job.runAt.getTime()) / 1000);
@@ -324,6 +387,13 @@ export class JobQueue {
     jobsFinished.inc({ queue: job.queue, type: job.type, outcome });
     jobDuration.observe({ queue: job.queue, type: job.type, outcome }, durationMs / 1000);
 
+    if (dead && job.queue === "verification" && job.correlationId) {
+      const failure = verificationErrorFromFailure(err);
+      await this.db.collection<VerificationDoc>(Collections.verifications).updateOne(
+        { jobId: job.correlationId, status: { $in: ["pending", "processing"] } },
+        { $set: { status: "failed", errorCode: failure.code, completedAt: now, updatedAt: now } },
+      );
+    }
     if (dead) {
       this.log.error("job moved to dead-letter", {
         ...fields,

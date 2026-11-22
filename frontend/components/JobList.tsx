@@ -1,11 +1,16 @@
 "use client";
 
+import { useAuthSession } from "@/context/AuthSessionContext";
+import { apiRequest } from "@/lib/api/client";
 import { useEffect, useState } from "react";
 import { isTerminal, useJobStatuses } from "@/hooks/useJobStatuses";
 import { onTrackedJobsChange, readTrackedJobs, untrackJob, type TrackedJob } from "@/lib/tracked-jobs";
 import { JobProgress, JobStatusBadge } from "./JobProgress";
 
 export function JobList() {
+  const auth = useAuthSession();
+  const [cancelling, setCancelling] = useState<string | null>(null);
+  const [cancelError, setCancelError] = useState<string | null>(null);
   const [tracked, setTracked] = useState<TrackedJob[] | null>(null);
 
   useEffect(() => {
@@ -41,6 +46,7 @@ export function JobList() {
           {error} Showing the last known status; retrying automatically.
         </p>
       )}
+      {cancelError && <p role="alert" className="notice notice-warning">{cancelError}</p>}
       <ul className="job-list">
         {tracked.map((t) => {
           const job = jobs[t.id];
@@ -60,6 +66,20 @@ export function JobList() {
                   The server has no record of this job. It may have been cleared.{" "}
                   <button type="button" className="link" onClick={() => untrackJob(t.id)}>Remove from list</button>
                 </p>
+              )}
+              {job && !isTerminal(job) && auth.isAuthenticated && (auth.role === "user" || auth.role === "admin") && (
+                <button type="button" className="secondary" disabled={cancelling !== null} onClick={async () => {
+                  setCancelling(job.id); setCancelError(null);
+                  try {
+                    const token = await auth.getAccessToken();
+                    if (!token) throw new Error("Sign in to cancel this verification.");
+                    await apiRequest("/api/jobs/" + encodeURIComponent(job.id) + "/cancel", { method: "POST", headers: { Authorization: "Bearer " + token } });
+                    await refresh();
+                  } catch (error) { setCancelError(error instanceof Error ? error.message : "Cancellation failed. Try again."); }
+                  finally { setCancelling(null); }
+                }}>
+                  {cancelling === job.id ? "Cancelling…" : "Cancel verification"}
+                </button>
               )}
               {job && isTerminal(job) && (
                 <button type="button" className="link" onClick={() => untrackJob(t.id)}>Dismiss</button>

@@ -36,7 +36,7 @@ async function main(): Promise<void> {
   const webhooks = new WebhookService(
     db,
     queue,
-    new ExternalApiClient("webhook", externalApiPolicy("webhook"), log.child({ component: "webhook-http" })),
+    new ExternalApiClient("webhook", externalApiPolicy("webhook"), log.child({ component: "webhook-http" }), "notification"),
     config.webhooks,
     log.child({ component: "webhooks" }),
   );
@@ -85,10 +85,8 @@ async function main(): Promise<void> {
     queue,
     cleanup,
     verifications,
-    verifications: verificationRepository,
     maintenance,
     webhooks,
-    timeouts: config.httpTimeouts,
     log: log.child({ component: "http" }),
   });
   server.listen(config.port, () => log.info("backend listening", { port: config.port }));

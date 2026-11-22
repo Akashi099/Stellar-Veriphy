@@ -43,7 +43,7 @@ export interface ProvenanceCert {
 // Verification status
 // ---------------------------------------------------------------------------
 
-export type VerificationStatus = "pending" | "processing" | "certified" | "failed";
+export type VerificationStatus = "pending" | "processing" | "certified" | "failed" | "cancelled";
 
 // ---------------------------------------------------------------------------
 // Upload metadata — POST /api/uploads
@@ -80,6 +80,8 @@ export interface VerificationJob {
   completedAt?: string;
   error?: string;
   result?: { manifestHash: string };
+  cancelledAt?: string;
+  failure?: { version: number; code: string; retryable: boolean };
 }
 
 export interface VerificationJobView extends VerificationJob {

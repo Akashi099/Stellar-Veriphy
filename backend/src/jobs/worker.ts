@@ -8,13 +8,15 @@ import type { JobQueue } from "./queue.js";
 export interface JobContext {
   /** Pre-bound with jobId, queue, type, attempt, correlationId and workerId. */
   log: Logger;
-  /** Aborted on timeout or when the job's lock is lost; long-running handlers should honour it. */
+  /** Aborted on cancellation, timeout or when the job's lock is lost; long-running handlers should honour it. */
   signal: AbortSignal;
   /**
    * Resume state saved by an earlier attempt via saveCheckpoint, or undefined on a fresh start.
    * Handlers should skip work the checkpoint says is done (#781).
    */
   checkpoint: unknown;
+  /** Fence cancellation before any irreversible verification effect. */
+  beginFinalization(): Promise<void>;
   /** Publishes progress to the job document (and counts as a heartbeat). Never throws. */
   reportProgress(progress: Omit<JobProgress, "updatedAt">): Promise<void>;
   /**
@@ -120,7 +122,7 @@ export class Worker {
         .heartbeat(job._id, workerId)
         .then((owned) => {
           if (!owned && !controller.signal.aborted) {
-            log.warn("lost job lock (recovered as stalled by another process); aborting handler");
+            log.warn("lost job ownership (cancelled or recovered); aborting handler");
             controller.abort();
           }
         })
@@ -133,6 +135,10 @@ export class Worker {
       timeoutMs: job.timeoutMs ?? this.opts.jobTimeoutMs,
     });
     try {
+      if (!(await this.queue.heartbeat(job._id, workerId))) {
+        controller.abort();
+        throw new JobError("Job is no longer active", "LOCK_LOST", false);
+      }
       const handler = this.handlers[job.type];
       if (!handler) {
         throw new JobError(`No handler registered for job type "${job.type}" on queue "${job.queue}"`, "NO_HANDLER", false);
@@ -141,6 +147,12 @@ export class Worker {
         log,
         signal: controller.signal,
         checkpoint: job.checkpoint,
+        beginFinalization: async () => {
+          if (controller.signal.aborted || !(await this.queue.beginFinalization(job, workerId))) {
+            controller.abort();
+            throw new JobError("Verification no longer active", "CANCELLED", false);
+          }
+        },
         reportProgress: async (progress) => {
           try {
             if (!(await this.queue.updateProgress(job._id, workerId, progress))) controller.abort();
@@ -172,3 +184,5 @@ export class Worker {
     }
   }
 }
+
+export { JobError } from "./errors.js";

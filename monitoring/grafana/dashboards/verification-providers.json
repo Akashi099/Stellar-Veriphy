@@ -1,0 +1,376 @@
+{
+  "uid": "verification-providers",
+  "title": "Verification provider latency and availability",
+  "schemaVersion": 39,
+  "version": 1,
+  "refresh": "30s",
+  "tags": [
+    "verification",
+    "providers"
+  ],
+  "time": {
+    "from": "now-6h",
+    "to": "now"
+  },
+  "templating": {
+    "list": [
+      {
+        "name": "environment",
+        "label": "Traffic environment",
+        "type": "custom",
+        "query": "test,production",
+        "current": {
+          "text": "production",
+          "value": "production"
+        }
+      },
+      {
+        "name": "traffic",
+        "label": "Traffic kind",
+        "type": "custom",
+        "query": "verification,probe,notification",
+        "current": {
+          "text": "verification",
+          "value": "verification"
+        },
+        "multi": true,
+        "includeAll": true,
+        "allValue": ".*"
+      },
+      {
+        "name": "provider",
+        "type": "query",
+        "datasource": {
+          "type": "prometheus",
+          "uid": "prometheus"
+        },
+        "definition": "label_values(sv_provider_calls_total, provider)",
+        "query": {
+          "query": "label_values(sv_provider_calls_total, provider)",
+          "refId": "providers"
+        },
+        "includeAll": true,
+        "allValue": ".*",
+        "multi": true,
+        "current": {
+          "text": "All",
+          "value": "$__all"
+        }
+      }
+    ]
+  },
+  "panels": [
+    {
+      "id": 1,
+      "type": "timeseries",
+      "title": "Provider p95 latency (seconds)",
+      "description": "p95 includes retries. Sustained latency above 2s is slow; inspect timeout and error panels.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 0,
+        "w": 12,
+        "h": 9
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 2
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "histogram_quantile(0.95, sum by (le, provider) (rate(sv_provider_latency_seconds_bucket{environment=~\"$environment\",provider=~\"$provider\",traffic=~\"$traffic\",outcome!=\"aborted\"}[$__rate_interval])))",
+          "legendFormat": "{{provider}} {{outcome}}"
+        }
+      ],
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom",
+          "calcs": [
+            "lastNotNull",
+            "max"
+          ]
+        }
+      }
+    },
+    {
+      "id": 2,
+      "type": "timeseries",
+      "title": "Provider availability (excludes caller cancellation)",
+      "description": "Below 99% indicates provider failures. No traffic produces no data, never assumed healthy. Probe traffic can identify outages without user jobs.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "gridPos": {
+        "x": 12,
+        "y": 0,
+        "w": 12,
+        "h": 9
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percentunit",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "red",
+                "value": null
+              },
+              {
+                "color": "green",
+                "value": 0.99
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "(sum by (provider) (rate(sv_provider_calls_total{environment=~\"$environment\",provider=~\"$provider\",traffic=~\"$traffic\",outcome=\"success\"}[$__rate_interval])) or 0 * sum by (provider) (rate(sv_provider_calls_total{environment=~\"$environment\",provider=~\"$provider\",traffic=~\"$traffic\",outcome!=\"aborted\"}[$__rate_interval]))) / sum by (provider) (rate(sv_provider_calls_total{environment=~\"$environment\",provider=~\"$provider\",traffic=~\"$traffic\",outcome!=\"aborted\"}[$__rate_interval]))",
+          "legendFormat": "{{provider}} {{outcome}}"
+        }
+      ],
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom",
+          "calcs": [
+            "lastNotNull",
+            "max"
+          ]
+        }
+      }
+    },
+    {
+      "id": 3,
+      "type": "timeseries",
+      "title": "Provider calls per second",
+      "description": "No data means no observations for this filter. Last success can be stale; compare call volume.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 9,
+        "w": 12,
+        "h": 9
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "reqps",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 2
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum by (provider) (rate(sv_provider_calls_total{environment=~\"$environment\",provider=~\"$provider\",traffic=~\"$traffic\",outcome!=\"aborted\"}[$__rate_interval]))",
+          "legendFormat": "{{provider}} {{outcome}}"
+        }
+      ],
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom",
+          "calcs": [
+            "lastNotNull",
+            "max"
+          ]
+        }
+      }
+    },
+    {
+      "id": 4,
+      "type": "timeseries",
+      "title": "Unavailable / invalid calls per second",
+      "description": "No data means no observations for this filter. Last success can be stale; compare call volume.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "gridPos": {
+        "x": 12,
+        "y": 9,
+        "w": 12,
+        "h": 9
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "reqps",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 2
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum by (provider, outcome) (rate(sv_provider_calls_total{environment=~\"$environment\",provider=~\"$provider\",traffic=~\"$traffic\",outcome!~\"success|aborted\"}[$__rate_interval]))",
+          "legendFormat": "{{provider}} {{outcome}}"
+        }
+      ],
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom",
+          "calcs": [
+            "lastNotNull",
+            "max"
+          ]
+        }
+      }
+    },
+    {
+      "id": 5,
+      "type": "timeseries",
+      "title": "Last successful response age (seconds)",
+      "description": "No data means no observations for this filter. Last success can be stale; compare call volume.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 18,
+        "w": 12,
+        "h": 9
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 2
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "time() - max by (provider) (sv_provider_last_success_timestamp_seconds{environment=~\"$environment\",provider=~\"$provider\",traffic=~\"$traffic\"})",
+          "legendFormat": "{{provider}} {{outcome}}"
+        }
+      ],
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom",
+          "calcs": [
+            "lastNotNull",
+            "max"
+          ]
+        }
+      }
+    },
+    {
+      "id": 6,
+      "type": "stat",
+      "title": "Latest health probe state (2 up, 1 degraded, 0 down)",
+      "description": "Independent of the traffic-kind filter. Detects unhealthy provider responses even when HTTP status is 200. No data means no observed probe.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "gridPos": {
+        "x": 12,
+        "y": 18,
+        "w": 12,
+        "h": 9
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "max by (dependency) (sv_dependency_health{environment=~\"$environment\",dependency=~\"($provider)|stellar_($provider)\"})",
+          "legendFormat": "{{dependency}}",
+          "instant": true
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "min": 0,
+          "max": 2,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "red",
+                "value": null
+              },
+              {
+                "color": "orange",
+                "value": 1
+              },
+              {
+                "color": "green",
+                "value": 2
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "colorMode": "background",
+        "graphMode": "none"
+      }
+    }
+  ]
+}

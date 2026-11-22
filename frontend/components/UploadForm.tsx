@@ -428,9 +428,11 @@ export function UploadForm() {
           <MediaSnapshotPreview
             file={file}
             verificationState={
-              job.status === "completed"
+              job.status === "certified"
                 ? "completed"
-                : job.status === "failed"
+                : job.status === "cancelled"
+                  ? "cancelled"
+                  : job.status === "failed"
                   ? "failed"
                   : "processing"
             }

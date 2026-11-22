@@ -19,6 +19,7 @@ export type HistoryEventType =
   | "verification_job_started"
   | "verification_job_completed"
   | "verification_job_failed"
+  | "verification_job_cancelled"
   | "verification_record_created"
   | "verification_status_changed";
 
@@ -129,7 +130,7 @@ export async function buildVerificationHistoryExport(
     if (job.completedAt) {
       const failed = job.status === "failed";
       events.push(
-        event(failed ? "verification_job_failed" : "verification_job_completed", job.completedAt, job.id, {
+        event(job.status === "cancelled" ? "verification_job_cancelled" : failed ? "verification_job_failed" : "verification_job_completed", job.completedAt, job.id, {
           ...base,
           manifestHash: job.result?.manifestHash ?? upload.manifestHash,
           status: job.status,

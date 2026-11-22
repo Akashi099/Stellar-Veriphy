@@ -1,5 +1,6 @@
 "use client";
 
+import { verificationAction } from "@/lib/verificationErrors";
 import type { VerificationJobView, VerificationStatus } from "@stellarveriphy/shared";
 
 export const STATUS_COPY: Record<VerificationStatus, { label: string; description: string; next: string }> = {
@@ -18,6 +19,7 @@ export const STATUS_COPY: Record<VerificationStatus, { label: string; descriptio
     description: "Verification finished and the provenance record is confirmed.",
     next: "Anyone can now compare a copy of the file against the recorded hash.",
   },
+  cancelled: { label: "Cancelled", description: "Verification was cancelled before completion.", next: "Submit a new request if you want to verify this content." },
   failed: {
     label: "Failed",
     description: "Verification could not be completed.",
@@ -47,6 +49,7 @@ export function JobStatusBadge({ status }: { status: VerificationStatus }) {
 
 function stepState(step: VerificationStatus, job: VerificationJobView): "done" | "current" | "failed" | "upcoming" {
   const order = STEPS.map((s) => s.status);
+  if (job.status === "cancelled") return "upcoming";
   if (job.status === "failed") {
     // Failure happens while running; earlier steps completed.
     const failedAt = job.startedAt ? 1 : 0;
@@ -98,7 +101,7 @@ export function JobProgress({ job }: { job: VerificationJobView }) {
       </ol>
       <p><strong>{copy.label}:</strong> {copy.description}</p>
       {timing && <p className="muted">{timing}</p>}
-      {job.status === "failed" && job.error && <p className="error-text">Reason: {job.error}</p>}
+      {job.status === "failed" && <p className="error-text">{verificationAction(job.failure)}</p>}
       {job.status === "certified" && job.result && (
         <p className="muted">
           Manifest hash: <code className="hash">{job.result.manifestHash}</code>

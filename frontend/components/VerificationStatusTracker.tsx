@@ -40,7 +40,7 @@ import type { VerificationPhase,VerificationStatus } from "@/services/verificati
 import { PHASE_LABEL } from "@/services/verificationStatusService";
 import { useVerificationStatus } from "@/src/hooks/useVerificationStatus";
 import { formatDateTime } from "@/utils/formatDateTime";
-import { ApiError, describeError } from "@/lib/errors";
+import { VerificationStatusApiError } from "@/services/verificationStatusService";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -53,6 +53,8 @@ export interface VerificationStatusTrackerProps {
   horizonUrl?: string;
   /** Start polling as soon as the component mounts. */
   autoStart?: boolean;
+  /** Supply only for authorized callers, using their authenticated transport. */
+  cancelRequest?: CancellationRequest;
   /** Called when a terminal status is reached. */
   onComplete?: (status: VerificationStatus) => void;
 }
@@ -272,11 +274,13 @@ export const VerificationStatusTracker = forwardRef<
   VerificationStatusTrackerHandle,
   VerificationStatusTrackerProps
 >(function VerificationStatusTracker(
-  { jobId, txHash, requestId, horizonUrl, autoStart = false, onComplete },
+  { jobId, txHash, requestId, horizonUrl, autoStart = false, onComplete, cancelRequest },
   ref
 ) {
   const [toasts, dispatchToast] = useReducer(toastReducer, []);
   const toastTimeouts = useRef<Map<number, ReturnType<typeof setTimeout>>>(new Map());
+  const [isCancelling, setIsCancelling] = useState(false);
+  const [cancelError, setCancelError] = useState<string | null>(null);
   const [serviceError, setServiceError] = useState<string | null>(null);
 
   const pushToast = useCallback((message: string, variant: PhaseVariant) => {
@@ -306,7 +310,7 @@ export const VerificationStatusTracker = forwardRef<
     };
   }, []);
 
-  const { status, isPolling, start, stop } = useVerificationStatus({
+  const { status, isPolling, start, stop, cancel } = useVerificationStatus({
     txHash,
     requestId,
     horizonUrl,
@@ -320,9 +324,9 @@ export const VerificationStatusTracker = forwardRef<
     onError(err) {
       // When the verification service is unreachable (network failure or 5xx),
       // stop polling and surface a recoverable fallback instead of spinning.
-      if (err instanceof ApiError && err.isServiceUnavailable()) {
+      if (err instanceof VerificationStatusApiError && err.status >= 500) {
         stop();
-        setServiceError(describeError(err));
+        setServiceError(err.message);
         pushToast("Verification service is temporarily unavailable.", "warning");
         return;
       }
@@ -412,6 +416,8 @@ export const VerificationStatusTracker = forwardRef<
           </dl>
         )}
 
+        {currentPhase === "cancelled" && <p role="status" className="text-sm text-amber-300">Verification was cancelled. Submit a new request if needed.</p>}
+        {cancelError && <p role="alert" className="text-sm text-red-300">{cancelError}</p>}
         {/* Actions */}
         <div className="flex gap-2 flex-wrap">
           {explorerUrl && (
@@ -430,6 +436,16 @@ export const VerificationStatusTracker = forwardRef<
               className="text-xs px-3 py-1.5 rounded-lg bg-blue-700 hover:bg-blue-600 text-white transition-colors"
             >
               Retry
+            </button>
+          )}
+          {isPolling && cancelRequest && !status?.terminal && (
+            <button type="button" disabled={isCancelling} onClick={async () => {
+              setIsCancelling(true); setCancelError(null);
+              try { await cancel(cancelRequest); }
+              catch (error) { setCancelError(error instanceof Error ? error.message : "Cancellation failed. Try again."); }
+              finally { setIsCancelling(false); }
+            }} className="text-xs px-3 py-1.5 rounded-lg bg-amber-800 text-white disabled:opacity-50">
+              {isCancelling ? "Cancelling…" : "Cancel verification"}
             </button>
           )}
           {isPolling && (
@@ -465,7 +481,7 @@ export const VerificationStatusTracker = forwardRef<
         {/* Connection failure fallback message */}
         {!serviceError && currentPhase === "failed" && (
           <p className="text-xs text-red-400 bg-red-900/20 border border-red-800 rounded-lg px-3 py-2">
-            Could not reach the network. Check your connection and click Retry.
+            {status?.message ?? "Contact support with the verification ID."}
           </p>
         )}
       </div>
