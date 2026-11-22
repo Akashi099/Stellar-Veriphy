@@ -25,6 +25,9 @@ export interface VerificationDoc {
   /** Stellar public key (G...). */
   creator: string;
   storageRef: string;
+  sharingPolicy?: "public" | "private";
+  manifest?: Record<string, unknown>;
+  evidenceDownloadAllowed?: boolean;
   status: VerificationStatus;
   certId?: string;
   txHash?: string;

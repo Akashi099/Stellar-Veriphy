@@ -62,6 +62,7 @@ export function buildJobHandlers({ webhooks, reindex }: JobHandlerDeps): Partial
     ...(reindex ? { reindex: {
       // #854 — selective record reindexing; resumes from the last checkpointed batch.
       [REINDEX_JOB_TYPE]: async (job, { signal, checkpoint, reportProgress, saveCheckpoint }) => {
+        if (!reindex) throw new JobError("Reindex handler is not configured", "REINDEX_UNAVAILABLE");
         const payload = (job.payload ?? {}) as ReindexJobPayload;
         const targets = await reindex.resolveTargets(payload);
         const total = targets.length;

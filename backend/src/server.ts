@@ -1,4 +1,7 @@
 import { publicVerification, verificationError } from "./verification-errors.js";
+import { pipeline } from "node:stream/promises";
+import { maskVerification } from "./security/policy.js";
+import type { SecurityService } from "./security/service.js";
 import { timingSafeEqual } from "node:crypto";
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from "node:http";
 import { ObjectId } from "mongodb";
@@ -19,6 +22,7 @@ import { CleanupAlreadyRunningError, type CleanupScheduler } from "./maintenance
 import type { WebhookService } from "./webhooks/service.js";
 
 export interface ServerDeps {
+  security: SecurityService;
   health: HealthMonitor;
   queue: JobQueue;
   cleanup: CleanupScheduler;
@@ -145,8 +149,33 @@ function permissionState(userId: string, permission: string): { granted: boolean
   return { granted: request?.status === "approved", request };
 }
 
-export function createHttpServer({ health, queue, cleanup, verifications, maintenance, webhooks, log }: ServerDeps): Server {
+export function createHttpServer({ security, health, queue, cleanup, verifications, maintenance, webhooks, log }: ServerDeps): Server {
   const routes: Route[] = [
+    { method: "GET", pattern: /^\/admin\/risk\/(?<creator>[^/]+)$/, admin: true,
+      handler: async (_req, res, { creator }) => {
+        if (!STELLAR_ACCOUNT.test(creator)) return send(res, 400, { error: "Invalid creator" });
+        send(res, 200, await security.risk(creator));
+      } },
+    { method: "POST", pattern: /^\/admin\/audit-exports\/(?<jobId>[A-Za-z0-9_-]{1,128})$/, admin: true,
+      handler: async (_req, res, { jobId }) => {
+        const result = await security.export(jobId, "admin-token");
+        send(res, result ? 200 : 404, result ?? { error: "Verification not found" });
+      } },
+    { method: "POST", pattern: /^\/admin\/evidence-links\/(?<jobId>[A-Za-z0-9_-]{1,128})$/, admin: true,
+      handler: async (_req, res, { jobId }) => {
+        const result = await security.issue(jobId, "admin-token");
+        send(res, result ? 201 : 404, result ?? { error: "Evidence unavailable" });
+      } },
+    { method: "DELETE", pattern: /^\/admin\/evidence-links\/(?<token>[A-Za-z0-9_-]{43})$/, admin: true,
+      handler: async (_req, res, { token }) => { await security.revoke(token, "admin-token"); send(res, 200, { revoked: true }); } },
+    { method: "GET", pattern: /^\/api\/evidence\/download\/(?<token>[A-Za-z0-9_-]{43})$/, admin: true,
+      handler: async (_req, res, { token }) => {
+        const file = await security.download(token, "admin-token");
+        if (!file) return send(res, 404, { error: "Evidence unavailable or link expired" });
+        res.writeHead(200, { "content-type": "application/octet-stream", "content-disposition": "attachment; filename=evidence.bin",
+          "cache-control": "no-store", "x-content-type-options": "nosniff", "referrer-policy": "no-referrer" });
+        await pipeline(file.createReadStream(), res);
+      } },
     // --- Health (#774) ----------------------------------------------------------
     {
       method: "GET",
@@ -575,19 +604,19 @@ export function createHttpServer({ health, queue, cleanup, verifications, mainte
         }
         const status = await verifications.getStatus(jobId);
         if (!status) return send(res, 404, { error: "Verification not found" });
-        send(res, 200, publicVerification(status));
+        send(res, 200, maskVerification(status, isAdmin(req)));
       },
     },
     {
       method: "GET",
       pattern: /^\/api\/verifications$/,
-      handler: async (_req, res, _params, url) => {
+      handler: async (req, res, _params, url) => {
         const contentHash = url.searchParams.get("contentHash");
         const creator = url.searchParams.get("creator");
         if (contentHash) {
           if (!CONTENT_HASH.test(contentHash)) return send(res, 400, { error: "Invalid contentHash" });
           const latest = await verifications.findLatestByContentHash(contentHash);
-          return latest ? send(res, 200, publicVerification(latest)) : send(res, 404, { error: "No verification for this content" });
+          return latest ? send(res, 200, maskVerification(latest, isAdmin(req))) : send(res, 404, { error: "No verification for this content" });
         }
         if (creator) {
           if (!STELLAR_ACCOUNT.test(creator)) return send(res, 400, { error: "Invalid creator account" });
@@ -599,7 +628,7 @@ export function createHttpServer({ health, queue, cleanup, verifications, mainte
             before,
           });
           const last = items.at(-1);
-          return send(res, 200, { items: items.map(publicVerification), nextCursor: last ? last.createdAt.toISOString() : null });
+          return send(res, 200, { items: items.map(item => maskVerification(item, isAdmin(req))), nextCursor: last ? last.createdAt.toISOString() : null });
         }
         send(res, 400, { error: "Provide contentHash or creator" });
       },
@@ -607,11 +636,11 @@ export function createHttpServer({ health, queue, cleanup, verifications, mainte
     {
       method: "GET",
       pattern: /^\/api\/certificates\/(?<certId>[^/]+)$/,
-      handler: async (_req, res, { certId }) => {
+      handler: async (req, res, { certId }) => {
         if (!CERT_ID.test(certId)) return send(res, 400, { error: "Invalid certId" });
         const verification = await verifications.findByCertId(certId);
         if (!verification) return send(res, 404, { error: "Certificate not found" });
-        send(res, 200, publicVerification(verification));
+        send(res, 200, maskVerification(verification, isAdmin(req)));
       },
     },
   ];
@@ -648,7 +677,7 @@ export function createHttpServer({ health, queue, cleanup, verifications, mainte
           if (!res.headersSent) send(res, 400, { error: err.message });
           return;
         }
-        log.error("request failed", { method: req.method, path: url.pathname, err });
+        log.error("request failed", { method: req.method, path: url.pathname.startsWith("/api/evidence/download/") ? "/api/evidence/download/[redacted]" : url.pathname, err });
         if (!res.headersSent) send(res, 500, { error: "Internal server error" });
       })
       .finally(() => {

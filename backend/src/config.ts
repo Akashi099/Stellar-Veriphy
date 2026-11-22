@@ -108,6 +108,15 @@ export const config = {
     slowRequestMs: int("HTTP_SLOW_REQUEST_MS", 1_000),
     requestTimeoutMs: int("HTTP_REQUEST_TIMEOUT_MS", 30_000),
   },
+
+  risk: {
+    windowMs: Math.max(1, int("RISK_WINDOW_MS", 3600000)),
+    minimumFailures: Math.max(1, int("RISK_MINIMUM_FAILURES", 3)),
+    pointsPerFailure: Math.max(1, int("RISK_POINTS_PER_FAILURE", 10)),
+    reviewScore: Math.max(1, int("RISK_REVIEW_SCORE", 50)),
+  },
+  downloadTtlSeconds: Math.min(900, Math.max(1, int("EVIDENCE_DOWNLOAD_TTL_SECONDS", 300))),
+
   webhooks: {
     /** Comma-separated receiver URLs; every published event is delivered to each. */
     endpoints: list("WEBHOOK_ENDPOINTS", []),
