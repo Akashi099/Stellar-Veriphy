@@ -100,6 +100,16 @@ export const config = {
     /** "Latest verification for this content" can change when the content is re-verified. */
     contentHashTtlMs: int("PUBLIC_CACHE_CONTENT_HASH_TTL_MS", 30_000),
     negativeTtlMs: int("PUBLIC_CACHE_NEGATIVE_TTL_MS", 5_000),
+  },
+
+  risk: {
+    windowMs: Math.max(1, int("RISK_WINDOW_MS", 3600000)),
+    minimumFailures: Math.max(1, int("RISK_MINIMUM_FAILURES", 3)),
+    pointsPerFailure: Math.max(1, int("RISK_POINTS_PER_FAILURE", 10)),
+    reviewScore: Math.max(1, int("RISK_REVIEW_SCORE", 50)),
+  },
+  downloadTtlSeconds: Math.min(900, Math.max(1, int("EVIDENCE_DOWNLOAD_TTL_SECONDS", 300))),
+
   webhooks: {
     /** Comma-separated receiver URLs; every published event is delivered to each. */
     endpoints: list("WEBHOOK_ENDPOINTS", []),

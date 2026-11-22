@@ -13,7 +13,18 @@ export interface IndexSpec extends IndexDescription {
  * Field order follows Equality → Sort → Range so each query uses a single bounded index scan.
  */
 export const INDEXES: Record<string, IndexSpec[]> = {
+  evidence_download_grants: [
+    { name: "tokenHash_unique", key: { tokenHash: 1 }, unique: true, serves: "Download lookup and revocation" },
+    { name: "expiresAt_ttl", key: { expiresAt: 1 }, expireAfterSeconds: 0, serves: "Expired grant cleanup; access also checks expiry" },
+  ],
+  security_audit_events: [
+    { name: "jobId_at", key: { jobId: 1, at: 1, _id: 1 }, serves: "Audit export provenance history" },
+  ],
+  audit_export_receipts: [
+    { name: "exportId_unique", key: { exportId: 1 }, unique: true, serves: "Independent export receipt lookup" },
+  ],
   [Collections.verifications]: [
+    { name: "creator_updatedAt", key: { creator: 1, updatedAt: 1 }, serves: "Advisory repeated failure scoring window" },
     {
       name: "jobId_unique",
       key: { jobId: 1 },
