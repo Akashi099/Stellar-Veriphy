@@ -1,3 +1,4 @@
+import { SecurityService } from "./security/service.js";
 import { config, externalApiPolicy } from "./config.js";
 import type { QueueName } from "./db/collections.js";
 import { ensureIndexes } from "./db/indexes.js";
@@ -85,10 +86,9 @@ async function main(): Promise<void> {
     queue,
     cleanup,
     verifications,
-    verifications: verificationRepository,
+    security: new SecurityService(db),
     maintenance,
     webhooks,
-    timeouts: config.httpTimeouts,
     log: log.child({ component: "http" }),
   });
   server.listen(config.port, () => log.info("backend listening", { port: config.port }));
