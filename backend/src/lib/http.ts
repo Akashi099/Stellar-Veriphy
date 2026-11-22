@@ -1,6 +1,10 @@
+import { config } from "../config.js";
 import { safeUrl } from "./url.js";
 import type { Logger } from "./logger.js";
 import {
+  providerCalls,
+  providerLatency,
+  providerLastSuccess,
   externalApiDuration,
   externalApiRequests,
   externalApiRetries,
@@ -124,6 +128,7 @@ export class ExternalApiClient {
     readonly service: string,
     policy: ExternalApiPolicy,
     private readonly log?: Logger,
+    private readonly traffic: "verification" | "probe" | "notification" = "verification",
   ) {
     this.policy = {
       ...policy,
@@ -132,8 +137,30 @@ export class ExternalApiClient {
     };
   }
 
+  private async measured<T>(operation: () => Promise<T>): Promise<T> {
+    const started = performance.now();
+    const provider = ["horizon", "soroban_rpc", "ipfs", "kms", "tee_oracle", "webhook"].includes(this.service) ? this.service : "other";
+    const labels = { provider, environment: config.trafficEnvironment, traffic: this.traffic };
+    let outcome = "success";
+    try {
+      const result = await operation();
+      providerLastSuccess.set(labels, Date.now() / 1000);
+      return result;
+    } catch (error) {
+      outcome = error instanceof ExternalApiError ? error.meta.reason : "invalid_response";
+      throw error;
+    } finally {
+      providerCalls.inc({ ...labels, outcome });
+      providerLatency.observe({ ...labels, outcome }, (performance.now() - started) / 1000);
+    }
+  }
+
+  request(url: string, init: ExternalRequestInit = {}) {
+    return this.measured(() => this.requestAttempts(url, init));
+  }
+
   /** Sends a request and returns the 2xx response with its body fully read as text. */
-  async request(
+  private async requestAttempts(
     url: string,
     init: ExternalRequestInit = {},
   ): Promise<{ status: number; headers: Headers; text: string; attempts: number }> {
@@ -209,7 +236,7 @@ export class ExternalApiClient {
         attempts: attempt,
         timeoutMs: attemptTimeout,
         durationMs: Math.round(performance.now() - started),
-        retryable: retryableFailure,
+        retryable: failure.reason !== "aborted" && retryableFailure,
       };
       const error = new ExternalApiError(
         `${this.service} ${method} ${target} failed after ${attempt} attempt(s): ${failure.message}`,
@@ -222,9 +249,13 @@ export class ExternalApiClient {
   }
 
   /** Like request(), but parses the body as JSON; a non-JSON body is an `invalid_response` failure. */
-  async json<T>(url: string, init: ExternalRequestInit = {}): Promise<T> {
+  json<T>(url: string, init: ExternalRequestInit = {}): Promise<T> {
+    return this.measured(() => this.jsonResponse<T>(url, init));
+  }
+
+  private async jsonResponse<T>(url: string, init: ExternalRequestInit): Promise<T> {
     const started = performance.now();
-    const res = await this.request(url, {
+    const res = await this.requestAttempts(url, {
       ...init,
       headers: { accept: "application/json", ...(init.body !== undefined ? { "content-type": "application/json" } : {}), ...init.headers },
     });

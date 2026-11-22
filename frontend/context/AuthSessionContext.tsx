@@ -305,21 +305,8 @@ export function AuthSessionProvider({ children }: { children: ReactNode }) {
   const role = isAuthenticated ? (session?.role ?? null) : null;
 
   const value = useMemo<AuthSessionValue>(
-    () => ({
-      status,
-      session,
-      error,
-      role,
-      isAuthenticated,
-      isAdmin: role === "admin",
-      login,
-      logout,
-      refresh,
-      getAccessToken,
-    }),
-    [status, session, error, role, isAuthenticated, login, logout, refresh, getAccessToken],
-    () => ({ status, session, error, hydrated, persistenceError, login, logout, refresh, getAccessToken }),
-    [status, session, error, hydrated, persistenceError, login, logout, refresh, getAccessToken],
+    () => ({ status, session, error, role, isAuthenticated, isAdmin: role === "admin", hydrated, persistenceError, login, logout, refresh, getAccessToken }),
+    [status, session, error, role, isAuthenticated, hydrated, persistenceError, login, logout, refresh, getAccessToken],
   );
 
   return <AuthSessionContext.Provider value={value}>{children}</AuthSessionContext.Provider>;

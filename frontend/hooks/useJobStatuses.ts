@@ -8,7 +8,7 @@ const POLL_INTERVAL_MS = 2000;
 const MAX_BACKOFF_MS = 30000;
 
 export function isTerminal(job: VerificationJobView): boolean {
-  return job.status === "certified" || job.status === "failed";
+  return job.status === "certified" || job.status === "failed" || job.status === "cancelled";
 }
 
 // Polls the server for the given jobs until all of them finish. Polling backs

@@ -14,9 +14,11 @@ const STATUS_PROJECTION = {
   certId: 1,
   txHash: 1,
   error: 1,
+  errorCode: 1,
   createdAt: 1,
   updatedAt: 1,
   completedAt: 1,
+  cancelledAt: 1,
 } as const;
 
 /**
@@ -93,17 +95,17 @@ export class VerificationRepository {
    */
   refresh(
     jobId: string,
-    fields: Partial<Pick<VerificationDoc, "status" | "certId" | "txHash" | "error" | "completedAt">>,
+    fields: Partial<Pick<VerificationDoc, "status" | "certId" | "txHash" | "error" | "errorCode" | "completedAt">>,
   ) {
     const $set: Record<string, unknown> = { updatedAt: new Date() };
-    for (const key of ["status", "certId", "txHash", "error", "completedAt"] as const) {
+    for (const key of ["status", "certId", "txHash", "error", "errorCode", "completedAt"] as const) {
       if (fields[key] !== undefined) $set[key] = fields[key];
     }
-    return this.col.findOneAndUpdate({ jobId }, { $set }, { returnDocument: "after" });
+    return this.col.findOneAndUpdate({ jobId, status: { $ne: "cancelled" } }, { $set }, { returnDocument: "after" });
   }
 
   /** Convenience wrapper for status-only refreshes. */
-  updateStatus(jobId: string, status: VerificationStatus, extra: { certId?: string; txHash?: string; error?: string } = {}) {
+  updateStatus(jobId: string, status: VerificationStatus, extra: { certId?: string; txHash?: string; error?: string; errorCode?: NonNullable<VerificationDoc["errorCode"]> } = {}) {
     return this.refresh(jobId, { status, ...extra });
   }
 }
@@ -112,7 +114,7 @@ type StatusResult = NonNullable<Awaited<ReturnType<VerificationRepository["getSt
 type VerificationResult = NonNullable<Awaited<ReturnType<VerificationRepository["findLatestByContentHash"]>>>;
 
 /** Statuses that never change again, so their status/certificate documents are safe to cache longer. */
-const TERMINAL_STATUSES: readonly VerificationStatus[] = ["certified", "failed"];
+const TERMINAL_STATUSES: readonly VerificationStatus[] = ["certified", "failed", "cancelled"];
 
 export interface PublicVerificationCaches {
   status: TtlCache<StatusResult>;
@@ -152,7 +154,7 @@ export class CachedVerificationReads {
 
   findLatestByContentHash(contentHash: string) {
     const key = contentHash.toLowerCase().replace(/^sha256:/, "");
-    return this.caches.contentHash.getOrLoad(key, () => this.repo.findLatestByContentHash(contentHash));
+    return this.caches.contentHash.getOrLoad(key, () => this.repo.findLatestByContentHash(contentHash), (v) => TERMINAL_STATUSES.includes(v.status));
   }
 
   findByCertId(certId: string) {

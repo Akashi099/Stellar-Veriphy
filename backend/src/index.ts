@@ -37,7 +37,7 @@ async function main(): Promise<void> {
   const webhooks = new WebhookService(
     db,
     queue,
-    new ExternalApiClient("webhook", externalApiPolicy("webhook"), log.child({ component: "webhook-http" })),
+    new ExternalApiClient("webhook", externalApiPolicy("webhook"), log.child({ component: "webhook-http" }), "notification"),
     config.webhooks,
     log.child({ component: "webhooks" }),
   );

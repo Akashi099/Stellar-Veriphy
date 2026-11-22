@@ -18,6 +18,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 
 import {
   type VerificationStatus,
+  type CancellationRequest,
   verificationStatusService,
   type WatchOptions,
 } from "@/services/verificationStatusService";
@@ -57,6 +58,7 @@ export interface UseVerificationStatusReturn {
   start: (jobId: string, opts?: UseVerificationStatusOptions) => void;
   /** Manually stop the current poll. */
   stop: () => void;
+  cancel: (request?: CancellationRequest) => Promise<void>;
 }
 
 // ---------------------------------------------------------------------------
@@ -120,6 +122,7 @@ export function useVerificationStatus(
         },
 
         onError(err, id) {
+          setIsPolling(verificationStatusService.isWatching(id));
           merged.onError?.(err, id);
         },
       });
@@ -137,5 +140,11 @@ export function useVerificationStatus(
     };
   }, []);
 
-  return { status, isPolling, start, stop };
+  const cancel = useCallback(async (request?: CancellationRequest) => {
+    const jobId = activeJobId.current;
+    if (!jobId) return;
+    await verificationStatusService.cancel(jobId, request);
+  }, []);
+
+  return { status, isPolling, start, stop, cancel };
 }

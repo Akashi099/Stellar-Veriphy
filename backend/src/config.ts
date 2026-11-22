@@ -1,3 +1,4 @@
+import { assertProviderConfiguration, validateProviderConfiguration } from "./provider-config.js";
 import { hostname } from "node:os";
 
 function env(name: string): string | undefined {
@@ -14,7 +15,7 @@ function int(name: string, fallback: number): number {
   if (raw === undefined) return fallback;
   const value = Number(raw);
   if (!Number.isInteger(value) || value < 0) {
-    throw new Error(`Invalid ${name}: expected a non-negative integer, got "${raw}"`);
+    throw new Error(`Invalid ${name}: expected a non-negative integer`);
   }
   return value;
 }
@@ -22,6 +23,7 @@ function int(name: string, fallback: number): number {
 function bool(name: string, fallback: boolean): boolean {
   const raw = env(name);
   if (raw === undefined) return fallback;
+  if (!["1", "true", "yes", "on", "0", "false", "no", "off"].includes(raw.toLowerCase())) throw new Error(`Invalid ${name}: expected a boolean`);
   return ["1", "true", "yes", "on"].includes(raw.toLowerCase());
 }
 
@@ -40,6 +42,7 @@ const NETWORK_PASSPHRASES: Record<string, string> = {
 const network = str("STELLAR_NETWORK", "testnet");
 
 export const config = {
+  trafficEnvironment: str("PROVIDER_TRAFFIC_ENVIRONMENT", network === "mainnet" ? "production" : "test"),
   port: int("PORT", 4000),
   instanceId: `${hostname()}:${process.pid}`,
   adminToken: env("ADMIN_TOKEN"),
@@ -52,7 +55,7 @@ export const config = {
 
   stellar: {
     network,
-    passphrase: env("STELLAR_NETWORK_PASSPHRASE") ?? NETWORK_PASSPHRASES[network],
+    passphrase: env("STELLAR_NETWORK_PASSPHRASE") ?? NETWORK_PASSPHRASES[network] ?? "",
     horizonUrl: str("STELLAR_HORIZON_URL", "https://horizon-testnet.stellar.org"),
     sorobanRpcUrl: str("STELLAR_SOROBAN_RPC_URL", "https://soroban-testnet.stellar.org"),
     maxLedgerAgeSeconds: int("STELLAR_MAX_LEDGER_AGE_SECONDS", 60),
@@ -100,6 +103,10 @@ export const config = {
     /** "Latest verification for this content" can change when the content is re-verified. */
     contentHashTtlMs: int("PUBLIC_CACHE_CONTENT_HASH_TTL_MS", 30_000),
     negativeTtlMs: int("PUBLIC_CACHE_NEGATIVE_TTL_MS", 5_000),
+  },
+  http: {
+    slowRequestMs: int("HTTP_SLOW_REQUEST_MS", 1_000),
+    requestTimeoutMs: int("HTTP_REQUEST_TIMEOUT_MS", 30_000),
   },
 
   risk: {
@@ -159,7 +166,7 @@ export type Config = typeof config;
  * can be overridden per service, e.g. EXTERNAL_API_HORIZON_TIMEOUT_MS or EXTERNAL_API_WEBHOOK_RETRIES.
  * The service name is upper-cased: horizon, soroban_rpc, ipfs, kms, tee_oracle, webhook.
  */
-export function externalApiPolicy(service: string) {
+function readExternalApiPolicy(service: string) {
   const prefix = `EXTERNAL_API_${service.toUpperCase().replace(/[^A-Z0-9]/g, "_")}`;
   const d = config.externalApi;
   return {
@@ -170,3 +177,22 @@ export function externalApiPolicy(service: string) {
     totalTimeoutMs: int(`${prefix}_TOTAL_TIMEOUT_MS`, d.totalTimeoutMs),
   };
 }
+
+// Read once. Existing clients and new clients use the same validated startup snapshot.
+assertProviderConfiguration(config);
+const policies = new Map(["horizon", "soroban_rpc", "ipfs", "kms", "tee_oracle", "webhook"].map((service) => {
+  const policy = readExternalApiPolicy(service);
+  const issues = validateProviderConfiguration({ ...config, externalApi: policy });
+  if (issues.length) throw new Error("Invalid provider policy: " + issues.map(({ setting, code }) => setting.replace("EXTERNAL_API_", `EXTERNAL_API_${service.toUpperCase()}_`) + ` (${code})`).join(", "));
+  return [service, Object.freeze(policy)] as const;
+}));
+export function externalApiPolicy(service: string) {
+  const policy = policies.get(service);
+  if (!policy) throw new Error("Unknown external provider");
+  return policy;
+}
+function freezeConfiguration(value: object): void {
+  for (const child of Object.values(value)) if (child && typeof child === "object") freezeConfiguration(child);
+  Object.freeze(value);
+}
+freezeConfiguration(config);

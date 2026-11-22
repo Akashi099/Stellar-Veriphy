@@ -35,6 +35,7 @@ const STATUS_LABEL: Record<VerificationStatus, string> = {
   pending: "Pending Verification",
   processing: "Verification in Progress",
   failed: "Verification Failed",
+  cancelled: "Verification Cancelled",
 };
 
 const STATUS_BADGE_IMAGE: Record<VerificationStatus, string> = {
@@ -42,6 +43,7 @@ const STATUS_BADGE_IMAGE: Record<VerificationStatus, string> = {
   pending: "pending.svg",
   processing: "processing.svg",
   failed: "failed.svg",
+  cancelled: "cancelled.svg",
 };
 
 export function generateBadgeMetadata(

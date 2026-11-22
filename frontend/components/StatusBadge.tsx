@@ -4,6 +4,7 @@ const STATUS = {
   certified: { label: "Certified", className: "bg-emerald-100 text-emerald-900 dark:bg-emerald-950 dark:text-emerald-100" },
   processing: { label: "Processing", className: "bg-sky-100 text-sky-900 dark:bg-sky-950 dark:text-sky-100" },
   pending: { label: "Pending", className: "bg-slate-200 text-slate-800 dark:bg-slate-800 dark:text-slate-100" },
+  cancelled: { label: "Cancelled", className: "bg-amber-100 text-amber-900 dark:bg-amber-950 dark:text-amber-100" },
   failed: { label: "Verification failed", className: "bg-rose-100 text-rose-900 dark:bg-rose-950 dark:text-rose-100" },
 } as const satisfies Record<VerificationStatus, { label: string; className: string }>;
 

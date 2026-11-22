@@ -36,6 +36,12 @@ const OUTCOME: Record<VerificationStatus, OutcomeCopy> = {
     nextSteps: ["No action needed yet. Results appear here when verification starts."],
     tone: "border-slate-200 bg-slate-50 text-slate-900 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-100",
   },
+  cancelled: {
+    headline: "Verification cancelled",
+    summary: "Processing stopped before verification completed.",
+    nextSteps: ["Submit a new verification request if needed."],
+    tone: "border-amber-200 bg-amber-50 text-amber-950 dark:border-amber-900 dark:bg-amber-950/40 dark:text-amber-100",
+  },
   failed: {
     headline: "Verification did not pass",
     summary: "One or more required checks failed or could not be completed.",

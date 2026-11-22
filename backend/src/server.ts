@@ -1,3 +1,4 @@
+import { publicVerification, verificationError } from "./verification-errors.js";
 import { pipeline } from "node:stream/promises";
 import { maskVerification } from "./security/policy.js";
 import type { SecurityService } from "./security/service.js";
@@ -12,9 +13,9 @@ import type { Logger } from "./lib/logger.js";
 import {
   maintenanceRejected,
   registry,
-  requestDuration,
-  requestTimeouts,
-  slowResponses,
+  httpRequestDuration as requestDuration,
+  httpRequestTimeouts as requestTimeouts,
+  httpSlowRequests as slowResponses,
 } from "./lib/metrics.js";
 import type { MaintenanceMode } from "./maintenance/mode.js";
 import { CleanupAlreadyRunningError, type CleanupScheduler } from "./maintenance/scheduler.js";
@@ -398,16 +399,35 @@ export function createHttpServer({ security, health, queue, cleanup, verificatio
       },
     },
 
+    {
+      method: "POST",
+      pattern: /^\/api\/verifications\/(?<jobId>[^/]+)\/cancel$/,
+      admin: true,
+      handler: async (_req, res, { jobId }) => {
+        const result = await queue.cancelVerification(jobId);
+        if (result === "not_found") return send(res, 404, { code: "VERIFICATION_NOT_FOUND", error: "Verification not found" });
+        if (result === "conflict") return send(res, 409, { code: "VERIFICATION_NOT_CANCELLABLE", error: "Finalization has started or verification has finished" });
+        verifications.clear();
+        log.info("verification cancelled by authorized operator", { jobId });
+        send(res, 200, { jobId, status: "cancelled" });
+      },
+    },
     // --- Verification lookups (#773, cached by #779) ----------------------------
     {
       method: "GET",
       pattern: /^\/api\/verifications\/(?<jobId>[^/]+)\/progress$/,
       handler: async (_req, res, { jobId }) => {
         // Not cached: progress changes while the job runs (#781).
+        const verification = await verifications.getStatus(jobId);
+        if (verification?.status === "cancelled") return send(res, 200, {
+          state: "cancelled", terminal: true, stage: null, percent: null,
+          finishedAt: verification.cancelledAt ?? verification.completedAt, lastErrorCode: null,
+        });
         const job = await queue.getProgress(jobId);
         if (!job) return send(res, 404, { error: "No processing job for this verification" });
         send(res, 200, {
           state: job.status,
+          terminal: ["succeeded", "dead", "cancelled"].includes(job.status),
           stage: job.progress?.stage ?? null,
           percent: job.progress?.percent ?? null,
           completed: job.progress?.completed ?? null,
@@ -419,7 +439,8 @@ export function createHttpServer({ security, health, queue, cleanup, verificatio
           nextAttemptAt: job.status === "queued" ? job.runAt : null,
           startedAt: job.startedAt ?? null,
           finishedAt: job.finishedAt ?? null,
-          lastErrorCode: job.lastError?.code ?? null,
+          lastErrorCode: job.lastError ? verificationErrorFromFailure(job.lastError).code : null,
+          failure: job.lastError ? verificationErrorFromFailure(job.lastError) : null,
         });
       },
     },
@@ -544,19 +565,12 @@ export function createHttpServer({ security, health, queue, cleanup, verificatio
           return send(res, 400, { error: `invalid ${scope} entries`, invalid: invalid.slice(0, 10) });
         }
         const requestedBy = req.socket.remoteAddress ?? "unknown";
-        const job = await queue.enqueueReindex({
-          scope: scope as "contentHashes" | "verificationIds",
-          targets: targets as string[],
+        const result = await queue.enqueueReindex({
+          ...(scope === "contentHashes" ? { hashes: targets as string[] } : { ids: targets as string[] }),
+          scope: scope as string,
           requestedBy,
         });
-        log.info("reindex requested by operator", { jobId: job.id.toHexString(), scope, count: targets.length, requestedBy });
-        send(res, 202, {
-          jobId: job.id.toHexString(),
-          status: job.status,
-          progress: job.progress ?? null,
-          scope,
-          count: targets.length,
-        });
+        send(res, 202, { ...result, jobIds: result.jobIds.map((id) => id.toHexString()) });
       },
     },
     {
@@ -568,7 +582,7 @@ export function createHttpServer({ security, health, queue, cleanup, verificatio
         const job = objectId && (await queue.getJob(objectId));
         if (!job) return send(res, 404, { error: "Reindex job not found" });
         send(res, 200, {
-          jobId: job.id.toHexString(),
+          jobId: job._id.toHexString(),
           status: job.status,
           progress: job.progress ?? null,
           attempts: job.attempts,
@@ -668,7 +682,7 @@ export function createHttpServer({ security, health, queue, cleanup, verificatio
       })
       .finally(() => {
         const durationMs = performance.now() - started;
-        requestDuration.observe({ method: req.method ?? "unknown", route: routeLabel }, durationMs / 1000);
+        requestDuration.observe({ method: req.method ?? "unknown", route: routeLabel, status: String(res.statusCode) }, durationMs / 1000);
         if (durationMs >= REQUEST_TIMEOUT_MS) {
           requestTimeouts.inc({ method: req.method ?? "unknown", route: routeLabel });
           log.warn("request exceeded timeout threshold", { method: req.method, path: url.pathname, durationMs: Math.round(durationMs) });

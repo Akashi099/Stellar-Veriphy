@@ -12,7 +12,7 @@ import type { ContentManifest, UploadRecord, VerificationJobView, VerificationSt
 type FieldRule = { type: "string" | "number" | "boolean" | "object" | "array"; optional?: boolean; nullable?: boolean; oneOf?: readonly unknown[] };
 export type ApiContract<T> = { name: string; fields: Record<keyof T, FieldRule> };
 
-const VERIFICATION_STATUSES: readonly VerificationStatus[] = ["pending", "processing", "certified", "failed"];
+const VERIFICATION_STATUSES: readonly VerificationStatus[] = ["pending", "processing", "certified", "failed", "cancelled"];
 
 export const ContentManifestContract: ApiContract<ContentManifest> = {
   name: "ContentManifest",
@@ -54,6 +54,8 @@ export const VerificationJobViewContract: ApiContract<VerificationJobView> = {
     startedAt: { type: "string", optional: true },
     completedAt: { type: "string", optional: true },
     error: { type: "string", optional: true },
+    failure: { type: "object", optional: true },
+    cancelledAt: { type: "string", optional: true },
     result: { type: "object", optional: true },
     queuePosition: { type: "number", nullable: true },
     estimatedWaitMs: { type: "number", nullable: true },

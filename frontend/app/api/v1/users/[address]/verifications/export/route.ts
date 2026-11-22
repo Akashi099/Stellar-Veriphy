@@ -32,6 +32,7 @@ const EVENT_TYPES: readonly HistoryEventType[] = [
   "verification_job_started",
   "verification_job_completed",
   "verification_job_failed",
+  "verification_job_cancelled",
   "verification_record_created",
   "verification_status_changed",
 ];

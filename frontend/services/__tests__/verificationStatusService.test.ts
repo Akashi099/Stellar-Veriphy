@@ -1,199 +1,57 @@
-/**
- * Unit tests for services/verificationStatusService.ts
- * Covers: VerificationStatusService.watch / unwatch / unwatchAll / isWatching
- */
+import { verificationStatusService, type VerificationStatus } from "../verificationStatusService";
+import { verificationAction } from "@/lib/verificationErrors";
 
-import {
-  type VerificationPhase,
-  type VerificationStatus,
-  verificationStatusService,
-} from "../verificationStatusService";
-
-// Use fake timers to control setInterval / setTimeout without waiting
 jest.useFakeTimers();
+const originalFetch = globalThis.fetch;
+function response(data: unknown, status = 200): Response {
+  return { ok: status >= 200 && status < 300, status, json: async () => data } as Response;
+}
+async function flush() { for (let i = 0; i < 8; i++) await Promise.resolve(); }
+afterEach(() => { verificationStatusService.unwatchAll(); jest.clearAllTimers(); globalThis.fetch = originalFetch; });
 
-afterEach(() => {
-  verificationStatusService.unwatchAll();
-  jest.clearAllTimers();
+test("uses backend cancellation as terminal state and stops polling", async () => {
+  const updates: VerificationStatus[] = []; const onTerminal = jest.fn();
+  globalThis.fetch = jest.fn().mockResolvedValue(response({ status: "cancelled", updatedAt: "2026-01-01T00:00:00Z" }));
+  verificationStatusService.watch("job", { onUpdate: (status) => updates.push(status), onTerminal }); await flush();
+  expect(updates[0]?.phase).toBe("cancelled"); expect(updates[0]?.terminal).toBe(true);
+  expect(onTerminal).toHaveBeenCalledTimes(1); expect(verificationStatusService.isWatching("job")).toBe(false);
+  jest.advanceTimersByTime(60_000); await flush(); expect(globalThis.fetch).toHaveBeenCalledTimes(1);
 });
-
-// ---------------------------------------------------------------------------
-// watch — initial status
-// ---------------------------------------------------------------------------
-
-describe("watch — initial 'submitted' status", () => {
-  it("calls onUpdate immediately with phase 'submitted'", () => {
-    const updates: VerificationStatus[] = [];
-    verificationStatusService.watch("job-1", { onUpdate: (s) => updates.push(s) });
-
-    expect(updates.length).toBe(1);
-    expect(updates[0]?.phase).toBe("submitted");
-    expect(updates[0]?.jobId).toBe("job-1");
-    expect(updates[0]?.terminal).toBe(false);
-  });
-
-  it("initial status has progress of 10", () => {
-    let status: VerificationStatus | null = null;
-    verificationStatusService.watch("job-progress", {
-      onUpdate: (s) => {
-        status = s;
-      },
-    });
-    expect(status!.progress).toBe(10);
-  });
-
-  it("includes txHash and requestId when supplied", () => {
-    let status: VerificationStatus | null = null;
-    verificationStatusService.watch("job-ids", {
-      txHash: "tx123",
-      requestId: "req456",
-      onUpdate: (s) => {
-        status = s;
-      },
-    });
-    expect(status!.txHash).toBe("tx123");
-    expect(status!.requestId).toBe("req456");
-  });
+test("pending backend state never synthesizes a successful certificate", async () => {
+  const updates: VerificationStatus[] = [];
+  globalThis.fetch = jest.fn().mockResolvedValue(response({ status: "pending" }));
+  verificationStatusService.watch("job", { onUpdate: (status) => updates.push(status) }); await flush();
+  for (let i = 0; i < 3; i++) { jest.advanceTimersByTime(3_000); await flush(); }
+  expect(updates.every((status) => status.phase === "pending")).toBe(true);
+  expect(verificationStatusService.isWatching("job")).toBe(true);
 });
-
-// ---------------------------------------------------------------------------
-// isWatching
-// ---------------------------------------------------------------------------
-
-describe("isWatching", () => {
-  it("returns true while a job is being watched", () => {
-    verificationStatusService.watch("job-w", { onUpdate: () => {} });
-    expect(verificationStatusService.isWatching("job-w")).toBe(true);
-  });
-
-  it("returns false for an unknown job", () => {
-    expect(verificationStatusService.isWatching("no-such-job")).toBe(false);
-  });
+test("rejected cancellation preserves active polling", async () => {
+  globalThis.fetch = jest.fn().mockResolvedValueOnce(response({ status: "processing" })).mockResolvedValueOnce(response({}, 403));
+  verificationStatusService.watch("job", { onUpdate: jest.fn() }); await flush();
+  await expect(verificationStatusService.cancel("job")).rejects.toThrow("not authorized");
+  expect(verificationStatusService.isWatching("job")).toBe(true);
 });
-
-// ---------------------------------------------------------------------------
-// unwatch
-// ---------------------------------------------------------------------------
-
-describe("unwatch", () => {
-  it("stops polling and sets isWatching to false", () => {
-    verificationStatusService.watch("job-stop", { onUpdate: () => {} });
-    verificationStatusService.unwatch("job-stop");
-    expect(verificationStatusService.isWatching("job-stop")).toBe(false);
-  });
-
-  it("is a no-op for an unknown job", () => {
-    expect(() => verificationStatusService.unwatch("ghost")).not.toThrow();
-  });
-
-  it("unsubscribe function returned by watch also stops polling", () => {
-    const unsub = verificationStatusService.watch("job-unsub", { onUpdate: () => {} });
-    unsub();
-    expect(verificationStatusService.isWatching("job-unsub")).toBe(false);
-  });
+test("confirmed cancellation ignores an older in-flight status response", async () => {
+  let resolve!: (response: Response) => void; const onUpdate = jest.fn(); const onTerminal = jest.fn();
+  globalThis.fetch = jest.fn(() => new Promise<Response>((done) => { resolve = done; }));
+  verificationStatusService.watch("job", { onUpdate, onTerminal });
+  await verificationStatusService.cancel("job", async () => ({ status: "cancelled" }));
+  resolve(response({ status: "processing" })); await flush();
+  expect(onUpdate).toHaveBeenCalledTimes(1); expect(onUpdate.mock.calls[0]?.[0].phase).toBe("cancelled");
+  expect(onTerminal).toHaveBeenCalledTimes(1);
 });
-
-// ---------------------------------------------------------------------------
-// unwatchAll
-// ---------------------------------------------------------------------------
-
-describe("unwatchAll", () => {
-  it("stops all active polls", () => {
-    verificationStatusService.watch("j1", { onUpdate: () => {} });
-    verificationStatusService.watch("j2", { onUpdate: () => {} });
-    verificationStatusService.unwatchAll();
-    expect(verificationStatusService.isWatching("j1")).toBe(false);
-    expect(verificationStatusService.isWatching("j2")).toBe(false);
-  });
+test("unsubscribe fences late reads and clears polling", async () => {
+  let resolve!: (response: Response) => void; const onUpdate = jest.fn();
+  globalThis.fetch = jest.fn(() => new Promise<Response>((done) => { resolve = done; }));
+  const stop = verificationStatusService.watch("job", { onUpdate }); stop();
+  resolve(response({ status: "certified" })); await flush();
+  expect(onUpdate).not.toHaveBeenCalled(); expect(verificationStatusService.isWatching("job")).toBe(false);
 });
-
-// ---------------------------------------------------------------------------
-// Phase progression (mocked interval)
-// ---------------------------------------------------------------------------
-
-describe("phase progression", () => {
-  it("advances to 'processing' after first interval tick", async () => {
-    const phases: VerificationPhase[] = [];
-    verificationStatusService.watch("job-phases", {
-      intervalMs: 100,
-      onUpdate: (s) => phases.push(s.phase),
-    });
-    // Initial: submitted
-    expect(phases).toContain("submitted");
-
-    // First tick → pending (no txHash, so skip Horizon check → processing)
-    jest.advanceTimersByTime(100);
-    await Promise.resolve();
-    jest.advanceTimersByTime(100);
-    await Promise.resolve();
-
-    // Should have progressed beyond submitted
-    expect(phases.length).toBeGreaterThan(1);
-  });
-
-  it("terminal phase stops polling", async () => {
-    const phases: VerificationPhase[] = [];
-    let terminalFired = false;
-
-    verificationStatusService.watch("job-terminal", {
-      intervalMs: 50,
-      onUpdate: (s) => phases.push(s.phase),
-      onTerminal: () => {
-        terminalFired = true;
-      },
-    });
-
-    // Advance enough for the mock to reach 'verified'
-    for (let i = 0; i < 10; i++) {
-      jest.advanceTimersByTime(50);
-      await Promise.resolve();
-    }
-
-    if (phases.includes("verified")) {
-      expect(terminalFired).toBe(true);
-      expect(verificationStatusService.isWatching("job-terminal")).toBe(false);
-    }
-  });
-
-  it("emits 'expired' after timeout", async () => {
-    const phases: VerificationPhase[] = [];
-    verificationStatusService.watch("job-timeout", {
-      intervalMs: 99999, // very long interval so normal ticks don't fire
-      timeoutMs: 100, // but timeout is short
-      onUpdate: (s) => phases.push(s.phase),
-    });
-
-    jest.advanceTimersByTime(200);
-    await Promise.resolve();
-
-    expect(phases).toContain("expired");
-    expect(verificationStatusService.isWatching("job-timeout")).toBe(false);
-  });
-});
-
-// ---------------------------------------------------------------------------
-// Status fields
-// ---------------------------------------------------------------------------
-
-describe("status fields", () => {
-  it("updatedAt is a valid ISO string", () => {
-    let status: VerificationStatus | null = null;
-    verificationStatusService.watch("job-date", {
-      onUpdate: (s) => {
-        status ??= s;
-      },
-    });
-    expect(() => new Date(status!.updatedAt)).not.toThrow();
-    expect(new Date(status!.updatedAt).toISOString()).toBe(status!.updatedAt);
-  });
-
-  it("message is a non-empty string for every phase", () => {
-    let status: VerificationStatus | null = null;
-    verificationStatusService.watch("job-msg", {
-      onUpdate: (s) => {
-        status = s;
-      },
-    });
-    expect(status!.message.length).toBeGreaterThan(0);
-  });
+test("failure actions use a safe versioned code mapping", async () => {
+  const onUpdate = jest.fn();
+  globalThis.fetch = jest.fn().mockResolvedValue(response({ status: "failed", error: "private provider text", failure: { version: 1, code: "PROVIDER_TIMEOUT", retryable: true } }));
+  verificationStatusService.watch("job", { onUpdate }); await flush();
+  expect(onUpdate.mock.calls[0]?.[0].message).toBe("Try again later.");
+  expect(verificationAction({ version: 2, code: "PROVIDER_TIMEOUT", retryable: true })).toContain("Contact support");
+  expect(verificationAction({ version: 1, code: "toString", retryable: false })).toContain("Contact support");
 });
