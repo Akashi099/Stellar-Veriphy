@@ -17,6 +17,16 @@ export const readChunkLocally: ChunkTransport = async (chunk) => {
 const STORAGE_KEY = "stellar-veriphy:upload-sessions:v1";
 const SESSION_RETRY = { maxAttempts: 4, baseDelayMs: 800, maxDelayMs: 6000 };
 
+function traceOptions(session: UploadSessionView) {
+  if (!session.traceId) return {};
+  return {
+    traceContext: {
+      traceId: session.traceId,
+      ...(session.traceSpanId ? { spanId: session.traceSpanId } : {}),
+    },
+  };
+}
+
 function sessionKey(creator: string, contentHash: string): string {
   return `${creator.trim().toUpperCase()}:${contentHash}`;
 }
@@ -77,7 +87,7 @@ export async function openUploadSession(input: OpenSessionInput): Promise<Upload
 
   const known = await findResumableSession(creator, contentHash);
   if (known?.status === "expired" || (known && mode === "restart")) {
-    const restarted = await api.updateUploadSession(known.id, { action: "restart" }, { retry });
+    const restarted = await api.updateUploadSession(known.id, { action: "restart" }, { retry, ...traceOptions(known) });
     remember(restarted);
     return restarted;
   }
@@ -87,7 +97,7 @@ export async function openUploadSession(input: OpenSessionInput): Promise<Upload
     { retry }
   );
   if (mode === "restart" && session.completedChunks.length > 0) {
-    session = await api.updateUploadSession(session.id, { action: "restart" }, { retry });
+    session = await api.updateUploadSession(session.id, { action: "restart" }, { retry, ...traceOptions(session) });
   }
   remember(session);
   return session;
@@ -115,7 +125,11 @@ export async function uploadMissingChunks(input: UploadChunksInput): Promise<Upl
 
   const flush = async () => {
     if (pending.length === 0) return;
-    session = await api.updateUploadSession(session.id, { action: "progress", chunks: pending }, { retry });
+    session = await api.updateUploadSession(
+      session.id,
+      { action: "progress", chunks: pending },
+      { retry, ...traceOptions(session) },
+    );
     pending = [];
     onProgress?.(session);
   };
@@ -137,7 +151,11 @@ export async function uploadMissingChunks(input: UploadChunksInput): Promise<Upl
 
 // Marks the session complete and links it to the registered upload record.
 export async function completeUploadSession(session: UploadSessionView, uploadId: string): Promise<UploadSessionView> {
-  const completed = await api.updateUploadSession(session.id, { action: "complete", uploadId }, { retry: SESSION_RETRY });
+  const completed = await api.updateUploadSession(
+    session.id,
+    { action: "complete", uploadId },
+    { retry: SESSION_RETRY, ...traceOptions(session) },
+  );
   forgetSession(session.creator, session.contentHash);
   return completed;
 }

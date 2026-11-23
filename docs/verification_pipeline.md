@@ -702,3 +702,9 @@ For more information:
 - [Contract Implementation Details](../IMPLEMENTATION.md)
 - [Deployment Guide](../DEPLOYMENT.md)
 - [Contributing Guide](../CONTRIBUTING.md)
+
+## Distributed tracing and dashboard
+
+The upload API establishes a trace ID from a validated incoming `X-Trace-Id` or the request ID, stores it with the upload, and carries it into the verification job. Worker spans continue the same trace; the attestation validation API also accepts `X-Trace-Id` and `X-Span-Id` for propagation from callers. Structured `pipeline.span` logs contain `traceId`, `spanId`, `parentSpanId`, stage, service, dependency, outcome, and duration so events can be followed across async boundaries.
+
+Tracing excludes request bodies, uploaded content, filenames, hashes, attestation evidence, and credentials. Prometheus metrics use only fixed stage, service, outcome, and dependency labels and are exposed at the frontend `/metrics` endpoint. The [Verification pipeline tracing dashboard](../monitoring/grafana/dashboards/verification-pipeline-tracing.json) shows stage latency, throughput, and observed service dependencies.

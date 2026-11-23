@@ -17,6 +17,11 @@ import { etagFor, withKeyLock } from "./write-concurrency";
 
 const sessions = () => collection<UploadSession>("upload-sessions");
 
+export interface UploadTraceContext {
+  traceId: string;
+  traceSpanId: string;
+}
+
 export type SessionUpdateResult =
   | { ok: true; session: UploadSession }
   | { ok: false; reason: "invalid"; errors: FieldError[] }
@@ -60,14 +65,18 @@ async function refresh(session: UploadSession, now = new Date(), locked = false)
 export function startOrResumeSession(
   start: UploadSessionStart,
   now = new Date(),
+  trace?: UploadTraceContext,
 ): Promise<{ session: UploadSession; resumed: boolean }> {
   // Two rapid starts for the same file must resume one session, not open two.
-  return withKeyLock(`upload-session-start:${start.creator}:${start.contentHash}`, () => startOrResumeLocked(start, now));
+  return withKeyLock(`upload-session-start:${start.creator}:${start.contentHash}`, () =>
+    startOrResumeLocked(start, now, trace),
+  );
 }
 
 async function startOrResumeLocked(
   start: UploadSessionStart,
   now: Date,
+  trace?: UploadTraceContext,
 ): Promise<{ session: UploadSession; resumed: boolean }> {
   const candidates = (await sessions().all()).filter(
     (s) => s.creator === start.creator && s.contentHash === start.contentHash && s.status === "in_progress",
@@ -81,6 +90,7 @@ async function startOrResumeLocked(
       }
       const next: UploadSession = {
         ...current,
+        ...trace,
         attempt: current.attempt + 1,
         updatedAt: now.toISOString(),
         expiresAt: expiresFrom(now),
@@ -94,6 +104,7 @@ async function startOrResumeLocked(
   const session: UploadSession = {
     id: randomUUID(),
     ...start,
+    ...trace,
     status: "in_progress",
     totalChunks: totalChunksFor(start.fileSize, start.chunkSize),
     completedChunks: [],
@@ -129,8 +140,9 @@ export function updateSession(
   update: UploadSessionUpdate,
   now = new Date(),
   isStale?: (current: UploadSession) => boolean,
+  trace?: UploadTraceContext,
 ): Promise<SessionUpdateResult | undefined> {
-  return sessionLock(id, () => updateSessionLocked(id, update, now, isStale));
+  return sessionLock(id, () => updateSessionLocked(id, update, now, isStale, trace));
 }
 
 async function updateSessionLocked(
@@ -138,12 +150,13 @@ async function updateSessionLocked(
   update: UploadSessionUpdate,
   now: Date,
   isStale?: (current: UploadSession) => boolean,
+  trace?: UploadTraceContext,
 ): Promise<SessionUpdateResult | undefined> {
   const stored = await sessions().get(id);
   if (!stored) return undefined;
   if (isStale?.(stored)) return { ok: false, reason: "stale", session: stored };
   const session = await refresh(stored, now, true);
-  const touched = { updatedAt: now.toISOString() };
+  const touched = { updatedAt: now.toISOString(), ...trace };
 
   // Restart is allowed from any state except completed: it clears progress and reopens the session.
   if (update.action === "restart") {

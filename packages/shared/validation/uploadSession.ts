@@ -37,6 +37,9 @@ export interface UploadSessionStart {
 
 export interface UploadSession extends UploadSessionStart {
   id: string;
+  /** Trace context carried from session creation through upload registration. */
+  traceId?: string;
+  traceSpanId?: string;
   status: UploadSessionStatus;
   totalChunks: number;
   // Sorted, de-duplicated indexes of chunks confirmed as received.

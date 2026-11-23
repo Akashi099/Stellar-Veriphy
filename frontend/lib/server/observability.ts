@@ -4,8 +4,16 @@ type LogLevel = "info" | "warn" | "error";
 
 interface OperationalLogContext {
   requestId?: string;
+  traceId?: string;
+  spanId?: string;
+  parentSpanId?: string;
   route: string;
   operation: string;
+  stage?: string;
+  service?: string;
+  dependency?: string;
+  outcome?: "ok" | "error";
+  durationMs?: number;
   status?: number;
   reason?: string;
   actor?: string;

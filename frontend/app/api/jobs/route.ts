@@ -2,6 +2,7 @@ import { isPlainObject, type VerificationJobView } from "@stellarveriphy/shared"
 import { readJson, respond, serverError, validationError } from "@/lib/server/http";
 import { enqueueJob, getJobViews } from "@/lib/server/jobs";
 import { logOperationalEvent, requestIdFrom } from "@/lib/server/observability";
+import { PipelineObserver, observerFromRequest } from "@/lib/server/pipeline-observability";
 import { getUpload } from "@/lib/server/uploads";
 
 const MAX_IDS_PER_REQUEST = 50;
@@ -48,7 +49,19 @@ export async function POST(req: Request) {
       });
       return respond(404, { status: "not_found", message: "No upload exists with this ID." });
     }
-    const job = await enqueueJob(uploadId);
+    const incomingObserver = observerFromRequest(req);
+    const observer = new PipelineObserver(
+      requestId,
+      upload.traceId ?? incomingObserver.traceId,
+      upload.traceSpanId ?? incomingObserver.traceSpanId,
+    );
+    const job = await observer.runStage(
+      "verification.job_enqueue",
+      "frontend",
+      ({ traceId, spanId }) => enqueueJob(uploadId, { traceId, traceSpanId: spanId }),
+      { dependency: { source: "frontend", target: "verification-worker" } },
+    );
+    observer.jobEnqueued({ jobId: job.id, uploadId });
     const [view] = await getJobViews([job.id]);
     logOperationalEvent("info", "verification_submission.queued", {
       requestId,
@@ -61,7 +74,10 @@ export async function POST(req: Request) {
       contentHash: upload.contentHash,
       manifestHash: upload.manifestHash,
     });
-    return respond<VerificationJobView>(202, { status: "queued", data: view });
+    const response = respond<VerificationJobView>(202, { status: "queued", data: view });
+    response.headers.set("X-Trace-Id", observer.traceId);
+    if (observer.traceSpanId) response.headers.set("X-Span-Id", observer.traceSpanId);
+    return response;
   } catch (err) {
     logOperationalEvent("error", "verification_submission.failed", {
       requestId,

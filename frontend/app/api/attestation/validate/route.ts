@@ -11,6 +11,7 @@ import type { AttestationEvidence } from "@stellarveriphy/shared";
 import type { ApiResponse, AttestationCheckResult } from "@/services/attestationPipelineService";
 import { runAttestationPipeline } from "@/services/attestationPipelineService";
 import { logOperationalEvent, requestIdFrom } from "@/lib/server/observability";
+import { observerFromRequest } from "@/lib/server/pipeline-observability";
 
 function isAttestationEvidence(obj: unknown): obj is AttestationEvidence {
   if (typeof obj !== "object" || obj === null) return false;
@@ -29,11 +30,12 @@ function isAttestationEvidence(obj: unknown): obj is AttestationEvidence {
 export async function POST(
   request: NextRequest,
 ): Promise<NextResponse<ApiResponse<AttestationCheckResult>>> {
+  const observer = observerFromRequest(request);
   const requestId = requestIdFrom(request);
 
   let body: unknown;
   try {
-    body = await request.json();
+    body = await observer.runStage("attestation.parse", "attestation", () => request.json());
   } catch {
     return NextResponse.json(
       { success: false, error: "Malformed JSON payload." },
@@ -46,9 +48,16 @@ export async function POST(
       ? (body as Record<string, unknown>)["evidence"]
       : undefined;
 
-  if (!isAttestationEvidence(evidence)) {
+  const validEvidence = await observer.runStage(
+    "attestation.validate_shape",
+    "attestation",
+    async () => (isAttestationEvidence(evidence) ? evidence : null),
+    { outcome: (value) => (value ? "ok" : "error") },
+  );
+  if (!validEvidence) {
     logOperationalEvent("warn", "attestation_validate.rejected", {
       requestId,
+      traceId: observer.traceId,
       route: "POST /api/attestation/validate",
       status: 400,
       reason: "invalid_evidence_shape",
@@ -63,13 +72,22 @@ export async function POST(
     );
   }
 
-  const result = runAttestationPipeline(evidence);
+  const result = await observer.runStage(
+    "attestation.validate",
+    "attestation",
+    async () => runAttestationPipeline(validEvidence, observer.traceId),
+    {
+      dependency: { source: "frontend", target: "attestation" },
+      outcome: (attestation) => (attestation.status === "valid" ? "ok" : "error"),
+    },
+  );
 
   logOperationalEvent(
     result.status === "valid" ? "info" : "warn",
     "attestation_validate.completed",
     {
       requestId,
+      traceId: observer.traceId,
       route: "POST /api/attestation/validate",
       status: 200,
       attestationStatus: result.status,
@@ -77,5 +95,8 @@ export async function POST(
     },
   );
 
-  return NextResponse.json({ success: true, data: result });
+  const response = NextResponse.json({ success: true, data: result });
+  response.headers.set("X-Trace-Id", observer.traceId);
+  if (observer.traceSpanId) response.headers.set("X-Span-Id", observer.traceSpanId);
+  return response;
 }
