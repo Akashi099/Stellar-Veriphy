@@ -8,6 +8,7 @@ export const Collections = {
   locks: "locks",
   settings: "settings",
   webhookDeliveries: "webhook_deliveries",
+  rateLimitBuckets: "rate_limit_buckets",
 } as const;
 
 // --- Verifications -----------------------------------------------------------

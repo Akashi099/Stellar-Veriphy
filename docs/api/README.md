@@ -4,6 +4,8 @@ The API is served by Next.js route handlers under `frontend/app/api`.
 
 - [Versioning](./versioning.md): how to select a version, how deprecations are announced, and how to migrate
 - [Errors](./errors.md): the error response shape, error codes, and retry guidance
+- [Rate limits](./rate-limits.md): frontend and backend API limits, identity tiers, and retry timing
+- [Webhook signatures](./webhooks.md): signature verification, secret rotation, timestamp validation, and replay protection
 
 ## Conventions
 

@@ -533,6 +533,71 @@
           "mode": "multi"
         }
       }
+    },
+    {
+      "id": 10,
+      "type": "timeseries",
+      "title": "MongoDB connection pool utilization",
+      "description": "Recommended alert levels: warning at 80% for 5 minutes and critical at 95% for 2 minutes. Sustained saturation can be caused by traffic spikes, worker concurrency, slow queries, long-running operations, leaked connections, or database resource contention. Compare connection usage with query latency before increasing MONGODB_MAX_POOL_SIZE; verify MongoDB server limits and total application replicas first. See docs/operations/database-pool-saturation.md.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 28,
+        "w": 24,
+        "h": 8
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "refId": "A",
+          "legendFormat": "{{instance}}",
+          "expr": "100 * sv_db_pool_connections_in_use{pool=\"mongodb\"} / sv_db_pool_connections_max{pool=\"mongodb\"}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "min": 0,
+          "max": 100,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "yellow",
+                "value": 80
+              },
+              {
+                "color": "red",
+                "value": 95
+              }
+            ]
+          },
+          "custom": {
+            "drawStyle": "line",
+            "fillOpacity": 10
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      }
     }
   ]
 }

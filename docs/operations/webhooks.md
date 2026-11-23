@@ -2,7 +2,7 @@
 
 > Issue #789 · Labels: backend, integrations, reliability
 
-`WebhookService` (`backend/src/webhooks/service.ts`) delivers backend events, such as a verification being certified, to the HTTP endpoints in `WEBHOOK_ENDPOINTS`. Each delivery is retried in a controlled way, is never processed twice for the same event, and is visible to operators when it fails.
+`WebhookService` (`backend/src/webhooks/service.ts`) delivers backend events, such as a verification being certified, to the HTTP endpoints in `WEBHOOK_ENDPOINTS`. Each delivery is retried in a controlled way, signed with HMAC-SHA256, is never processed twice for the same event, and is visible to operators when it fails.
 
 ## Flow
 
@@ -28,7 +28,7 @@ await webhooks.publish({
 ## Controlled retries
 
 - Each delivery is a job on the `notification` queue. Retries use the queue's exponential backoff with jitter (`JOB_RETRY_BASE_DELAY_MS` up to `JOB_RETRY_MAX_DELAY_MS`), plus its heartbeats, stall recovery and dead-lettering. See [job-queue.md](./job-queue.md).
-- Attempts per delivery: `WEBHOOK_MAX_ATTEMPTS` (default 8). With the default backoff that covers about 20 minutes of receiver downtime.
+- Attempts per delivery: `WEBHOOK_MAX_ATTEMPTS` (default 8, range 1–20). With the default backoff that covers about 20 minutes of receiver downtime.
 - The HTTP client is called with `retries: 0`, so attempts are never multiplied. The per-attempt timeout comes from `EXTERNAL_API_WEBHOOK_TIMEOUT_MS`, or the default `EXTERNAL_API_TIMEOUT_MS`. See [external-api-timeouts.md](./external-api-timeouts.md).
 
 | Receiver response                                     | Outcome                                                      |
@@ -60,7 +60,9 @@ X-Veriphy-Signature: t=1760900000,v1=3b8f…
 {"id":"verification.certified:7b3e…","type":"verification.certified","createdAt":"2026-10-19T18:53:20.000Z","data":{…}}
 ```
 
-To verify a request, compute `HMAC-SHA256(WEBHOOK_SIGNING_SECRET, "<timestamp>.<raw body>")` and compare it with `v1` in constant time. Reject requests whose timestamp is more than about 5 minutes old. Without `WEBHOOK_SIGNING_SECRET`, requests are unsigned and a warning is logged at startup.
+The signature covers `"<timestamp>.<raw body>"` using HMAC-SHA256. `X-Veriphy-Signature` contains `t=<timestamp>,v1=<hex>`; while rotating keys it contains multiple `v1` signatures, one for each configured secret. Receivers must verify the exact raw body, use a constant-time comparison, require the signed timestamp to match `X-Veriphy-Timestamp`, and reject timestamps more than 5 minutes from their current time. Deduplicate accepted requests atomically by `Idempotency-Key` or `X-Veriphy-Delivery-Id`; these values remain stable across retries while the timestamp/signature are regenerated. Detailed receiver guidance and sample verification code are in [docs/api/webhooks.md](../api/webhooks.md).
+
+When webhook endpoints are configured, `WEBHOOK_SIGNING_SECRET` is required. The backend refuses to start rather than sending unsigned deliveries.
 
 ## Failure visibility for operators
 
@@ -98,8 +100,9 @@ Suggested alert: `increase(sv_webhook_deliveries_total{outcome="failed"}[15m]) >
 | Variable                          | Default                   | Purpose                                       |
 | --------------------------------- | ------------------------- | --------------------------------------------- |
 | `WEBHOOK_ENDPOINTS`               | empty (disabled)          | Comma-separated receiver URLs                 |
-| `WEBHOOK_SIGNING_SECRET`          | unset                     | HMAC key for `X-Veriphy-Signature`            |
-| `WEBHOOK_MAX_ATTEMPTS`            | `8`                       | Attempts before a delivery is marked `failed` |
+| `WEBHOOK_SIGNING_SECRET`          | required when enabled     | Active HMAC key for `X-Veriphy-Signature`     |
+| `WEBHOOK_SIGNING_SECRET_PREVIOUS` | unset                     | Previous HMAC key, included during rotation   |
+| `WEBHOOK_MAX_ATTEMPTS`            | `8`                       | Automatic attempts before failure (1–20)      |
 | `EXTERNAL_API_WEBHOOK_TIMEOUT_MS` | `EXTERNAL_API_TIMEOUT_MS` | Per-attempt timeout                           |
 
 Indexes on `webhook_deliveries`: `idempotencyKey_unique`, `status_updatedAt`, `eventId`. See [database-indexes.md](./database-indexes.md).

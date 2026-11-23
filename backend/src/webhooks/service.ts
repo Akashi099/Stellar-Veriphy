@@ -22,6 +22,9 @@ const DUPLICATE_KEY = 11000;
 
 export interface WebhookOptions {
   endpoints: string[];
+  /** Active and previous keys used during rotation. At least one key is required when enabled. */
+  signingSecrets?: string[];
+  /** @deprecated Use signingSecrets; retained for callers using the original single-key option. */
   signingSecret?: string;
   maxAttempts: number;
 }
@@ -61,13 +64,26 @@ const SUMMARY_PROJECTION = { body: 0 } as const;
  * Runbook: docs/operations/webhooks.md
  */
 export class WebhookService {
+  private readonly signingSecrets: string[];
+
   constructor(
     private readonly db: Db,
     private readonly queue: JobQueue,
     private readonly http: ExternalApiClient,
     private readonly opts: WebhookOptions,
     private readonly log: Logger,
-  ) {}
+  ) {
+    const configuredSecrets = opts.signingSecrets?.length
+      ? opts.signingSecrets
+      : [opts.signingSecret].filter((secret): secret is string => Boolean(secret));
+    this.signingSecrets = [...new Set(configuredSecrets.map((secret) => secret.trim()).filter(Boolean))];
+    if (this.enabled && this.signingSecrets.length === 0) {
+      throw new Error("A webhook signing secret is required when webhook endpoints are configured");
+    }
+    if (!Number.isInteger(opts.maxAttempts) || opts.maxAttempts < 1 || opts.maxAttempts > 20) {
+      throw new Error("Webhook maxAttempts must be an integer from 1 to 20");
+    }
+  }
 
   private get col() {
     return this.db.collection<WebhookDeliveryDoc>(Collections.webhookDeliveries);
@@ -156,10 +172,8 @@ export class WebhookService {
       "x-veriphy-attempt": String(job.attempts),
       "x-veriphy-timestamp": String(timestamp),
     };
-    if (this.opts.signingSecret) {
-      const signature = createHmac("sha256", this.opts.signingSecret).update(`${timestamp}.${delivery.body}`).digest("hex");
-      headers["x-veriphy-signature"] = `t=${timestamp},v1=${signature}`;
-    }
+    const signatures = this.signingSecrets.map((secret) => createHmac("sha256", secret).update(`${timestamp}.${delivery.body}`).digest("hex"));
+    headers["x-veriphy-signature"] = `t=${timestamp},${signatures.map((signature) => `v1=${signature}`).join(",")}`;
 
     const started = performance.now();
     try {

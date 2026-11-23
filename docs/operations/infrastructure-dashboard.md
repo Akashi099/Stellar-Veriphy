@@ -30,6 +30,7 @@ The dashboard is provisioned read-only. To change it, edit the JSON file and res
 | Consecutive failures     | `sv_dependency_consecutive_failures`           | 0 when healthy.                                                                                                 |
 | Check latency (p95)      | `sv_dependency_check_duration_seconds`         | Includes retries, so a spike can mean a dependency is flapping.                                                 |
 | Check failures by reason | `sv_dependency_check_failures_total`           | Stacked by `reason` (`timeout`, `connection`, `misconfigured`, ...).                                            |
+| MongoDB pool utilization | `sv_db_pool_connections_in_use / sv_db_pool_connections_max` | Per-instance use; warning at 80% and critical at 95%. See [pool saturation guidance](database-pool-saturation.md) for causes and response. |
 
 A tile showing **NO DATA** means Prometheus has no samples for that series. Usually the target isn't running or isn't reachable from the Prometheus container; check <http://localhost:9090/targets>.
 

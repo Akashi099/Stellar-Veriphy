@@ -12,6 +12,7 @@ import { JobQueue } from "./jobs/queue.js";
 import { Worker } from "./jobs/worker.js";
 import { ExternalApiClient } from "./lib/http.js";
 import { logger } from "./lib/logger.js";
+import { RateLimiter } from "./lib/rate-limiter.js";
 import { RetentionCleaner } from "./maintenance/cleanup.js";
 import { createOrphanMediaCleaner } from "./maintenance/orphans.js";
 import { MaintenanceMode } from "./maintenance/mode.js";
@@ -42,7 +43,6 @@ async function main(): Promise<void> {
     log.child({ component: "webhooks" }),
   );
   if (!webhooks.enabled) log.info("outbound webhooks disabled (WEBHOOK_ENDPOINTS is empty)");
-  else if (!config.webhooks.signingSecret) log.warn("WEBHOOK_SIGNING_SECRET is not set; webhook deliveries are unsigned");
 
   const workers = Object.entries(buildJobHandlers({ webhooks }))
     .filter(([, handlers]) => handlers && Object.keys(handlers).length > 0)
@@ -89,6 +89,7 @@ async function main(): Promise<void> {
     security: new SecurityService(db),
     maintenance,
     webhooks,
+    rateLimiter: new RateLimiter(db),
     log: log.child({ component: "http" }),
   });
   server.listen(config.port, () => log.info("backend listening", { port: config.port }));

@@ -12,6 +12,7 @@ test("untrusted user identity cannot authorize cancellation", async () => {
   let called = false;
   const deps = {
     queue: { cancelVerification: async () => { called = true; return "cancelled"; } },
+    rateLimiter: { consume: async () => ({ allowed: true, limit: 5, remaining: 4, resetAt: Date.now() + 60_000, windowSeconds: 60 }) },
     log: logger,
   } as unknown as ServerDeps;
   const server = createHttpServer(deps);

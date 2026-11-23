@@ -90,6 +90,34 @@ export const dbSlowCommands = new Counter({
   registers,
 });
 
+export const dbPoolConnectionsInUse = new Gauge({
+  name: "sv_db_pool_connections_in_use",
+  help: "MongoDB connections currently checked out by the application",
+  labelNames: ["pool"] as const,
+  registers,
+});
+
+export const dbPoolConnections = new Gauge({
+  name: "sv_db_pool_connections",
+  help: "Total open MongoDB connections, including idle connections",
+  labelNames: ["pool"] as const,
+  registers,
+});
+
+export const dbPoolConnectionsMax = new Gauge({
+  name: "sv_db_pool_connections_max",
+  help: "Configured maximum MongoDB connection capacity across server pools",
+  labelNames: ["pool"] as const,
+  registers,
+});
+
+export const dbPoolConnectionsAvailable = new Gauge({
+  name: "sv_db_pool_connections_available",
+  help: "Remaining MongoDB pool capacity (maximum minus checked-out connections)",
+  labelNames: ["pool"] as const,
+  registers,
+});
+
 // --- Job queue (#771) --------------------------------------------------------
 
 export const jobsEnqueued = new Counter({

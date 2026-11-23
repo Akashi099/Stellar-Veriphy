@@ -62,6 +62,12 @@ All indexes are declared in `backend/src/db/indexes.ts`. That file is the single
 | Operator list of failed / pending deliveries, newest first; status counts | `status_updatedAt { status: 1, updatedAt: -1 }` |
 | Every delivery of one event                                               | `eventId { eventId: 1 }`                        |
 
+### `rate_limit_buckets` (#949)
+
+| Query / cleanup | Index |
+|---|---|
+| Expire fixed-window rate-limit counters | `expiresAt_ttl { expiresAt: 1 }`, TTL index |
+
 ## Decisions
 
 1. **Equality → Sort → Range field order.** Compound indexes put equality-matched fields first, then the sort field, then range fields (for example `queue, status, runAt`). Each query is then one bounded index scan with no blocking sort.
@@ -69,7 +75,7 @@ All indexes are declared in `backend/src/db/indexes.ts`. That file is the single
 3. **Unique indexes where the data model requires uniqueness** (`jobId`, `certId`, `sessionId`). The same index serves the lookup and enforces the invariant.
 4. **Partial indexes for sparse or narrow fields.** `certId`, `verificationJobId`, and `correlationId` only exist on some documents. The running-jobs index only covers jobs in `running`, a small fraction of the collection. Partial indexes stay small and cheap to maintain. A partial index is only used when the query includes its filter condition (for example `status: "running"`), and the repository queries always include it.
 5. **Projections on hot paths.** The status endpoint returns only status fields, so large manifest metadata never crosses the wire.
-6. **No TTL indexes.** Expiry is handled by the retention cleaner ([data-retention.md](data-retention.md)), not TTL indexes. That gives safety checks before deletion, metrics, and windows you can change without `collMod`. A TTL index's `expireAfterSeconds` would conflict with `ensureIndexes` whenever the configured window changed.
+6. **TTL indexes only for ephemeral counters.** Domain records use the retention cleaner ([data-retention.md](data-retention.md)) for safety checks and metrics. The `rate_limit_buckets` counters are disposable fixed-window state, so their `expiresAt_ttl` index safely removes expired buckets.
 7. **No index on `status` alone.** `status` has four values. On its own it barely narrows a scan, and it would add write cost to every status transition.
 
 ## Observing query performance
