@@ -3,6 +3,7 @@ import { readValidated, respond, serverError, validationError } from "@/lib/serv
 import { logOperationalEvent, requestIdFrom } from "@/lib/server/observability";
 import { getSession, sessionEtag, updateSession } from "@/lib/server/upload-sessions";
 import { ifMatchFailed } from "@/lib/server/write-concurrency";
+import { PipelineObserver, observerFromRequest } from "@/lib/server/pipeline-observability";
 
 function withEtag<T extends Response>(response: T, etag: string): T {
   response.headers.set("ETag", etag);
@@ -33,8 +34,30 @@ export async function PATCH(req: Request, { params }: Params) {
   if ("response" in parsed) return parsed.response;
 
   try {
-    const result = await updateSession(sessionId, parsed.value, new Date(), (current) =>
-      ifMatchFailed(req, sessionEtag(current)),
+    const currentSession = await getSession(sessionId);
+    const incomingObserver = observerFromRequest(req);
+    const observer = new PipelineObserver(
+      requestId,
+      currentSession?.traceId ?? incomingObserver.traceId,
+      incomingObserver.traceId === currentSession?.traceId
+        ? incomingObserver.traceSpanId ?? currentSession?.traceSpanId
+        : currentSession?.traceSpanId ?? incomingObserver.traceSpanId,
+    );
+    const result = await observer.runStage(
+      "storage.upload_session_update",
+      "storage",
+      ({ traceId, spanId }) =>
+        updateSession(
+          sessionId,
+          parsed.value,
+          new Date(),
+          (current) => ifMatchFailed(req, sessionEtag(current)),
+          { traceId, traceSpanId: spanId },
+        ),
+      {
+        dependency: { source: "frontend", target: "storage" },
+        outcome: (updated) => (updated?.ok ? "ok" : "error"),
+      },
     );
     if (!result) return respond(404, { status: "not_found", message: "No upload session exists with this ID." });
     if (!result.ok) {
@@ -62,6 +85,7 @@ export async function PATCH(req: Request, { params }: Params) {
     if (parsed.value.action !== "progress") {
       logOperationalEvent("info", `upload_session.${parsed.value.action}`, {
         requestId,
+        traceId: observer.traceId,
         route: "PATCH /api/uploads/sessions/[sessionId]",
         operation: "update_upload_session",
         status: 200,
@@ -71,7 +95,13 @@ export async function PATCH(req: Request, { params }: Params) {
         details: { sessionId, attempt: view.attempt, progress: view.progress },
       });
     }
-    return withEtag(respond<UploadSessionView>(200, { status: "ok", data: view }), sessionEtag(result.session));
+    const response = withEtag(
+      respond<UploadSessionView>(200, { status: "ok", data: view }),
+      sessionEtag(result.session),
+    );
+    response.headers.set("X-Trace-Id", observer.traceId);
+    if (observer.traceSpanId) response.headers.set("X-Span-Id", observer.traceSpanId);
+    return response;
   } catch (err) {
     return serverError("PATCH /api/uploads/sessions/[sessionId]", err);
   }

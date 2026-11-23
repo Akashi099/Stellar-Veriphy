@@ -65,6 +65,9 @@ export interface UploadRecord extends UploadMetadata {
   id: string;
   createdAt: string;
   manifestHash: string;
+  /** Trace context carried into the async verification job. */
+  traceId?: string;
+  traceSpanId?: string;
 }
 
 // ---------------------------------------------------------------------------
@@ -74,6 +77,9 @@ export interface UploadRecord extends UploadMetadata {
 export interface VerificationJob {
   id: string;
   uploadId: string;
+  /** Trace context inherited from the upload request. */
+  traceId?: string;
+  traceSpanId?: string;
   status: VerificationStatus;
   createdAt: string;
   startedAt?: string;

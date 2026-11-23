@@ -1,11 +1,12 @@
 /**
  * frontend/lib/server/pipeline-observability.ts
  *
- * End-to-end observability for the upload → hash → attestation → mint pipeline.
+ * End-to-end trace propagation for resumable uploads, verification jobs,
+ * attestation validation, and their storage dependencies.
  *
  * This module provides structured span emission for each lifecycle step so
- * that operators can trace a single request from the initial POST /api/uploads
- * all the way through to the on-chain certificate mint.
+ * that operators can follow one trace across API requests and asynchronous
+ * worker execution. Contract stages can use the same context when wired in.
  *
  * Every function emits a JSON log line via `logOperationalEvent`, meaning the
  * output is already compatible with ELK, CloudWatch Logs, and any aggregator
@@ -19,17 +20,128 @@
  * // At the top of a request handler:
  * const obs = new PipelineObserver(requestIdFrom(req));
  *
- * obs.uploadValidated({ fileName: "photo.jpg", fileSize: 512000, creator: "GABC..." });
- * obs.jobEnqueued({ jobId: "uuid" });
- * // ...etc
- * obs.mintConfirmed({ certificateId: "42", txHash: "abc..." });
+ * await obs.runStage("storage.upload_record_write", "storage", ({ traceId, spanId }) =>
+ *   saveUpload(metadata, { traceId, traceSpanId: spanId }),
+ *   { dependency: { source: "frontend", target: "storage" } },
+ * );
  * ```
  *
  * @module lib/server/pipeline-observability
  */
 
 import { logOperationalEvent, requestIdFrom } from "./observability";
-import { TRACE_CHECKPOINTS } from "@stellarveriphy/shared/tracing";
+import {
+  createTrace,
+  finishSpan,
+  SpanStatus,
+  startSpan,
+  TRACE_CHECKPOINTS,
+} from "@stellarveriphy/shared/tracing";
+
+type PipelineService = "frontend" | "storage" | "verification-worker" | "attestation";
+type PipelineStage =
+  | "upload.parse"
+  | "upload.validate"
+  | "storage.upload_record_write"
+  | "verification.job_enqueue"
+  | "storage.upload_record_read"
+  | "verification.validate_upload"
+  | "verification.process"
+  | "storage.verification_result_write"
+  | "storage.verification_failure_write"
+  | "storage.upload_session_write"
+  | "storage.upload_session_update"
+  | "attestation.parse"
+  | "attestation.validate_shape"
+  | "attestation.validate";
+type PipelineOutcome = "ok" | "error";
+type PipelineDependency = { source: PipelineService; target: PipelineService };
+type PipelineStageContext = { traceId: string; spanId: string };
+type PipelineMetricsState = {
+  stages: Map<string, { count: number; sum: number; buckets: number[] }>;
+  dependencies: Map<string, number>;
+};
+
+const HISTOGRAM_BUCKETS = [0.01, 0.05, 0.1, 0.25, 0.5, 1, 2.5, 5, 10];
+const VALID_TRACE_ID = /^[A-Za-z0-9._:-]{8,128}$/;
+const VALID_SPAN_ID = /^[A-Za-z0-9._:-]{8,128}$/;
+const metricState = globalThis as typeof globalThis & {
+  __stellarVeriphyPipelineMetrics?: PipelineMetricsState;
+};
+const pipelineMetricState =
+  (metricState.__stellarVeriphyPipelineMetrics ??= { stages: new Map(), dependencies: new Map() });
+
+function metricsState(): PipelineMetricsState {
+  return pipelineMetricState;
+}
+
+function metricLabel(value: string): string {
+  return /^[a-z][a-z0-9_.-]{0,80}$/.test(value) ? value : "other";
+}
+
+function recordStageMetrics(
+  name: string,
+  service: PipelineService,
+  outcome: PipelineOutcome,
+  durationMs: number,
+  dependency?: PipelineDependency,
+): void {
+  const safeName = metricLabel(name);
+  const key = `${safeName}\u0000${service}\u0000${outcome}`;
+  const durationSeconds = Math.max(0, durationMs) / 1000;
+  const metrics = metricsState();
+  const stage = metrics.stages.get(key) ?? {
+    count: 0,
+    sum: 0,
+    buckets: HISTOGRAM_BUCKETS.map(() => 0),
+  };
+  metrics.stages.set(key, stage);
+  stage.count += 1;
+  stage.sum += durationSeconds;
+  HISTOGRAM_BUCKETS.forEach((bound, index) => {
+    if (durationSeconds <= bound) stage.buckets[index] = (stage.buckets[index] ?? 0) + 1;
+  });
+  if (dependency) {
+    const dependencyKey = `${dependency.source}\u0000${dependency.target}`;
+    metrics.dependencies.set(dependencyKey, (metrics.dependencies.get(dependencyKey) ?? 0) + 1);
+  }
+}
+
+function escapeLabel(value: string): string {
+  return value.replaceAll("\\", "\\\\").replaceAll('"', '\\"').replaceAll("\n", "\\n");
+}
+
+/** Prometheus exposition for pipeline stages and low-cardinality service edges. */
+export function pipelineMetrics(): string {
+  const lines = [
+    "# HELP sv_pipeline_stage_duration_seconds Duration of verification pipeline stages",
+    "# TYPE sv_pipeline_stage_duration_seconds histogram",
+  ];
+  for (const [key, stage] of metricsState().stages) {
+    const [name, service, outcome] = key.split("\u0000");
+    const stageName = name ?? "other";
+    HISTOGRAM_BUCKETS.forEach((bound, index) => {
+      lines.push(
+        `sv_pipeline_stage_duration_seconds_bucket{stage="${escapeLabel(stageName)}",service="${service}",outcome="${outcome}",le="${bound}"} ${stage.buckets[index]}`,
+      );
+    });
+    lines.push(
+      `sv_pipeline_stage_duration_seconds_bucket{stage="${escapeLabel(stageName)}",service="${service}",outcome="${outcome}",le="+Inf"} ${stage.count}`,
+      `sv_pipeline_stage_duration_seconds_sum{stage="${escapeLabel(stageName)}",service="${service}",outcome="${outcome}"} ${stage.sum}`,
+      `sv_pipeline_stage_duration_seconds_count{stage="${escapeLabel(stageName)}",service="${service}",outcome="${outcome}"} ${stage.count}`,
+    );
+  }
+
+  lines.push(
+    "# HELP sv_pipeline_service_dependencies_total Calls observed across pipeline service dependencies",
+    "# TYPE sv_pipeline_service_dependencies_total counter",
+  );
+  for (const [key, count] of metricsState().dependencies) {
+    const [source, target] = key.split("\u0000");
+    lines.push(`sv_pipeline_service_dependencies_total{source="${source}",target="${target}"} ${count}`);
+  }
+  return `${lines.join("\n")}\n`;
+}
 
 // Re-export so callers only need one import.
 export { requestIdFrom };
@@ -54,7 +166,6 @@ interface UploadValidatedAttrs {
 
 interface UploadStoredAttrs {
   uploadId: string;
-  manifestHashPrefix: string;
 }
 
 interface JobEnqueuedAttrs {
@@ -122,39 +233,89 @@ interface JobRecoveredAttrs {
 // ---------------------------------------------------------------------------
 
 /**
- * Emits structured log events for each lifecycle checkpoint in the
- * upload-to-mint pipeline.  One instance per request; carry `requestId`
- * through the entire flow so all events are correlated.
+ * Emits structured spans and metrics for a pipeline operation. Trace context
+ * is persisted with uploads and jobs so asynchronous work retains its lineage.
  */
 export class PipelineObserver {
   private readonly requestId: string;
-  private readonly traceId: string;
+  readonly traceId: string;
+  private readonly trace: ReturnType<typeof createTrace>;
+  private currentSpanId?: string;
 
-  constructor(requestId: string, traceId?: string) {
+  constructor(requestId: string, traceId?: string, parentSpanId?: string) {
     this.requestId = requestId;
-    this.traceId = traceId ?? requestId;
+    this.traceId = traceId && VALID_TRACE_ID.test(traceId) ? traceId : requestId;
+    this.trace = createTrace("verification-pipeline", this.traceId);
+    this.currentSpanId = parentSpanId && VALID_SPAN_ID.test(parentSpanId) ? parentSpanId : undefined;
+  }
+
+  get traceSpanId(): string | undefined {
+    return this.currentSpanId;
+  }
+
+  async runStage<T>(
+    name: PipelineStage,
+    service: PipelineService,
+    work: (context: PipelineStageContext) => Promise<T>,
+    options: {
+      dependency?: PipelineDependency;
+      outcome?: (result: T) => PipelineOutcome;
+    } = {},
+  ): Promise<T> {
+    const span = startSpan(this.trace, name, { service }, this.currentSpanId);
+    this.currentSpanId = span.spanId;
+    const started = performance.now();
+    let outcome: PipelineOutcome = "ok";
+    try {
+      const result = await work({ traceId: this.traceId, spanId: span.spanId });
+      outcome = options.outcome?.(result) ?? "ok";
+      finishSpan(span, outcome === "ok" ? SpanStatus.Ok : SpanStatus.Error);
+      return result;
+    } catch (error) {
+      outcome = "error";
+      finishSpan(span, SpanStatus.Error);
+      throw error;
+    } finally {
+      const durationMs = performance.now() - started;
+      span.durationMs = durationMs;
+      recordStageMetrics(name, service, outcome, durationMs, options.dependency);
+      logOperationalEvent(outcome === "ok" ? "info" : "warn", "pipeline.span", {
+        requestId: this.requestId,
+        traceId: this.traceId,
+        spanId: span.spanId,
+        ...(span.parentSpanId ? { parentSpanId: span.parentSpanId } : {}),
+        route: "verification pipeline",
+        operation: name,
+        stage: name,
+        service,
+        ...(options.dependency
+          ? { dependency: `${options.dependency.source}->${options.dependency.target}` }
+          : {}),
+        outcome,
+        durationMs: Math.round(durationMs * 100) / 100,
+      });
+    }
   }
 
   // -------------------------------------------------------------------------
   // Upload path
   // -------------------------------------------------------------------------
 
-  uploadStart(attrs: UploadStartAttrs): void {
+  uploadStart(_attrs: UploadStartAttrs): void {
     logOperationalEvent("info", TRACE_CHECKPOINTS.UPLOAD_START, {
       route: "POST /api/uploads",
       operation: "upload_start",
       requestId: this.requestId,
-      details: { traceId: this.traceId, ...attrs },
+      details: { traceId: this.traceId },
     });
   }
 
-  uploadValidated(attrs: UploadValidatedAttrs): void {
+  uploadValidated(_attrs: UploadValidatedAttrs): void {
     logOperationalEvent("info", TRACE_CHECKPOINTS.UPLOAD_VALIDATED, {
       route: "POST /api/uploads",
       operation: "upload_validated",
       requestId: this.requestId,
-      manifestHash: attrs.manifestHashPrefix,
-      details: { traceId: this.traceId, creatorPrefix: attrs.creatorPrefix, fileName: attrs.fileName },
+      details: { traceId: this.traceId },
     });
   }
 
@@ -164,7 +325,6 @@ export class PipelineObserver {
       operation: "upload_stored",
       requestId: this.requestId,
       uploadId: attrs.uploadId,
-      manifestHash: attrs.manifestHashPrefix,
       details: { traceId: this.traceId },
     });
   }
@@ -190,7 +350,7 @@ export class PipelineObserver {
       operation: "oracle_provider_selected",
       requestId: this.requestId,
       jobId: attrs.jobId,
-      details: { traceId: this.traceId, providerAddressPrefix: attrs.providerAddressPrefix },
+      details: { traceId: this.traceId },
     });
   }
 
@@ -200,7 +360,7 @@ export class PipelineObserver {
       operation: "oracle_request_sent",
       requestId: this.requestId,
       jobId: attrs.jobId,
-      details: { traceId: this.traceId, attempt: attrs.attempt, providerAddressPrefix: attrs.providerAddressPrefix },
+      details: { traceId: this.traceId, attempt: attrs.attempt },
     });
   }
 
@@ -210,7 +370,7 @@ export class PipelineObserver {
       operation: "oracle_attestation_received",
       requestId: this.requestId,
       jobId: attrs.jobId,
-      details: { traceId: this.traceId, attestationHashPrefix: attrs.attestationHashPrefix, enclave: attrs.enclave },
+      details: { traceId: this.traceId },
     });
   }
 
@@ -235,8 +395,7 @@ export class PipelineObserver {
       operation: "contract_mint_requested",
       requestId: this.requestId,
       jobId: attrs.jobId,
-      manifestHash: attrs.manifestHashPrefix,
-      details: { traceId: this.traceId, attestationHashPrefix: attrs.attestationHashPrefix },
+      details: { traceId: this.traceId },
     });
   }
 
@@ -246,7 +405,7 @@ export class PipelineObserver {
       operation: "contract_mint_confirmed",
       requestId: this.requestId,
       jobId: attrs.jobId,
-      details: { traceId: this.traceId, certificateId: attrs.certificateId, txHash: attrs.txHash },
+      details: { traceId: this.traceId, certificateId: attrs.certificateId },
     });
   }
 
@@ -261,7 +420,7 @@ export class PipelineObserver {
       requestId: this.requestId,
       jobId: attrs.jobId,
       uploadId: attrs.uploadId,
-      details: { traceId: this.traceId, reason: attrs.reason, attempt: attrs.attempt },
+      details: { traceId: this.traceId, attempt: attrs.attempt },
     });
   }
 
@@ -302,5 +461,6 @@ export class PipelineObserver {
 export function observerFromRequest(req: Request): PipelineObserver {
   const requestId = requestIdFrom(req);
   const traceId = req.headers.get("x-trace-id") ?? requestId;
-  return new PipelineObserver(requestId, traceId);
+  const parentSpanId = req.headers.get("x-span-id") ?? undefined;
+  return new PipelineObserver(requestId, traceId, parentSpanId);
 }

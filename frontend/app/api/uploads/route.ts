@@ -1,12 +1,16 @@
 import { paginate, sha256Field, validateUploadMetadata, type FieldError, type UploadRecord } from "@stellarveriphy/shared";
 import { readJson, readPagination, respond, serverError, validationError } from "@/lib/server/http";
 import { logOperationalEvent, requestIdFrom } from "@/lib/server/observability";
+import { observerFromRequest } from "@/lib/server/pipeline-observability";
 import { findUploadsByHash, saveUpload } from "@/lib/server/uploads";
 
 // POST /api/uploads: validate and store upload metadata (docs/api/upload-metadata.md).
 export async function POST(req: Request) {
   const requestId = requestIdFrom(req);
-  const parsed = await readJson(req);
+  const observer = observerFromRequest(req);
+  const parsed = await observer.runStage("upload.parse", "frontend", () => readJson(req), {
+    outcome: (result) => ("response" in result ? "error" : "ok"),
+  });
   if ("response" in parsed) {
     logOperationalEvent("warn", "upload.rejected", {
       requestId,
@@ -18,7 +22,12 @@ export async function POST(req: Request) {
     return parsed.response;
   }
 
-  const result = validateUploadMetadata(parsed.body);
+  const result = await observer.runStage(
+    "upload.validate",
+    "frontend",
+    async () => validateUploadMetadata(parsed.body),
+    { outcome: (validation) => (validation.ok ? "ok" : "error") },
+  );
   if (!result.ok) {
     logOperationalEvent("warn", "upload.rejected", {
       requestId,
@@ -35,7 +44,13 @@ export async function POST(req: Request) {
   }
 
   try {
-    const { record, created } = await saveUpload(result.value);
+    const { record, created } = await observer.runStage(
+      "storage.upload_record_write",
+      "storage",
+      ({ traceId, spanId }) => saveUpload(result.value, { traceId, traceSpanId: spanId }),
+      { dependency: { source: "frontend", target: "storage" } },
+    );
+    observer.uploadStored({ uploadId: record.id });
     logOperationalEvent("info", created ? "upload.created" : "upload.duplicate", {
       requestId,
       route: "POST /api/uploads",
@@ -46,11 +61,14 @@ export async function POST(req: Request) {
       contentHash: record.contentHash,
       manifestHash: record.manifestHash,
     });
-    return respond<UploadRecord>(created ? 201 : 200, {
+    const response = respond<UploadRecord>(created ? 201 : 200, {
       status: created ? "created" : "exists",
       message: created ? undefined : "This file was already registered by this creator.",
       data: record,
     });
+    response.headers.set("X-Trace-Id", observer.traceId);
+    if (observer.traceSpanId) response.headers.set("X-Span-Id", observer.traceSpanId);
+    return response;
   } catch (err) {
     logOperationalEvent("error", "upload.failed", {
       requestId,

@@ -98,6 +98,7 @@ interface RequestOptions extends RequestInit {
    * regardless of this flag; it only affects idempotent reads (GET/HEAD).
    */
   dedupe?: boolean;
+  traceContext?: { traceId: string; spanId?: string };
 }
 
 /**
@@ -218,7 +219,7 @@ async function request<T>(pathOrUrl: string, init?: RequestOptions): Promise<T> 
   const maxAttempts = retry?.maxAttempts ?? 1;
   const baseDelayMs = retry?.baseDelayMs ?? 600;
   const maxDelayMs = retry?.maxDelayMs ?? 6000;
-  const { retry: _retry, dedupe, ...fetchInit } = init ?? {};
+  const { retry: _retry, dedupe, traceContext, ...fetchInit } = init ?? {};
 
   const method = (fetchInit.method ?? "GET").toUpperCase();
   const dedupeEnabled = dedupe !== false && isIdempotentRead(method);
@@ -226,7 +227,7 @@ async function request<T>(pathOrUrl: string, init?: RequestOptions): Promise<T> 
     const key = dedupeKey(url, method, new Headers(fetchInit.headers));
     const existing = inFlightReads.get(key);
     if (existing) return existing as Promise<T>;
-    const pending = performRequest<T>(url, fetchInit, retry, maxAttempts, baseDelayMs, maxDelayMs);
+    const pending = performRequest<T>(url, fetchInit, retry, maxAttempts, baseDelayMs, maxDelayMs, traceContext);
     inFlightReads.set(key, pending);
     try {
       return await pending;
@@ -235,7 +236,7 @@ async function request<T>(pathOrUrl: string, init?: RequestOptions): Promise<T> 
     }
   }
 
-  return performRequest<T>(url, fetchInit, retry, maxAttempts, baseDelayMs, maxDelayMs);
+  return performRequest<T>(url, fetchInit, retry, maxAttempts, baseDelayMs, maxDelayMs, traceContext);
 }
 
 async function performRequest<T>(
@@ -244,7 +245,8 @@ async function performRequest<T>(
   retry: RequestOptions["retry"],
   maxAttempts: number,
   baseDelayMs: number,
-  maxDelayMs: number
+  maxDelayMs: number,
+  traceContext?: RequestOptions["traceContext"],
 ): Promise<T> {
   let lastError: ApiError | null = null;
 
@@ -253,6 +255,10 @@ async function performRequest<T>(
     const requestId = createRequestId();
     const headers = new Headers(fetchInit.headers);
     headers.set("X-Request-Id", requestId);
+    if (traceContext) {
+      headers.set("X-Trace-Id", traceContext.traceId);
+      if (traceContext.spanId) headers.set("X-Span-Id", traceContext.spanId);
+    }
 
     let res: Response | null = null;
     try {
@@ -336,12 +342,16 @@ async function performRequest<T>(
 function postJson<T>(
   url: string,
   payload: unknown,
-  options?: Pick<RequestOptions, "retry">,
+  options?: Pick<RequestOptions, "retry" | "traceContext">,
   method: "POST" | "PATCH" = "POST"
 ): Promise<T> {
   return request<T>(url, {
     method,
-    headers: { "Content-Type": "application/json" },
+    headers: {
+      "Content-Type": "application/json",
+      ...(options?.traceContext ? { "X-Trace-Id": options.traceContext.traceId } : {}),
+      ...(options?.traceContext?.spanId ? { "X-Span-Id": options.traceContext.spanId } : {}),
+    },
     body: JSON.stringify(payload),
     retry: options?.retry,
     // Mutations must never be deduplicated.
@@ -350,7 +360,7 @@ function postJson<T>(
 }
 
 export const api = {
-  createUpload: (metadata: UploadMetadata, options?: Pick<RequestOptions, "retry">) =>
+  createUpload: (metadata: UploadMetadata, options?: Pick<RequestOptions, "retry" | "traceContext">) =>
     postJson<UploadRecord>("/api/uploads", metadata, options),
   findUploadsByHash: (contentHash: string) =>
     request<UploadRecord[]>(`/api/uploads?contentHash=${encodeURIComponent(contentHash)}&pageSize=100`),
@@ -359,10 +369,17 @@ export const api = {
     postJson<VerificationJobView>("/api/jobs", { uploadId }, options),
   getJobs: (ids: string[]) =>
     request<VerificationJobView[]>(`/api/jobs?ids=${ids.map(encodeURIComponent).join(",")}`),
-  startUploadSession: (start: Omit<UploadSessionStart, "chunkSize"> & { chunkSize?: number }, options?: Pick<RequestOptions, "retry">) =>
+  startUploadSession: (
+    start: Omit<UploadSessionStart, "chunkSize"> & { chunkSize?: number },
+    options?: Pick<RequestOptions, "retry" | "traceContext">,
+  ) =>
     postJson<UploadSessionView>("/api/uploads/sessions", start, options),
   getUploadSession: (id: string) => request<UploadSessionView>(`/api/uploads/sessions/${encodeURIComponent(id)}`),
-  updateUploadSession: (id: string, update: UploadSessionUpdate, options?: Pick<RequestOptions, "retry">) =>
+  updateUploadSession: (
+    id: string,
+    update: UploadSessionUpdate,
+    options?: Pick<RequestOptions, "retry" | "traceContext">,
+  ) =>
     postJson<UploadSessionView>(`/api/uploads/sessions/${encodeURIComponent(id)}`, update, options, "PATCH"),
   getAccessState: () => request<AccessPermissionState>("/api/access-requests/me"),
   createAccessRequest: (payload: AccessRequestCreate, options?: Pick<RequestOptions, "retry">) =>

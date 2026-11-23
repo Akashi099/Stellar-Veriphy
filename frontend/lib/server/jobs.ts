@@ -11,6 +11,7 @@ import {
 } from "@stellarveriphy/shared";
 import { collection } from "./json-collection";
 import { getUpload } from "./uploads";
+import { PipelineObserver } from "./pipeline-observability";
 
 const jobs = () => collection<VerificationJob>("verification-jobs");
 
@@ -45,23 +46,30 @@ async function recoverInterruptedJobs() {
 // The verification work for one job. Re-checks the stored upload against the
 // current shared rules and confirms its manifest hash.
 // On-chain anchoring via the provenance contract belongs here once it is wired up.
-async function verify(job: VerificationJob, signal: AbortSignal): Promise<NonNullable<VerificationJob["result"]>> {
+async function verify(
+  job: VerificationJob,
+  signal: AbortSignal,
+  observer: PipelineObserver,
+): Promise<NonNullable<VerificationJob["result"]>> {
   signal.throwIfAborted();
-  const upload = await getUpload(job.uploadId);
+  const upload = await observer.runStage(
+    "storage.upload_record_read",
+    "storage",
+    () => getUpload(job.uploadId),
+    { dependency: { source: "verification-worker", target: "storage" } },
+  );
   signal.throwIfAborted();
   if (!upload) throw Object.assign(new Error("Upload unavailable"), { code: "INVALID_INPUT" });
 
-  const { id, createdAt, manifestHash, ...metadata } = upload;
-  const check = validateUploadMetadata(metadata);
-  if (!check.ok) {
-    throw Object.assign(new Error("Invalid metadata"), { code: "INVALID_INPUT" });
-  }
-  const recomputed = await hashManifest(check.value.manifest);
-  if (recomputed !== manifestHash) {
-    throw Object.assign(new Error("Manifest mismatch"), { code: "INVALID_INPUT" });
-  }
+  await observer.runStage("verification.validate_upload", "verification-worker", async () => {
+    const { id, createdAt, manifestHash: storedManifestHash, traceId: _traceId, traceSpanId: _traceSpanId, ...metadata } = upload;
+    const check = validateUploadMetadata(metadata);
+    if (!check.ok) throw Object.assign(new Error("Invalid metadata"), { code: "INVALID_INPUT" });
+    const recomputed = await hashManifest(check.value.manifest);
+    if (recomputed !== storedManifestHash) throw Object.assign(new Error("Manifest mismatch"), { code: "INVALID_INPUT" });
+  });
   signal.throwIfAborted();
-  return { manifestHash };
+  return { manifestHash: upload.manifestHash };
 }
 
 async function runWorker() {
@@ -85,22 +93,41 @@ async function runWorker() {
         return started;
       });
       if (!started) continue;
+      const observer = new PipelineObserver(
+        started.id,
+        started.traceId ?? started.id,
+        started.traceSpanId,
+      );
       try {
-        const result = await verify(started, controller.signal);
-        await withKeyLock(jobLock(started.id), async () => {
-          const current = await jobs().get(started.id);
-          if (current?.status !== "processing" || controller.signal.aborted) return;
-          // Local verification has no irreversible external effect. Publishing the result and
-          // cancellation compete under this lock. External anchoring must add a durable fence.
-          await jobs().put({ ...current, status: "certified", completedAt: new Date().toISOString(), result });
-        });
+        const result = await observer.runStage(
+          "verification.process",
+          "verification-worker",
+          () => verify(started, controller.signal, observer),
+        );
+        await observer.runStage(
+          "storage.verification_result_write",
+          "storage",
+          async () => withKeyLock(jobLock(started.id), async () => {
+            const current = await jobs().get(started.id);
+            if (current?.status !== "processing" || controller.signal.aborted) return;
+            // Local verification has no irreversible external effect. Publishing the result and
+            // cancellation compete under this lock. External anchoring must add a durable fence.
+            await jobs().put({ ...current, status: "certified", completedAt: new Date().toISOString(), result });
+          }),
+          { dependency: { source: "verification-worker", target: "storage" } },
+        );
       } catch (error) {
-        await withKeyLock(jobLock(started.id), async () => {
-          const current = await jobs().get(started.id);
-          if (current?.status !== "processing" || controller.signal.aborted) return;
-          const failure = safeVerificationFailure((error as { code?: unknown } | null)?.code);
-          await jobs().put({ ...current, status: "failed", completedAt: new Date().toISOString(), failure });
-        });
+        await observer.runStage(
+          "storage.verification_failure_write",
+          "storage",
+          async () => withKeyLock(jobLock(started.id), async () => {
+            const current = await jobs().get(started.id);
+            if (current?.status !== "processing" || controller.signal.aborted) return;
+            const failure = safeVerificationFailure((error as { code?: unknown } | null)?.code);
+            await jobs().put({ ...current, status: "failed", completedAt: new Date().toISOString(), failure });
+          }),
+          { dependency: { source: "verification-worker", target: "storage" } },
+        );
       } finally { controllers.delete(started.id); }
     }
   } catch (err) {
@@ -110,10 +137,14 @@ async function runWorker() {
   }
 }
 
-export async function enqueueJob(uploadId: string): Promise<VerificationJob> {
+export async function enqueueJob(
+  uploadId: string,
+  trace?: { traceId: string; traceSpanId: string },
+): Promise<VerificationJob> {
   const job: VerificationJob = {
     id: randomUUID(),
     uploadId,
+    ...trace,
     status: "pending",
     createdAt: new Date().toISOString(),
   };

@@ -9,6 +9,7 @@ import {
 } from "@stellarveriphy/shared";
 import { readPagination, readValidated, respond, serverError, validationError } from "@/lib/server/http";
 import { logOperationalEvent, requestIdFrom } from "@/lib/server/observability";
+import { PipelineObserver, observerFromRequest } from "@/lib/server/pipeline-observability";
 import { listSessions, startOrResumeSession } from "@/lib/server/upload-sessions";
 
 const SESSION_STATUSES = ["in_progress", "completed", "aborted", "expired"];
@@ -29,9 +30,27 @@ export async function POST(req: Request) {
   }
 
   try {
-    const { session, resumed } = await startOrResumeSession(parsed.value);
+    const incomingObserver = observerFromRequest(req);
+    const existing = (await listSessions({
+      creator: parsed.value.creator,
+      contentHash: parsed.value.contentHash,
+      status: "in_progress",
+    }))[0];
+    const observer = new PipelineObserver(
+      requestId,
+      existing?.traceId ?? incomingObserver.traceId,
+      existing?.traceSpanId ?? incomingObserver.traceSpanId,
+    );
+    const { session, resumed } = await observer.runStage(
+      "storage.upload_session_write",
+      "storage",
+      ({ traceId, spanId }) =>
+        startOrResumeSession(parsed.value, new Date(), { traceId, traceSpanId: spanId }),
+      { dependency: { source: "frontend", target: "storage" } },
+    );
     logOperationalEvent("info", resumed ? "upload_session.resumed" : "upload_session.created", {
       requestId,
+      traceId: observer.traceId,
       route: "POST /api/uploads/sessions",
       operation: "start_upload_session",
       status: resumed ? 200 : 201,
@@ -39,11 +58,14 @@ export async function POST(req: Request) {
       contentHash: session.contentHash,
       details: { sessionId: session.id, attempt: session.attempt, completedChunks: session.completedChunks.length },
     });
-    return respond<UploadSessionView>(resumed ? 200 : 201, {
+    const response = respond<UploadSessionView>(resumed ? 200 : 201, {
       status: resumed ? "exists" : "created",
       message: resumed ? "An unfinished upload of this file was found; resume from nextChunk." : undefined,
       data: describeUploadSession(session),
     });
+    response.headers.set("X-Trace-Id", observer.traceId);
+    if (observer.traceSpanId) response.headers.set("X-Span-Id", observer.traceSpanId);
+    return response;
   } catch (err) {
     return serverError("POST /api/uploads/sessions", err);
   }

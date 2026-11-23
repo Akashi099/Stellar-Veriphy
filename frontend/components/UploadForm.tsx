@@ -402,8 +402,21 @@ export function UploadForm() {
         session,
         onProgress: setUploadSession,
       });
-      const upload = await api.createUpload(metadata);
-      setUploadSession(await completeUploadSession(session, upload.id));
+      const upload = await api.createUpload(metadata, {
+        ...(session.traceId
+          ? {
+              traceContext: {
+                traceId: session.traceId,
+                ...(session.traceSpanId ? { spanId: session.traceSpanId } : {}),
+              },
+            }
+          : {}),
+      });
+      setUploadSession(await completeUploadSession({
+        ...session,
+        ...(upload.traceId ? { traceId: upload.traceId } : {}),
+        ...(upload.traceSpanId ? { traceSpanId: upload.traceSpanId } : {}),
+      }, upload.id));
       setResumable(null);
       const job = await api.createJob(upload.id);
       trackJob({ id: job.id, label: upload.title ?? upload.fileName, submittedAt: job.createdAt });

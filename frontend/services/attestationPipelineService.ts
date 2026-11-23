@@ -127,7 +127,7 @@ function computeRiskScore(checks: AttestationChecks): number {
  * The pipeline never throws — it always returns a structured result so that
  * callers can make an informed trust decision rather than catching exceptions.
  */
-export function runAttestationPipeline(evidence: AttestationEvidence): AttestationCheckResult {
+export function runAttestationPipeline(evidence: AttestationEvidence, traceId?: string): AttestationCheckResult {
   const evaluatedAt = new Date().toISOString();
 
   const checks: AttestationChecks = {
@@ -184,6 +184,7 @@ export function runAttestationPipeline(evidence: AttestationEvidence): Attestati
   const level =
     status === "valid" ? "info" : status === "suspicious" ? "warn" : "error";
   logger[level](`[attestation-pipeline] status=${status} risk=${riskScore}`, {
+    ...(traceId ? { traceId } : {}),
     status,
     riskScore,
     checks,
@@ -202,11 +203,17 @@ export function runAttestationPipeline(evidence: AttestationEvidence): Attestati
  */
 export async function validateAttestationRemote(
   evidence: AttestationEvidence,
+  traceId?: string,
+  spanId?: string,
 ): Promise<ApiResponse<AttestationCheckResult>> {
   try {
     const response = await fetch("/api/attestation/validate", {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: {
+        "Content-Type": "application/json",
+        ...(traceId ? { "X-Trace-Id": traceId } : {}),
+        ...(spanId ? { "X-Span-Id": spanId } : {}),
+      },
       body: JSON.stringify({ evidence }),
     });
     return response.json() as Promise<ApiResponse<AttestationCheckResult>>;
