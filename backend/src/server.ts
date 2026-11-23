@@ -2,7 +2,7 @@ import { publicVerification, verificationError } from "./verification-errors.js"
 import { pipeline } from "node:stream/promises";
 import { maskVerification } from "./security/policy.js";
 import type { SecurityService } from "./security/service.js";
-import { timingSafeEqual } from "node:crypto";
+import { createHash, timingSafeEqual } from "node:crypto";
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from "node:http";
 import { ObjectId } from "mongodb";
 import { config } from "./config.js";
@@ -10,6 +10,7 @@ import type { CachedVerificationReads } from "./db/verifications.js";
 import type { HealthMonitor } from "./health/monitor.js";
 import type { JobQueue } from "./jobs/queue.js";
 import type { Logger } from "./lib/logger.js";
+import type { RateLimitResult, RateLimiter } from "./lib/rate-limiter.js";
 import {
   maintenanceRejected,
   registry,
@@ -29,6 +30,7 @@ export interface ServerDeps {
   verifications: CachedVerificationReads;
   maintenance: MaintenanceMode;
   webhooks: WebhookService;
+  rateLimiter: RateLimiter;
   log: Logger;
 }
 
@@ -58,6 +60,17 @@ const REQUEST_TIMEOUT_MS = config.http.requestTimeoutMs;
 /** Reindex scopes accepted by POST /api/admin/reindex (#854). */
 const REINDEX_SCOPES = new Set(["contentHashes", "verificationIds"]);
 const MAX_REINDEX_TARGETS = 500;
+const RATE_LIMIT_WINDOW_MS = 60_000;
+
+type RateLimitTier = "anonymous" | "authenticated" | "trusted";
+type RateLimitRouteClass = "publicRead" | "publicWrite" | "privateRead" | "privateWrite";
+
+const RATE_LIMITS: Record<RateLimitRouteClass, Record<RateLimitTier, number>> = {
+  publicRead: { anonymous: 120, authenticated: 300, trusted: 1_200 },
+  publicWrite: { anonymous: 20, authenticated: 60, trusted: 300 },
+  privateRead: { anonymous: 10, authenticated: 120, trusted: 300 },
+  privateWrite: { anonymous: 5, authenticated: 60, trusted: 120 },
+};
 
 class BadRequestError extends Error {}
 
@@ -98,6 +111,36 @@ function isAdmin(req: IncomingMessage): boolean {
   const expected = Buffer.from(`Bearer ${config.adminToken}`);
   const actual = Buffer.from(header);
   return actual.length === expected.length && timingSafeEqual(actual, expected);
+}
+
+function safeEqual(left: string, right: string): boolean {
+  const leftBytes = Buffer.from(left);
+  const rightBytes = Buffer.from(right);
+  return leftBytes.length === rightBytes.length && timingSafeEqual(leftBytes, rightBytes);
+}
+
+function rateLimitIdentity(req: IncomingMessage): { tier: RateLimitTier; identity: string } {
+  if (isAdmin(req) && config.adminToken) {
+    return { tier: "authenticated", identity: `admin:${createHash("sha256").update(config.adminToken).digest("hex")}` };
+  }
+
+  const authorization = req.headers.authorization;
+  const bearer = typeof authorization === "string" ? /^Bearer ([^\s]+)$/i.exec(authorization)?.[1] : undefined;
+  if (bearer) {
+    const tokenHash = createHash("sha256").update(bearer).digest("hex");
+    for (const token of config.rateLimits.trustedTokens) {
+      if (safeEqual(bearer, token)) return { tier: "trusted", identity: `trusted:${tokenHash}` };
+    }
+  }
+
+  return { tier: "anonymous", identity: `ip:${req.socket.remoteAddress ?? "unknown"}` };
+}
+
+function rateLimitClass(route: Route, method: string): RateLimitRouteClass | undefined {
+  if (route.pattern.source === /^\/metrics$/.source || route.pattern.source.startsWith(/^\/health/.source)) return undefined;
+  const isRead = method === "GET" || method === "HEAD" || method === "OPTIONS";
+  if (route.admin) return isRead ? "privateRead" : "privateWrite";
+  return isRead ? "publicRead" : "publicWrite";
 }
 
 /** Health, metrics and operator endpoints keep working during maintenance so it can be observed and ended. */
@@ -149,7 +192,7 @@ function permissionState(userId: string, permission: string): { granted: boolean
   return { granted: request?.status === "approved", request };
 }
 
-export function createHttpServer({ security, health, queue, cleanup, verifications, maintenance, webhooks, log }: ServerDeps): Server {
+export function createHttpServer({ security, health, queue, cleanup, verifications, maintenance, webhooks, rateLimiter, log }: ServerDeps): Server {
   const routes: Route[] = [
     { method: "GET", pattern: /^\/admin\/risk\/(?<creator>[^/]+)$/, admin: true,
       handler: async (_req, res, { creator }) => {
@@ -651,27 +694,71 @@ export function createHttpServer({ security, health, queue, cleanup, verificatio
 
     const route = routes.find((r) => r.method === req.method && r.pattern.test(url.pathname));
     if (!route) return send(res, 404, { error: "Not found" });
-    if (route.admin && !isAdmin(req)) {
-      return send(res, config.adminToken ? 401 : 403, {
-        error: config.adminToken ? "Unauthorized" : "Admin API disabled; set ADMIN_TOKEN to enable it",
-      });
-    }
-
-    if (maintenance.isEnabled()) {
-      res.setHeader("x-maintenance-mode", "on");
-      if (!MAINTENANCE_SAFE_METHODS.has(req.method ?? "") && !exemptFromMaintenance(route, url.pathname)) {
-        const { message, endsAt } = maintenance.current();
-        maintenanceRejected.inc({ method: req.method ?? "unknown" });
-        res.setHeader("retry-after", String(maintenance.retryAfterSeconds(config.maintenance.retryAfterSeconds)));
-        return send(res, 503, { error: "Service is under maintenance", code: "MAINTENANCE", message, endsAt });
-      }
-    }
 
     const params = { ...(route.pattern.exec(url.pathname)?.groups ?? {}) };
     // Route label for metrics: the pattern source, so cardinality stays bounded (#853).
     const routeLabel = `${route.method} ${route.pattern.source}`;
-    route
-      .handler(req, res, params, url)
+    const handle = async () => {
+      const method = req.method ?? "unknown";
+      const limitClass = rateLimitClass(route, method);
+      if (limitClass) {
+        const { tier, identity } = rateLimitIdentity(req);
+        const limit = RATE_LIMITS[limitClass][tier];
+        let decision: RateLimitResult;
+        try {
+          decision = await rateLimiter.consume(identity, routeLabel, limit, RATE_LIMIT_WINDOW_MS);
+        } catch (err) {
+          log.error("rate limit check failed; request rejected", { method, route: routeLabel, err });
+          res.setHeader("retry-after", "1");
+          return send(res, 503, {
+            error: "Rate limiting is temporarily unavailable",
+            code: "RATE_LIMIT_UNAVAILABLE",
+            retryAfterSeconds: 1,
+          });
+        }
+
+        res.setHeader("x-ratelimit-limit", String(decision.limit));
+        res.setHeader("x-ratelimit-remaining", String(decision.remaining));
+        res.setHeader("x-ratelimit-reset", String(Math.ceil(decision.resetAt / 1000)));
+        res.setHeader("x-ratelimit-window", String(decision.windowSeconds));
+        if (!decision.allowed) {
+          const retryAfterSeconds = Math.max(1, Math.ceil((decision.resetAt - Date.now()) / 1000));
+          res.setHeader("retry-after", String(retryAfterSeconds));
+          return send(res, 429, {
+            error: "Too many requests",
+            code: "RATE_LIMITED",
+            message: `Rate limit exceeded. Retry in ${retryAfterSeconds} second${retryAfterSeconds === 1 ? "" : "s"}.`,
+            retryAfterSeconds,
+            rateLimit: {
+              limit: decision.limit,
+              remaining: 0,
+              windowSeconds: decision.windowSeconds,
+              retryAt: new Date(decision.resetAt).toISOString(),
+            },
+          });
+        }
+      }
+
+      if (route.admin && !isAdmin(req)) {
+        return send(res, config.adminToken ? 401 : 403, {
+          error: config.adminToken ? "Unauthorized" : "Admin API disabled; set ADMIN_TOKEN to enable it",
+        });
+      }
+
+      if (maintenance.isEnabled()) {
+        res.setHeader("x-maintenance-mode", "on");
+        if (!MAINTENANCE_SAFE_METHODS.has(method) && !exemptFromMaintenance(route, url.pathname)) {
+          const { message, endsAt } = maintenance.current();
+          maintenanceRejected.inc({ method });
+          res.setHeader("retry-after", String(maintenance.retryAfterSeconds(config.maintenance.retryAfterSeconds)));
+          return send(res, 503, { error: "Service is under maintenance", code: "MAINTENANCE", message, endsAt });
+        }
+      }
+
+      await route.handler(req, res, params, url);
+    };
+
+    void handle()
       .catch((err) => {
         if (err instanceof BadRequestError) {
           if (!res.headersSent) send(res, 400, { error: err.message });

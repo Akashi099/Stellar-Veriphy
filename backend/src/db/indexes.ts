@@ -153,6 +153,14 @@ export const INDEXES: Record<string, IndexSpec[]> = {
       serves: "WebhookService.listDeliveries?eventId= — every delivery of one event",
     },
   ],
+  [Collections.rateLimitBuckets]: [
+    {
+      name: "expiresAt_ttl",
+      key: { expiresAt: 1 },
+      expireAfterSeconds: 0,
+      serves: "Expire fixed-window HTTP rate-limit counters",
+    },
+  ],
 };
 
 /** MongoDB error codes raised when an index exists with the same name/key but different options. */

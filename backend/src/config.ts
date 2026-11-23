@@ -46,10 +46,15 @@ export const config = {
   port: int("PORT", 4000),
   instanceId: `${hostname()}:${process.pid}`,
   adminToken: env("ADMIN_TOKEN"),
+  rateLimits: {
+    /** Comma-separated bearer tokens for approved integrations; these affect throttling, not authorization. */
+    trustedTokens: [...new Set(list("RATE_LIMIT_TRUSTED_TOKENS", []))],
+  },
 
   mongo: {
     uri: str("MONGODB_URI", "mongodb://localhost:27017"),
     dbName: str("MONGODB_DB", "stellarveriphy"),
+    maxPoolSize: int("MONGODB_MAX_POOL_SIZE", 100),
     slowQueryMs: int("MONGODB_SLOW_QUERY_MS", 200),
   },
 
@@ -120,8 +125,14 @@ export const config = {
   webhooks: {
     /** Comma-separated receiver URLs; every published event is delivered to each. */
     endpoints: list("WEBHOOK_ENDPOINTS", []),
-    /** HMAC-SHA256 key for the X-Veriphy-Signature header. Unsigned when unset. */
-    signingSecret: env("WEBHOOK_SIGNING_SECRET"),
+    /** Active and previous HMAC keys; both signatures are sent during secret rotation. */
+    signingSecrets: [
+      ...new Set(
+        [env("WEBHOOK_SIGNING_SECRET"), env("WEBHOOK_SIGNING_SECRET_PREVIOUS")].filter(
+          (secret): secret is string => Boolean(secret),
+        ),
+      ),
+    ],
     maxAttempts: int("WEBHOOK_MAX_ATTEMPTS", 8),
   },
 
@@ -158,6 +169,19 @@ export const config = {
     maxDeletePercent: int("ORPHAN_MEDIA_MAX_DELETE_PERCENT", 25),
   },
 };
+
+if (config.mongo.maxPoolSize < 1) {
+  throw new Error("Invalid MONGODB_MAX_POOL_SIZE: expected a positive integer");
+}
+if (config.webhooks.endpoints.length > 0 && config.webhooks.signingSecrets.length === 0) {
+  throw new Error("WEBHOOK_SIGNING_SECRET is required when WEBHOOK_ENDPOINTS is configured");
+}
+if (config.webhooks.maxAttempts < 1 || config.webhooks.maxAttempts > 20) {
+  throw new Error("Invalid WEBHOOK_MAX_ATTEMPTS: expected an integer from 1 to 20");
+}
+if (config.rateLimits.trustedTokens.some((token) => token.length < 32)) {
+  throw new Error("Invalid RATE_LIMIT_TRUSTED_TOKENS: every token must contain at least 32 characters");
+}
 
 export type Config = typeof config;
 

@@ -113,6 +113,7 @@ services:
     container_name: stellar-veriphy-staging-prometheus
     volumes:
       - ./monitoring/prometheus-staging.yml:/etc/prometheus/prometheus.yml:ro
+      - ./infra/prometheus/alerts.yml:/etc/prometheus/alerts.yml:ro
       - staging_prometheus_data:/prometheus
     ports:
       - "9090:9090"

@@ -96,6 +96,35 @@ groups:
 
   - name: database
     rules:
+      - alert: MongoDBConnectionPoolSaturationWarning
+        expr: |
+          (
+            sv_db_pool_connections_in_use{pool="mongodb"}
+              / sv_db_pool_connections_max{pool="mongodb"} >= 0.8
+          )
+          and
+          (
+            sv_db_pool_connections_in_use{pool="mongodb"}
+              / sv_db_pool_connections_max{pool="mongodb"} < 0.95
+          )
+        for: 5m
+        labels: { severity: warning }
+        annotations:
+          summary: "MongoDB connection pool is at least 80% utilized"
+          description: "Current pool utilization is {{ $value | humanizePercentage }}. Recommended warning threshold: 80% sustained for 5 minutes. Check slow queries, long-running operations, traffic spikes, and the configured pool/server limits."
+          runbook: docs/operations/database-pool-saturation.md
+
+      - alert: MongoDBConnectionPoolSaturationCritical
+        expr: |
+          sv_db_pool_connections_in_use{pool="mongodb"}
+            / sv_db_pool_connections_max{pool="mongodb"} >= 0.95
+        for: 2m
+        labels: { severity: page }
+        annotations:
+          summary: "MongoDB connection pool is at least 95% utilized"
+          description: "Current pool utilization is {{ $value | humanizePercentage }}. Recommended critical threshold: 95% sustained for 2 minutes. Requests may soon queue or time out; inspect checked-out connections and MongoDB server connection limits."
+          runbook: docs/operations/database-pool-saturation.md
+
       - alert: SlowVerificationQueries
         expr: sum by (collection, command) (rate(sv_db_slow_commands_total[10m])) > 0.1
         for: 10m

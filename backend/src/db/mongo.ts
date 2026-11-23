@@ -1,7 +1,14 @@
 import { MongoClient, type CommandStartedEvent, type Db, type Document } from "mongodb";
 import { config } from "../config.js";
 import type { Logger } from "../lib/logger.js";
-import { dbCommandDuration, dbSlowCommands } from "../lib/metrics.js";
+import {
+  dbCommandDuration,
+  dbPoolConnections,
+  dbPoolConnectionsAvailable,
+  dbPoolConnectionsInUse,
+  dbPoolConnectionsMax,
+  dbSlowCommands,
+} from "../lib/metrics.js";
 import { withRetry } from "../lib/retry.js";
 
 /** Commands worth timing; driver/handshake chatter is ignored. */
@@ -25,6 +32,12 @@ interface PendingCommand {
   shape?: Document;
 }
 
+interface PoolState {
+  max: number;
+  total: number;
+  checkedOut: Set<number>;
+}
+
 function describe(event: CommandStartedEvent): PendingCommand {
   const cmd = event.command;
   const target = cmd[event.commandName];
@@ -45,7 +58,62 @@ function describe(event: CommandStartedEvent): PendingCommand {
  */
 function instrument(client: MongoClient, log: Logger): void {
   const pending = new Map<number, PendingCommand>();
+  const pools = new Map<string, PoolState>();
   const slowMs = config.mongo.slowQueryMs;
+
+  const publishPoolMetrics = () => {
+    let total = 0;
+    let checkedOut = 0;
+    let max = 0;
+    for (const pool of pools.values()) {
+      total += pool.total;
+      checkedOut += pool.checkedOut.size;
+      max += pool.max;
+    }
+    dbPoolConnections.set({ pool: "mongodb" }, total);
+    dbPoolConnectionsInUse.set({ pool: "mongodb" }, checkedOut);
+    dbPoolConnectionsMax.set({ pool: "mongodb" }, max);
+    dbPoolConnectionsAvailable.set({ pool: "mongodb" }, Math.max(0, max - checkedOut));
+  };
+
+  client.on("connectionPoolCreated", (event) => {
+    pools.set(event.address, {
+      max: event.options.maxPoolSize ?? config.mongo.maxPoolSize,
+      total: 0,
+      checkedOut: new Set(),
+    });
+    publishPoolMetrics();
+  });
+
+  client.on("connectionPoolClosed", (event) => {
+    pools.delete(event.address);
+    publishPoolMetrics();
+  });
+
+  client.on("connectionCreated", (event) => {
+    const pool = pools.get(event.address);
+    if (pool) pool.total++;
+    publishPoolMetrics();
+  });
+
+  client.on("connectionClosed", (event) => {
+    const pool = pools.get(event.address);
+    if (pool) {
+      pool.total = Math.max(0, pool.total - 1);
+      pool.checkedOut.delete(event.connectionId);
+    }
+    publishPoolMetrics();
+  });
+
+  client.on("connectionCheckedOut", (event) => {
+    pools.get(event.address)?.checkedOut.add(event.connectionId);
+    publishPoolMetrics();
+  });
+
+  client.on("connectionCheckedIn", (event) => {
+    pools.get(event.address)?.checkedOut.delete(event.connectionId);
+    publishPoolMetrics();
+  });
 
   client.on("commandStarted", (event) => {
     if (TRACKED_COMMANDS.has(event.commandName)) pending.set(event.requestId, describe(event));
@@ -72,6 +140,7 @@ export async function connectMongo(log: Logger): Promise<{ client: MongoClient; 
       const candidate = new MongoClient(config.mongo.uri, {
         appName: "stellarveriphy-backend",
         serverSelectionTimeoutMS: 5_000,
+        maxPoolSize: config.mongo.maxPoolSize,
         monitorCommands: true,
       });
       instrument(candidate, log);
