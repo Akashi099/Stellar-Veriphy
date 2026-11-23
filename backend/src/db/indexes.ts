@@ -161,6 +161,19 @@ export const INDEXES: Record<string, IndexSpec[]> = {
       serves: "Expire fixed-window HTTP rate-limit counters",
     },
   ],
+  [Collections.migrationCheckpoints]: [
+    {
+      name: "migrationId_unique",
+      key: { migrationId: 1 },
+      unique: true,
+      serves: "MigrationCheckpointStore.get / upsert — one checkpoint document per staged storage migration",
+    },
+    {
+      name: "migrationId_stage",
+      key: { migrationId: 1, stage: 1 },
+      serves: "Resume lookups — find the checkpoint for a migration at a given stage before reprocessing records",
+    },
+  ],
 };
 
 /** MongoDB error codes raised when an index exists with the same name/key but different options. */

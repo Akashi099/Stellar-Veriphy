@@ -165,7 +165,29 @@ The Registry contract supports a multisig approval mechanism for adding provider
 
 The Registry contract's `add_tee_hash` function currently has a code path where the admin check is performed inline rather than through the centralized `require_admin()` helper. This is a tracked issue. Until resolved, the admin address should be treated as a high-value secret on any deployment where Registry outputs are trusted for real verification decisions.
 
+### Contract access policy matrix
+
+Every privileged contract action, the role required to perform it, the least-privilege option available, and the expected recovery path if the action is taken maliciously or by mistake. The full, maintained matrix lives in [`docs/security/contract-access-policy.md`](./docs/security/contract-access-policy.md); the summary below is normative for reviewers.
+
+| Action | Contract | Required role | Least-privilege option | Recovery path |
+|---|---|---|---|---|
+| Deploy / initialize | All | Deployer key (hardware wallet or HSM on mainnet) | Deploy from a dedicated, single-purpose key; hand admin to multisig immediately after `init` | Deploy a new instance and migrate consumers (no in-place upgrade) |
+| Upgrade / migrate | All | N/A — Soroban contracts are immutable | Deploy new instance; never reuse an admin key across instances | New deployment + consumer migration; revoke old admin key |
+| Pause / unpause | Oracle | Admin (`require_auth`) | Time-boxed pause by a dedicated circuit-breaker key with multisig approval | Unpause via admin; if key compromised, rotate admin through Registry governance |
+| Attestation approval (TEE hash add/rotate) | Registry | Admin + multisig threshold > 1 | Multisig with threshold ≥ 2; separate proposer and approver keys | Rotate hash, blacklist affected provider, re-verify affected certificates |
+| Provider registration | Registry | Admin + multisig threshold > 1 | Multisig approval; provider key distinct from admin key | Blacklist provider, slash stake, revoke certificates minted by provider |
+| Provider blacklist | Registry | Admin | Multisig approval for removals from blacklist | Re-review via governance; blacklist is reversible only by admin |
+| Stake slashing | Oracle | Admin | Multisig approval; cap slash amount in policy | Dispute resolution; restore stake only via governance decision |
+| Dispute resolution | Oracle | Admin | Multisig approval for outcomes above a value threshold | Escalate to governance; publish post-mortem |
+| Policy / governance handoff (admin transfer) | All | Current admin | Two-step handoff: propose new admin, new admin accepts | Revert handoff before acceptance; after acceptance, recover via multisig |
+| Certificate revocation | Provenance | Oracle address (contract) | Oracle-only; no human key can revoke directly | Re-mint after re-verification; audit revocation log |
+
+Reviewers should prefer the least-privilege option in every row: dedicated keys per function class, multisig thresholds above 1 for mainnet, and no reuse of the deployer key as an operational admin key.
+
+The matrix is validated against the implementation by [`scripts/contract-surface.sh`](./scripts/contract-surface.sh) in CI; a CI failure means the documented roles no longer match the contract entrypoints and the matrix must be updated in the same change.
+
 ---
+=======
 
 ## 6. TEE and Oracle Trust Model
 

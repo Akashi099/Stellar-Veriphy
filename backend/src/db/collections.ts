@@ -9,6 +9,7 @@ export const Collections = {
   settings: "settings",
   webhookDeliveries: "webhook_deliveries",
   rateLimitBuckets: "rate_limit_buckets",
+  migrationCheckpoints: "migration_checkpoints",
 } as const;
 
 // --- Verifications -----------------------------------------------------------
@@ -232,4 +233,47 @@ export interface WebhookDeliveryDoc {
   updatedAt: Date;
   deliveredAt?: Date;
   failedAt?: Date;
+}
+
+// --- Contract storage migrations (#973) ---------------------------------------
+
+/**
+ * pending   – created but no records processed yet
+ * running   – a worker is actively processing records
+ * paused    – stopped intentionally; safe to resume later
+ * completed – every record in the stage has been processed
+ * failed    – stopped on an error; resumable from lastProcessedId
+ */
+export type MigrationCheckpointStatus =
+  | "pending"
+  | "running"
+  | "paused"
+  | "completed"
+  | "failed";
+
+/**
+ * Resumable progress marker for a staged contract storage migration (#973).
+ * Unique per (migrationId, stage). Records are processed in ascending id order; on resume the
+ * migration continues after `lastProcessedId` so completed records are never reprocessed.
+ */
+export interface MigrationCheckpointDoc {
+  _id?: ObjectId;
+  /** Stable identifier of the migration (e.g. "2024-06-contract-storage-v2"). */
+  migrationId: string;
+  /** Ordered stage within the migration, e.g. "scan", "rewrite", "verify". */
+  stage: string;
+  /** Id of the last record successfully processed in this stage; resume continues after it. */
+  lastProcessedId?: string;
+  /** Marker indicating the stage has fully completed (no further records to process). */
+  completedIds?: boolean;
+  status: MigrationCheckpointStatus;
+  /** Number of records processed so far in this stage (for observability). */
+  processedCount?: number;
+  startedAt: Date;
+  updatedAt: Date;
+  completedAt?: Date;
+  /** Operator (or service) that started / last advanced the migration; recorded for auditing. */
+  operator: string;
+  /** Last error observed while running, kept for auditing failed checkpoints. */
+  lastError?: { code?: string; message: string; at: Date };
 }

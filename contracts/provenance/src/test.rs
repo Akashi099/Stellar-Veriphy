@@ -1483,6 +1483,154 @@ mod tests {
         assert_eq!(history.len(), 3);
     }
 
+    // --- Issue #972 --- Deterministic timestamp source for contract events
+
+    #[test]
+    fn test_minted_at_equals_ledger_timestamp() {
+        let env = Env::default();
+        env.mock_all_auths();
+        let cid = env.register_contract(None, ProvenanceContract);
+        let client = ProvenanceContractClient::new(&env, &cid);
+        let oracle = soroban_sdk::Address::generate(&env);
+        let owner = soroban_sdk::Address::generate(&env);
+        client.initialize(&oracle);
+
+        // Timestamps are sourced exclusively from the ledger (seconds since Unix epoch).
+        env.ledger().with_mut(|li| li.timestamp = 1_700_000_000);
+
+        let id = client.mint(
+            &s(&env, "sid"),
+            &s(&env, "mhash_ts1"),
+            &s(&env, "ahash"),
+            &owner,
+        );
+        let cert = client.get_certificate(&id);
+        assert_eq!(cert.minted_at, 1_700_000_000);
+
+        // Advancing the ledger timestamp is reflected in subsequent mints.
+        env.ledger().with_mut(|li| li.timestamp = 1_700_000_123);
+        let id2 = client.mint(
+            &s(&env, "sid"),
+            &s(&env, "mhash_ts2"),
+            &s(&env, "ahash"),
+            &owner,
+        );
+        assert_eq!(client.get_certificate(&id2).minted_at, 1_700_000_123);
+    }
+
+    #[test]
+    fn test_equal_timestamp_certificates_ordered_by_id() {
+        let env = Env::default();
+        env.mock_all_auths();
+        let cid = env.register_contract(None, ProvenanceContract);
+        let client = ProvenanceContractClient::new(&env, &cid);
+        let oracle = soroban_sdk::Address::generate(&env);
+        let owner = soroban_sdk::Address::generate(&env);
+        client.initialize(&oracle);
+
+        // All certificates share the same ledger timestamp.
+        env.ledger().with_mut(|li| li.timestamp = 1_700_000_500);
+
+        let a = client.mint(
+            &s(&env, "sid"),
+            &s(&env, "mhash_ord1"),
+            &s(&env, "ahash"),
+            &owner,
+        );
+        let b = client.mint(
+            &s(&env, "sid"),
+            &s(&env, "mhash_ord2"),
+            &s(&env, "ahash"),
+            &owner,
+        );
+        let c = client.mint(
+            &s(&env, "sid"),
+            &s(&env, "mhash_ord3"),
+            &s(&env, "ahash"),
+            &owner,
+        );
+
+        assert_eq!(client.get_certificate(&a).minted_at, 1_700_000_500);
+        assert_eq!(client.get_certificate(&b).minted_at, 1_700_000_500);
+        assert_eq!(client.get_certificate(&c).minted_at, 1_700_000_500);
+
+        // Deterministic ordering: ties on timestamp are broken by ascending id.
+        let results =
+            client.get_certificates_by_time_range(&1_700_000_500, &1_700_000_500, &0, &10);
+        assert_eq!(results.len(), 3);
+        assert_eq!(results.get_unchecked(0).0, a);
+        assert_eq!(results.get_unchecked(1).0, b);
+        assert_eq!(results.get_unchecked(2).0, c);
+
+        // Pagination preserves the same deterministic order.
+        let page = client.get_certificates_by_time_range(&1_700_000_500, &1_700_000_500, &1, &1);
+        assert_eq!(page.len(), 1);
+        assert_eq!(page.get_unchecked(0).0, b);
+    }
+
+    #[test]
+    fn test_expiration_boundary_uses_ledger_time() {
+        let env = Env::default();
+        env.mock_all_auths();
+        let cid = env.register_contract(None, ProvenanceContract);
+        let client = ProvenanceContractClient::new(&env, &cid);
+        let oracle = soroban_sdk::Address::generate(&env);
+        let owner = soroban_sdk::Address::generate(&env);
+        client.initialize(&oracle);
+
+        env.ledger().with_mut(|li| li.timestamp = 1_700_001_000);
+        let id = client.mint(
+            &s(&env, "sid"),
+            &s(&env, "mhash_ts3"),
+            &s(&env, "ahash"),
+            &owner,
+        );
+
+        let expires_at = 1_700_001_100;
+        client.set_expiration(&id, &Some(expires_at));
+
+        // One second before expiry: still valid.
+        env.ledger().with_mut(|li| li.timestamp = expires_at - 1);
+        assert!(!client.is_certificate_expired(&id));
+
+        // Exactly at the expiry timestamp: treated as expired (inclusive boundary).
+        env.ledger().with_mut(|li| li.timestamp = expires_at);
+        assert!(client.is_certificate_expired(&id));
+
+        // One second after expiry: still expired.
+        env.ledger().with_mut(|li| li.timestamp = expires_at + 1);
+        assert!(client.is_certificate_expired(&id));
+    }
+
+    #[test]
+    fn test_expiration_warning_boundary_uses_ledger_time() {
+        let env = Env::default();
+        env.mock_all_auths();
+        let cid = env.register_contract(None, ProvenanceContract);
+        let client = ProvenanceContractClient::new(&env, &cid);
+        let oracle = soroban_sdk::Address::generate(&env);
+        let owner = soroban_sdk::Address::generate(&env);
+        client.initialize(&oracle);
+
+        env.ledger().with_mut(|li| li.timestamp = 1_700_002_000);
+        let id = client.mint(
+            &s(&env, "sid"),
+            &s(&env, "mhash_ts4"),
+            &s(&env, "ahash"),
+            &owner,
+        );
+        let expires_at = 1_700_002_100;
+        client.set_expiration(&id, &Some(expires_at));
+
+        // Exactly `threshold` seconds before expiry: warning is raised.
+        env.ledger().with_mut(|li| li.timestamp = expires_at - 100);
+        assert!(client.check_expiration_warning(&id, &100));
+
+        // One second outside the warning window: no warning.
+        env.ledger().with_mut(|li| li.timestamp = expires_at - 101);
+        assert!(!client.check_expiration_warning(&id, &100));
+    }
+
     #[test]
     fn test_stress_multi_owner_access_pattern() {
         let env = Env::default();

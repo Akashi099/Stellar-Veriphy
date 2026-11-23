@@ -9,6 +9,7 @@ export * from "./utils/metadataRedaction";
 export * from "./utils/disputeEvidence";
 export * from "./utils/apiTokens";
 export * from "./utils/provenanceReplay";
+export * from "./utils/timestamp";
 export * from "./scoring/providerTrust";
 export * from "./factories";
 export * from "./validation/result";

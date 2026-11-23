@@ -1899,6 +1899,175 @@ fn integration_double_cancel_fails() {
 }
 
 // ---------------------------------------------------------------------------
+// #972 — Deterministic timestamp source for contract events
+//
+// On-chain timestamps come exclusively from `env.ledger().timestamp()`
+// (UNIX seconds, u64). These tests pin that source and cover the edge cases
+// around equal and skewed timestamps so ordering stays deterministic.
+// ---------------------------------------------------------------------------
+
+#[test]
+fn test_request_submitted_at_uses_ledger_timestamp() {
+    let env = make_env();
+    env.mock_all_auths();
+    let (cid, ..) = setup_oracle(&env);
+    let client = OracleContractClient::new(&env, &cid);
+    let bytes = Bytes::from_slice(&env, b"data");
+    let req = Address::generate(&env);
+
+    env.ledger().with_mut(|l| l.timestamp = 1_700_000_000);
+    let id1 = client.submit_request(&bytes, &bytes, &req, &Priority::Normal);
+    assert_eq!(client.get_request(&id1).unwrap().submitted_at, 1_700_000_000);
+
+    // Advancing the ledger timestamp is reflected verbatim (seconds, no scaling).
+    env.ledger().with_mut(|l| l.timestamp = 1_700_000_042);
+    let id2 = client.submit_request(&bytes, &bytes, &req, &Priority::Normal);
+    assert_eq!(client.get_request(&id2).unwrap().submitted_at, 1_700_000_042);
+}
+
+#[test]
+fn test_request_submitted_at_zero_timestamp_is_deterministic() {
+    let env = make_env();
+    env.mock_all_auths();
+    let (cid, ..) = setup_oracle(&env);
+    let client = OracleContractClient::new(&env, &cid);
+    let bytes = Bytes::from_slice(&env, b"data");
+    let req = Address::generate(&env);
+
+    env.ledger().with_mut(|l| l.timestamp = 0);
+    let id = client.submit_request(&bytes, &bytes, &req, &Priority::Normal);
+    assert_eq!(client.get_request(&id).unwrap().submitted_at, 0);
+}
+
+#[test]
+fn test_equal_timestamps_keep_request_ids_ordered() {
+    let env = make_env();
+    env.mock_all_auths();
+    let (cid, ..) = setup_oracle(&env);
+    let client = OracleContractClient::new(&env, &cid);
+    let bytes = Bytes::from_slice(&env, b"data");
+    let req = Address::generate(&env);
+
+    // Same timestamp for every submission: ordering must come from the id
+    // counter, never from the clock.
+    env.ledger().with_mut(|l| l.timestamp = 1_650_000_000);
+    let id1 = client.submit_request(&bytes, &bytes, &req, &Priority::Normal);
+    let id2 = client.submit_request(&bytes, &bytes, &req, &Priority::Normal);
+    let id3 = client.submit_request(&bytes, &bytes, &req, &Priority::Normal);
+
+    assert!(id1 < id2 && id2 < id3);
+    let r1 = client.get_request(&id1).unwrap();
+    let r2 = client.get_request(&id2).unwrap();
+    let r3 = client.get_request(&id3).unwrap();
+    assert_eq!(r1.submitted_at, r2.submitted_at);
+    assert_eq!(r2.submitted_at, r3.submitted_at);
+}
+
+#[test]
+fn test_skewed_timestamps_do_not_affect_id_ordering() {
+    let env = make_env();
+    env.mock_all_auths();
+    let (cid, ..) = setup_oracle(&env);
+    let client = OracleContractClient::new(&env, &cid);
+    let bytes = Bytes::from_slice(&env, b"data");
+    let req = Address::generate(&env);
+
+    // A clock that jumps backwards must not reorder ids.
+    env.ledger().with_mut(|l| l.timestamp = 2_000_000_000);
+    let id1 = client.submit_request(&bytes, &bytes, &req, &Priority::Normal);
+    env.ledger().with_mut(|l| l.timestamp = 1_000_000_000);
+    let id2 = client.submit_request(&bytes, &bytes, &req, &Priority::Normal);
+
+    assert!(id1 < id2);
+    assert_eq!(client.get_request(&id1).unwrap().submitted_at, 2_000_000_000);
+    assert_eq!(client.get_request(&id2).unwrap().submitted_at, 1_000_000_000);
+}
+
+#[test]
+fn test_expiration_warning_at_exact_threshold_is_deterministic() {
+    let env = make_env();
+    env.mock_all_auths();
+    let (cid, ..) = setup_oracle(&env);
+    let client = OracleContractClient::new(&env, &cid);
+    let bytes = Bytes::from_slice(&env, b"data");
+    let req = Address::generate(&env);
+
+    env.ledger().with_mut(|l| l.timestamp = 1_700_000_000);
+    let id = client.submit_request(&bytes, &bytes, &req, &Priority::Normal);
+    let ttl = env.as_contract(&cid, || {
+        env.storage().temporary().get_ttl(&DataKey::Request(id))
+    });
+
+    // Threshold equal to the remaining TTL must warn; one below must not.
+    client.update_warning_threshold(&ttl);
+    assert!(client.check_expiration_warning(&id));
+    client.update_warning_threshold(&ttl.saturating_sub(1).max(1));
+    assert!(!client.check_expiration_warning(&id));
+}
+
+#[test]
+fn test_expiration_warning_ignores_wall_clock_skew() {
+    let env = make_env();
+    env.mock_all_auths();
+    let (cid, ..) = setup_oracle(&env);
+    let client = OracleContractClient::new(&env, &cid);
+    let bytes = Bytes::from_slice(&env, b"data");
+    let req = Address::generate(&env);
+
+    env.ledger().with_mut(|l| l.timestamp = 1_700_000_000);
+    let id = client.submit_request(&bytes, &bytes, &req, &Priority::Normal);
+    client.update_warning_threshold(&200u32);
+    assert!(client.check_expiration_warning(&id));
+
+    // TTL is measured in ledgers; a wall-clock jump alone must not change it.
+    env.ledger().with_mut(|l| l.timestamp = 1_700_000_000 + 86_400);
+    assert!(client.check_expiration_warning(&id));
+}
+
+#[test]
+fn test_round_robin_selection_is_deterministic_for_equal_scores() {
+    let env = make_env();
+    env.mock_all_auths();
+    let (cid, ..) = setup_oracle(&env);
+    let client = OracleContractClient::new(&env, &cid);
+    let p1 = Address::generate(&env);
+    let p2 = Address::generate(&env);
+    client.add_provider(&p1);
+    client.add_provider(&p2);
+
+    // Both providers start with equal reputation; selection must be stable
+    // across repeated calls and never return an unregistered address.
+    let first = client.get_next_available_provider();
+    let second = client.get_next_available_provider();
+    assert!(first == p1 || first == p2);
+    assert!(second == p1 || second == p2);
+    assert_ne!(first, second, "round-robin must advance between calls");
+}
+
+#[test]
+fn test_round_robin_skips_suspended_provider_deterministically() {
+    let env = make_env();
+    env.mock_all_auths();
+    let (cid, ..) = setup_oracle(&env);
+    let client = OracleContractClient::new(&env, &cid);
+    let p1 = Address::generate(&env);
+    let p2 = Address::generate(&env);
+    client.add_provider(&p1);
+    client.add_provider(&p2);
+
+    // Suspend p1 via SLA violations; selection must always land on p2.
+    client.set_provider_sla(&p1, &1u32, &99u32, &99u32);
+    for _ in 0..5 {
+        client.record_verification(&p1, &false, &60u32, &0u32);
+    }
+    assert!(client.is_provider_suspended(&p1));
+
+    for _ in 0..3 {
+        assert_eq!(client.get_next_available_provider(), p2);
+    }
+}
+
+// ---------------------------------------------------------------------------
 // Error Message & Enum Verification Tests (#369)
 // ---------------------------------------------------------------------------
 

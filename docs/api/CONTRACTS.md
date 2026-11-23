@@ -213,6 +213,83 @@ stellar contract invoke --id $REGISTRY_ID --network testnet --source admin -- \
   add_tee_hash --code-hash 7c9e6f3a...
 ```
 
+## Event Replay Verification
+
+`scripts/contract-event-replay.mjs` rebuilds verification state from raw
+contract events and compares it against an exported snapshot of the current
+indexed state. Operators use it to detect records that were dropped or
+mutated between the chain and the indexer.
+
+### Inputs
+
+The tool takes two JSON files:
+
+- **Event dump** — an array of contract events (as returned by
+  `stellar contract events` or the indexer's raw event log). Each entry must
+  include `contract`, `ledger`, `txHash`, `type`, and `value`.
+- **Indexed state export** — the indexer's current view, keyed by record ID,
+  with the same fields the replay reconstructs (e.g. `requestId`,
+  `certificateId`, `provider`, `state`, `manifestHash`).
+
+```bash
+node scripts/contract-event-replay.mjs \
+  --events ./artifacts/events-1000-2000.json \
+  --state ./artifacts/indexed-state.json \
+  --from-ledger 1000 \
+  --to-ledger 2000 \
+  --out ./artifacts/replay-report.json
+```
+
+### Bounded ranges
+
+`--from-ledger` and `--to-ledger` are inclusive and required for
+deterministic runs. The tool refuses to scan unbounded ranges; split large
+backfills into windows (e.g. 10,000 ledgers) and run each window separately.
+`--contract` may be repeated to restrict replay to specific contract IDs.
+
+### Output format
+
+The report is stable, sorted JSON so successive runs can be diffed:
+
+```json
+{
+  "range": { "fromLedger": 1000, "toLedger": 2000 },
+  "contracts": ["C..."],
+  "summary": { "replayed": 412, "matched": 400, "missing": 7, "altered": 5 },
+  "missing": [
+    { "recordId": "req:1042", "lastSeenLedger": 1187, "reason": "no indexed record" }
+  ],
+  "altered": [
+    {
+      "recordId": "cert:88",
+      "fields": [
+        { "field": "manifestHash", "replayed": "9f86...", "indexed": "0000..." }
+      ]
+    }
+  ]
+}
+```
+
+### Exit codes
+
+| Code | Meaning                                                              |
+| ---- | -------------------------------------------------------------------- |
+| `0`  | Replay completed and every record matched.                           |
+| `1`  | Replay completed with `missing` or `altered` records (see report).   |
+| `2`  | Invalid arguments, unreadable input, or malformed event/state data.  |
+
+### Interpreting results
+
+- **Missing** records exist in the event stream but not in the indexed
+  state. Re-run the indexer for the affected ledger range; if the record is
+  still absent, treat it as a dropped write and escalate.
+- **Altered** records exist in both but disagree on one or more fields. The
+  `fields` array lists each mismatch with the replayed and indexed values.
+  Altered records usually indicate a bug in indexer update logic or an
+  out-of-band manual edit; do not trust the indexed copy until reconciled.
+- A clean run (`exit 0`) with an empty `missing`/`altered` set is the
+  expected state before promoting an indexer deployment.
+
 ## Error Handling
 
 Contract-defined failures use `#[contracterror]` enums such as `Error` and
